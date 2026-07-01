@@ -378,7 +378,8 @@ h2 {
   margin-bottom: 0.25rem;
 }
 .formulaire input,
-.formulaire textarea {
+.formulaire textarea,
+.formulaire select {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.5rem;
@@ -534,6 +535,89 @@ html.dyslexie body {
 html.anim-reduites * {
   animation: none !important;
   transition: none !important;
+}
+
+/* Messages (framework messages Django) */
+.messages {
+  margin-block: 1rem;
+}
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: var(--rayon);
+  border-left: 4px solid var(--couleur-muet);
+  background: var(--couleur-primaire-clair);
+}
+.message--success {
+  border-left-color: #1f7a3d;
+}
+.message--error {
+  border-left-color: #b3261e;
+}
+
+/* Espace membre : actions, projets, badges de statut */
+.espace-actions {
+  margin-block: 1rem 2rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.liste-projets {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.carte-projet {
+  padding: 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.carte-projet__titre {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+.carte-projet__meta {
+  color: var(--couleur-muet);
+  margin: 0.25rem 0;
+}
+.carte-projet__refus {
+  margin: 0.5rem 0 0;
+}
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--bordure);
+}
+.badge--brouillon {
+  background: #eee;
+  color: #1a1a1a;
+}
+.badge--propose {
+  background: #fff3cd;
+  color: #5c4400;
+}
+.badge--publie {
+  background: #d8f0e0;
+  color: #14532d;
+}
+.badge--refuse {
+  background: #f8d7da;
+  color: #7a1220;
+}
+
+/* Actions de formulaire (plusieurs boutons) */
+.formulaire__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+.lien-bouton--primaire {
+  outline: 2px solid var(--couleur-primaire);
+  outline-offset: 2px;
 }
 
 /* Respect de la préférence de réduction des animations */

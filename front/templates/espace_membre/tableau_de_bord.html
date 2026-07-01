@@ -8,6 +8,10 @@
   {% if membre %}
     <p>Bonjour {{ membre }}.</p>
 
+    <nav aria-label="Actions de l'espace membre" class="espace-actions">
+      <a class="lien-bouton" href="{% url 'espace_membre:mes_projets' %}">Mes projets</a>
+    </nav>
+
     <section aria-labelledby="titre-adhesions">
       <h2 id="titre-adhesions">Mes adhésions</h2>
       {% if adhesions %}

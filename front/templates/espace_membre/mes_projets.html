@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Mes projets — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mes projets</h1>
+
+  {% if membre %}
+    <p><a class="lien-bouton" href="{% url 'espace_membre:creer_projet' %}">Proposer un nouveau projet</a></p>
+
+    {% if projets %}
+      <ul class="liste-projets">
+        {% for projet in projets %}
+          <li class="carte-projet">
+            <h2 class="carte-projet__titre">
+              <a href="{% url 'espace_membre:editer_projet' pk=projet.pk %}">{{ projet.titre }}</a>
+            </h2>
+            <p class="carte-projet__meta">
+              <span class="badge badge--{{ projet.statut_moderation }}">
+                {{ projet.get_statut_moderation_display }}
+              </span>
+              · {{ projet.get_type_portage_display }}
+              · {{ projet.get_statut_projet_display }}
+            </p>
+            {% if projet.statut_moderation == "refuse" and projet.motif_refus %}
+              <p class="carte-projet__refus"><strong>Refusé :</strong> {{ projet.motif_refus }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Vous ne portez aucun projet pour l'instant.</p>
+    {% endif %}
+
+    <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
+  {% else %}
+    <p>
+      Votre compte n'est pas encore rattaché à une fiche membre.
+      Contactez le bureau pour proposer un projet.
+    </p>
+  {% endif %}
+{% endblock %}
