@@ -4,10 +4,11 @@ Contexte et règles de travail pour Claude Code sur ce dépôt.
 Ce fichier est court par nature : il **oriente**. Le détail fonctionnel complet
 vit dans `docs/cahier-des-charges-asso.md` — s'y référer pour toute question métier.
 
-> État du projet : **squelette en place**. Projet Django `config` + 8 apps
-> métier sous `apps/` créés ; `manage.py check` et `check --deploy` passent.
-> **Les modèles ne sont pas encore codés** (`models.py` vides, placeholders).
-> Prochaine étape : coder les modèles domaine par domaine (cf. cahier §17).
+> État du projet : **v1 fonctionnelle implémentée** (modèles, services, front
+> public, espace membre, back-office). ~168 tests pytest verts, `ruff` propre,
+> `manage.py check` et `check --deploy` passent. Carte détaillée des modules et
+> des conventions transverses → `docs/etat-implementation.md`.
+> **Reste à faire** : le déploiement VPS (fichiers prêts dans `deploiement/`).
 
 ---
 
@@ -34,26 +35,38 @@ Priorité du projet : **sur-mesure et flexible**. Détails → `docs/cahier-des-
 
 ---
 
-## Arborescence (en place, à étoffer au fil de l'eau)
+## Arborescence
 
 ```
 /
 ├── config/                 # projet Django (settings, urls, wsgi)
 ├── apps/
-│   ├── common/            # abstraits partagés (Horodatage, Moderation) — technique
-│   ├── coeur/              # Membre, Lieu
-│   ├── spectacles/         # Spectacle, LigneDistribution
-│   ├── agenda/             # Evenement
+│   ├── common/             # abstraits (Horodatage, Moderation) + services transverses :
+│   │                       #   moderation.py, fichiers.py, stockage.py, pdf.py
+│   ├── coeur/              # Utilisateur, Membre, Lieu, ParametresAssociation,
+│   │                       #   Signataire ; roles.py (est_bureau, bureau_requis)
+│   ├── spectacles/         # Spectacle, LigneDistribution, ImageSpectacle
+│   ├── agenda/             # Evenement, Intervention, ImageEvenement
 │   ├── medias/             # Media (alt obligatoire)
-│   ├── documents/          # Dossier (arbre), Document
-│   ├── facturation/        # Client, Devis, Facture, lignes
-│   ├── budget/             # Adhesion, Saison, Transaction, Categorie
+│   ├── documents/          # Dossier (arbre treebeard), Document ; services.py (versions)
+│   ├── facturation/        # Client, Devis, Facture (+ avoir), lignes ; services.py
+│   │                       #   (valider_facture, avoirs, PDF devis/facture)
+│   ├── budget/             # Adhesion, Saison, Transaction, Categorie, RecuFiscal ;
+│   │                       #   services.py (emettre_recu, bilan_par_categorie)
 │   ├── gouvernance/        # Sujet, Reunion, Resolution, Pouvoir, Presence, Parametres
-│   └── vitrine/            # front public : vues + urls (templates dans front/)
-├── front/                  # templates & assets du front public (rendu serveur)
+│   │                       #   ; services.py (quorum, résolutions)
+│   ├── vitrine/            # front public : vues + urls, calendrier/ical, contact
+│   ├── espace_membre/      # espace connecté : projets, événements, documents,
+│   │                       #   convocations, reçus (anti-IDOR)
+│   └── backoffice/         # 3e face bureau : modération, facturation, GED, budget
+│                           #   (pas de modèle propre ; migration groupe « Bureau »)
+├── front/                  # templates & assets (front public, espace membre,
+│                           #   backoffice, gabarits PDF facture/devis/recu)
 ├── docs/
-│   └── cahier-des-charges-asso.md
-├── deploiement/            # deploy.sh, webhook_receiver.py, *.service, backup.sh
+│   ├── cahier-des-charges-asso.md   # cadrage fonctionnel (référence métier)
+│   └── etat-implementation.md       # carte des modules + conventions transverses
+├── deploiement/            # deploy.sh, webhook_receiver.py, *.service, nginx-*.conf, backup.sh
+├── ruff.toml · pytest.ini · config/settings_test.py   # qualité & tests
 ├── requirements.txt
 └── CLAUDE.md
 ```
@@ -139,15 +152,26 @@ python manage.py collectstatic --noinput
 # Vérification pré-déploiement
 python manage.py check --deploy
 
-# Tests (à définir : pytest ou manage.py test)
-# python manage.py test
+# Tests (pytest + pytest-django ; base SQLite en mémoire, hors-ligne)
+pytest -q
+
+# Lint / format (ruff)
+ruff check .
+ruff format .
 ```
 
 ---
 
 ## Comment travailler ici
 
-- Avant d'implémenter un module, **lire la section correspondante** du cahier des charges.
+- Avant d'implémenter un module, **lire la section correspondante** du cahier des
+  charges, et consulter `docs/etat-implementation.md` pour les conventions déjà en place.
 - Respecter le découpage par apps métier ; ne pas mélanger les domaines.
+- **Logique métier dans un `services.py`**, pas dans les vues/routes (les vues
+  orchestrent et donnent le retour utilisateur). Zones à risque **test-first**
+  (numérotation légale, quorum, versionnement, anti-IDOR).
+- **Autorisation bureau** : toujours via `apps/coeur/roles.py` (`@bureau_requis`,
+  `est_bureau`), jamais un `is_staff` brut dans une vue.
 - Produire des migrations à chaque changement de modèle.
+- Faire passer `pytest`, `ruff check` et `manage.py check` avant de committer.
 - Signaler (sans le coder) tout écart ou décision manquante plutôt que de supposer en silence.
