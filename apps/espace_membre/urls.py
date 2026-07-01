@@ -31,4 +31,6 @@ urlpatterns = [
     ),
     path("espace/convocations/", views.mes_convocations, name="mes_convocations"),
     path("espace/convocations/<int:pk>/", views.detail_convocation, name="detail_convocation"),
+    path("espace/recus/", views.mes_recus, name="mes_recus"),
+    path("espace/recus/<int:pk>/telecharger/", views.telecharger_recu, name="telecharger_recu"),
 ]

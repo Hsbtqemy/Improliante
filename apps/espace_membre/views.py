@@ -17,6 +17,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.agenda.models import Evenement
+from apps.budget.models import RecuFiscal
+from apps.budget.services import assurer_pdf_recu
 from apps.coeur.roles import est_bureau
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
@@ -348,3 +350,31 @@ def detail_convocation(request, pk):
             "pouvoir_recu": pouvoir_recu,
         },
     )
+
+
+# --- Reçus fiscaux du membre -----------------------------------------------
+
+
+@login_required
+def mes_recus(request):
+    """Reçus fiscaux émis au nom du membre connecté."""
+    membre = _membre_connecte(request)
+    recus = (
+        RecuFiscal.objects.filter(membre=membre)
+        if membre is not None
+        else RecuFiscal.objects.none()
+    )
+    return render(request, "espace_membre/mes_recus.html", {"recus": recus})
+
+
+@login_required
+def telecharger_recu(request, pk):
+    """Téléchargement d'un reçu par le membre concerné (anti-IDOR : filtre
+    `membre=`). Rend le PDF au premier accès, puis sert le fichier privé."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        raise Http404
+    recu = get_object_or_404(RecuFiscal, pk=pk, membre=membre)
+    assurer_pdf_recu(recu)
+    extension = PurePosixPath(recu.fichier.name).suffix
+    return reponse_fichier_prive(recu.fichier, nom_telechargement=f"recu-{recu.numero}{extension}")

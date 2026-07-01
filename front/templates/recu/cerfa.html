@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Reçu fiscal {{ recu.numero }}</title>
+    <style>
+      @page { size: A4; margin: 2cm; }
+      body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #111; }
+      h1 { font-size: 16px; text-align: center; margin-bottom: 0; }
+      .sous-titre { text-align: center; color: #444; margin-top: 4px; }
+      .numero { text-align: right; font-weight: bold; margin: 12px 0; }
+      .bloc { border: 1px solid #333; padding: 10px 12px; margin: 10px 0; }
+      .bloc h2 { font-size: 13px; margin: 0 0 6px; }
+      .champ { margin: 3px 0; }
+      .montant { font-size: 15px; font-weight: bold; }
+      .mentions { font-size: 11px; color: #333; margin-top: 12px; }
+      .signature { margin-top: 28px; }
+      table { width: 100%; border-collapse: collapse; }
+      td { vertical-align: top; padding: 2px 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Reçu au titre des dons à certains organismes d'intérêt général</h1>
+    <p class="sous-titre">Article {{ asso.article_cgi }} du Code général des impôts — Cerfa n° 11580</p>
+
+    <p class="numero">Reçu n° {{ recu.numero }} — émis le {{ recu.date_emission|date:"j F Y" }}</p>
+
+    <div class="bloc">
+      <h2>Bénéficiaire des versements</h2>
+      <p class="champ"><strong>{{ asso.nom }}</strong></p>
+      {% if asso.objet %}<p class="champ">Objet : {{ asso.objet }}</p>{% endif %}
+      <p class="champ">
+        {{ asso.adresse }}{% if asso.code_postal or asso.ville %}, {{ asso.code_postal }} {{ asso.ville }}{% endif %}
+      </p>
+      {% if asso.numero_rna %}<p class="champ">N° RNA : {{ asso.numero_rna }}</p>{% endif %}
+      {% if asso.numero_siret %}<p class="champ">SIRET : {{ asso.numero_siret }}</p>{% endif %}
+    </div>
+
+    <div class="bloc">
+      <h2>Donateur</h2>
+      <p class="champ"><strong>{{ recu.donateur_nom }}</strong></p>
+      <p class="champ">
+        {{ recu.donateur_adresse }}{% if recu.donateur_code_postal or recu.donateur_ville %},
+        {{ recu.donateur_code_postal }} {{ recu.donateur_ville }}{% endif %}
+      </p>
+    </div>
+
+    <div class="bloc">
+      <h2>Versement</h2>
+      <table>
+        <tr>
+          <td>Nature</td>
+          <td>{{ recu.get_type_versement_display }} ({{ recu.get_forme_display }})</td>
+        </tr>
+        <tr>
+          <td>Date du versement</td>
+          <td>{{ recu.date_versement|date:"j F Y" }}</td>
+        </tr>
+        <tr>
+          <td>Montant</td>
+          <td class="montant">{{ recu.montant|floatformat:2 }} €</td>
+        </tr>
+      </table>
+    </div>
+
+    <p class="mentions">
+      L'organisme bénéficiaire certifie sur l'honneur que les dons et versements qu'il reçoit
+      ouvrent droit à la réduction d'impôt prévue à l'article {{ asso.article_cgi }} du Code général
+      des impôts. Le donateur conserve ce reçu ; il ne doit être joint à la déclaration de revenus
+      que sur demande de l'administration.
+    </p>
+
+    <div class="signature">
+      <p>
+        Fait à {{ asso.ville }}, le {{ recu.date_emission|date:"j F Y" }}.<br />
+        {% if asso.signataire_nom %}{{ asso.signataire_nom }}
+        {% if asso.signataire_qualite %}, {{ asso.signataire_qualite }}{% endif %}{% endif %}
+      </p>
+    </div>
+  </body>
+</html>

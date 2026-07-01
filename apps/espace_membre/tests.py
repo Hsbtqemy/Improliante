@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.conf import settings
@@ -10,7 +10,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement
-from apps.budget.models import Adhesion, Saison
+from apps.budget.models import Adhesion, RecuFiscal, Saison
+from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Utilisateur
 from apps.common.models import Moderation
 from apps.documents.models import Document
@@ -493,3 +494,59 @@ def test_membre_voit_son_statut_de_presence(client, db):
     corps = client.get(f"/espace/convocations/{ag.pk}/").content.decode()
     assert "Représenté" in corps
     assert "donné pouvoir" in corps
+
+
+# --- Reçus fiscaux du membre -----------------------------------------------
+
+
+def _recu_pour(membre, **extra):
+    donnees = {
+        "type_versement": RecuFiscal.TypeVersement.DON,
+        "montant": Decimal("10.00"),
+        "date_versement": date(2026, 1, 1),
+        "donateur_nom": str(membre),
+        "membre": membre,
+    }
+    donnees.update(extra)
+    return emettre_recu(**donnees)
+
+
+def test_mes_recus_ne_liste_que_les_siens(client, db):
+    membre = _membre("alice")
+    autre = _membre("bob")
+    _recu_pour(membre, montant=Decimal("111.00"))
+    _recu_pour(autre, montant=Decimal("999.00"))
+
+    client.force_login(membre.user)
+    corps = client.get("/espace/recus/").content.decode()
+    assert "111" in corps
+    assert "999" not in corps  # anti-IDOR : pas le reçu d'un autre membre
+
+
+def test_membre_telecharge_son_recu(client, db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 x"
+    )
+    membre = _membre("alice")
+    recu = _recu_pour(membre)
+    client.force_login(membre.user)
+    reponse = client.get(f"/espace/recus/{recu.pk}/telecharger/")
+    assert reponse.status_code == 200
+    assert b"".join(reponse.streaming_content).startswith(b"%PDF")
+
+
+def test_membre_ne_peut_pas_telecharger_le_recu_d_un_autre(client, db):
+    """ANTI-IDOR : filtre membre= → 404 sur le reçu d'autrui (avant tout rendu)."""
+    membre = _membre("alice")
+    autre = _membre("bob")
+    recu = _recu_pour(autre)
+    client.force_login(membre.user)
+    assert client.get(f"/espace/recus/{recu.pk}/telecharger/").status_code == 404
+
+
+def test_telecharger_recu_exige_la_connexion(client, db):
+    membre = _membre("alice")
+    recu = _recu_pour(membre)
+    reponse = client.get(f"/espace/recus/{recu.pk}/telecharger/")
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url

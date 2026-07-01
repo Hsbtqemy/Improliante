@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from django.contrib.auth.models import Group
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement
+from apps.budget.models import Adhesion, RecuFiscal, Saison
+from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
@@ -15,6 +18,7 @@ from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
 FILE = "/bureau/moderation/"
+RECUS = "/bureau/recus/"
 
 
 def _membre(username):
@@ -141,3 +145,90 @@ def test_hors_bureau_ne_peut_pas_moderer(client, db):
     assert reponse.status_code == 403
     projet.refresh_from_db()
     assert projet.statut_moderation == Statut.PROPOSE
+
+
+# --- Reçus fiscaux ----------------------------------------------------------
+
+
+def _donnees_recu(**extra):
+    donnees = {
+        "type_versement": RecuFiscal.TypeVersement.DON,
+        "forme": RecuFiscal.Forme.NUMERAIRE,
+        "montant": "75.00",
+        "date_versement": "2026-03-01",
+        "donateur_nom": "Paul Durand",
+        "donateur_adresse": "1 rue des Arts",
+        "donateur_code_postal": "75001",
+        "donateur_ville": "Paris",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_liste_recus_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get(RECUS).status_code == 403
+
+
+def test_bureau_accede_a_la_liste_des_recus(client, db):
+    client.force_login(_staff())
+    assert client.get(RECUS).status_code == 200
+
+
+def test_emission_manuelle_d_un_recu(client, db):
+    client.force_login(_staff())
+    reponse = client.post("/bureau/recus/nouveau/", _donnees_recu())
+    assert reponse.status_code == 302
+    recu = RecuFiscal.objects.get()
+    assert recu.numero == "R2026-0001"
+    assert recu.montant == Decimal("75.00")
+    assert recu.membre is None  # saisie manuelle : aucun rattachement
+
+
+def test_emission_depuis_adhesion_rattache_le_membre(client, db):
+    bureau = _staff()
+    membre = _membre("donateur")
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre.membre,
+        saison=saison,
+        statut=Adhesion.Statut.PAYEE,
+        montant_verse=Decimal("40.00"),
+    )
+    client.force_login(bureau)
+    reponse = client.post(
+        "/bureau/recus/nouveau/",
+        _donnees_recu(
+            adhesion=adhesion.pk,
+            type_versement=RecuFiscal.TypeVersement.COTISATION,
+            montant="40.00",
+            donateur_nom=str(membre.membre),
+        ),
+    )
+    assert reponse.status_code == 302
+    recu = RecuFiscal.objects.get()
+    assert recu.membre == membre.membre
+    assert recu.adhesion == adhesion
+
+
+def test_montant_negatif_est_refuse(client, db):
+    client.force_login(_staff())
+    reponse = client.post("/bureau/recus/nouveau/", _donnees_recu(montant="-10"))
+    assert reponse.status_code == 200  # formulaire réaffiché
+    assert RecuFiscal.objects.count() == 0
+
+
+def test_bureau_telecharge_le_pdf(client, db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 x"
+    )
+    recu = emettre_recu(
+        type_versement=RecuFiscal.TypeVersement.DON,
+        montant=Decimal("10.00"),
+        date_versement=date(2026, 1, 1),
+        donateur_nom="X",
+    )
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/recus/{recu.pk}/telecharger/")
+    assert reponse.status_code == 200
+    assert b"".join(reponse.streaming_content).startswith(b"%PDF")

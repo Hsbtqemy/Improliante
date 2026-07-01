@@ -608,6 +608,22 @@ html.anim-reduites * {
   color: #7a1220;
 }
 
+/* Tableaux (back-office) */
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 1rem;
+}
+.tableau th,
+.tableau td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--bordure);
+}
+.tableau th {
+  background: var(--couleur-primaire-clair);
+}
+
 /* Actions de formulaire (plusieurs boutons) */
 .formulaire__actions {
   display: flex;

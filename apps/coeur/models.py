@@ -84,6 +84,56 @@ class Membre(models.Model):
         return self.user.get_full_name() or self.user.get_username()
 
 
+class ParametresAssociation(models.Model):
+    """Identité légale de l'association (instance unique, éditable en admin).
+
+    Sert d'en-tête aux documents officiels — d'abord les reçus fiscaux (Cerfa
+    n° 11580), plus tard factures et courriers. Jamais codée en dur (règle 8).
+    """
+
+    nom = models.CharField(max_length=200, default="")
+    objet = models.TextField(
+        "objet de l'association",
+        blank=True,
+        help_text="Tel que déclaré (figure sur le reçu fiscal).",
+    )
+    adresse = models.CharField(max_length=255, blank=True)
+    code_postal = models.CharField("code postal", max_length=16, blank=True)
+    ville = models.CharField(max_length=120, blank=True)
+
+    numero_rna = models.CharField("n° RNA", max_length=20, blank=True)
+    numero_siret = models.CharField("SIRET", max_length=20, blank=True)
+
+    # Fondement de la déduction fiscale (art. 200 / 238 bis du CGI selon le cas).
+    article_cgi = models.CharField("article du CGI", max_length=20, default="200")
+
+    signataire_nom = models.CharField("nom du signataire", max_length=200, blank=True)
+    signataire_qualite = models.CharField(
+        "qualité du signataire",
+        max_length=120,
+        blank=True,
+        help_text="Ex. président·e, trésorier·e.",
+    )
+
+    class Meta:
+        verbose_name = "paramètres de l'association"
+        verbose_name_plural = "paramètres de l'association"
+
+    def __str__(self) -> str:
+        return self.nom or "Paramètres de l'association"
+
+    def save(self, *args, **kwargs):
+        """Force une instance unique (singleton, pk=1)."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> ParametresAssociation:
+        """Retourne l'unique instance, en la créant au besoin."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class Lieu(models.Model):
     """Lieu physique réutilisable (salle, théâtre) référencé par l'agenda."""
 

@@ -9,9 +9,11 @@
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 
 from apps.common.models import Horodatage
+from apps.common.stockage import StockagePrive
 
 
 class Saison(models.Model):
@@ -135,3 +137,108 @@ class Transaction(Horodatage):
 
     def __str__(self) -> str:
         return f"{self.libelle} ({self.get_type_flux_display()} {self.montant})"
+
+
+class CompteurRecu(models.Model):
+    """Compteur séquentiel de numéros de reçu fiscal, par année.
+
+    Même principe que `CompteurFacture` : une ligne par année, `dernier`
+    incrémenté sous verrou à l'émission pour une série continue sans trou
+    (contrainte légale — cf. budget/services.py).
+    """
+
+    annee = models.PositiveIntegerField("année", unique=True)
+    dernier = models.PositiveIntegerField("dernier numéro attribué", default=0)
+
+    class Meta:
+        verbose_name = "compteur de reçus fiscaux"
+        verbose_name_plural = "compteurs de reçus fiscaux"
+        ordering = ["-annee"]
+
+    def __str__(self) -> str:
+        return f"{self.annee} → {self.dernier}"
+
+
+class RecuFiscal(Horodatage):
+    """Reçu fiscal (Cerfa n° 11580) émis pour un don ou une cotisation.
+
+    Document LÉGAL : numéro séquentiel sans trou attribué à l'émission, et
+    **snapshot** des données (donateur, montant, date) — le reçu ne doit pas
+    changer si l'enregistrement source est modifié ensuite. Le PDF est rendu
+    paresseusement (WeasyPrint) au premier téléchargement puis mis en cache
+    dans le stockage privé.
+    """
+
+    class TypeVersement(models.TextChoices):
+        DON = "don", "Don"
+        COTISATION = "cotisation", "Cotisation"
+
+    class Forme(models.TextChoices):
+        NUMERAIRE = "numeraire", "Numéraire"
+        CHEQUE = "cheque", "Chèque"
+        VIREMENT = "virement", "Virement"
+        AUTRE = "autre", "Autre"
+
+    numero = models.CharField("numéro", max_length=20, unique=True)
+    date_emission = models.DateField("date d'émission")
+
+    type_versement = models.CharField(
+        "type de versement", max_length=12, choices=TypeVersement.choices
+    )
+    forme = models.CharField(
+        "forme du don", max_length=12, choices=Forme.choices, default=Forme.NUMERAIRE
+    )
+    montant = models.DecimalField(max_digits=10, decimal_places=2)
+    date_versement = models.DateField("date du versement")
+
+    # Snapshot du donateur (figé à l'émission).
+    donateur_nom = models.CharField("nom du donateur", max_length=200)
+    donateur_adresse = models.CharField("adresse", max_length=255, blank=True)
+    donateur_code_postal = models.CharField("code postal", max_length=16, blank=True)
+    donateur_ville = models.CharField("ville", max_length=120, blank=True)
+
+    # Rattachements optionnels (traçabilité comptable ; null si saisie manuelle).
+    membre = models.ForeignKey(
+        "coeur.Membre",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recus_fiscaux",
+        verbose_name="membre concerné",
+    )
+    adhesion = models.ForeignKey(
+        Adhesion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recus_fiscaux",
+    )
+    transaction = models.ForeignKey(
+        Transaction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recus_fiscaux",
+        verbose_name="transaction (don)",
+    )
+
+    # PDF Cerfa mis en cache au 1er téléchargement (stockage privé, hors web).
+    fichier = models.FileField(
+        "PDF du reçu", upload_to="recus/%Y/", storage=StockagePrive, blank=True
+    )
+    emis_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recus_emis",
+        verbose_name="émis par",
+    )
+
+    class Meta:
+        verbose_name = "reçu fiscal"
+        verbose_name_plural = "reçus fiscaux"
+        ordering = ["-date_emission", "-id"]
+
+    def __str__(self) -> str:
+        return f"Reçu {self.numero} — {self.donateur_nom}"

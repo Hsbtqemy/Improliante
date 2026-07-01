@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Mes reçus fiscaux — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mes reçus fiscaux</h1>
+
+  {% if recus %}
+    <ul class="liste-projets">
+      {% for recu in recus %}
+        <li class="carte-projet">
+          <h2 class="carte-projet__titre">Reçu {{ recu.numero }}</h2>
+          <p class="carte-projet__meta">
+            {{ recu.get_type_versement_display }} · {{ recu.montant|floatformat:2 }} €
+            · versé le {{ recu.date_versement|date:"j F Y" }}
+          </p>
+          <a class="lien-bouton" href="{% url 'espace_membre:telecharger_recu' pk=recu.pk %}">
+            Télécharger le reçu (PDF)
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Aucun reçu fiscal disponible pour l'instant.</p>
+  {% endif %}
+
+  <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
+{% endblock %}

@@ -16,4 +16,7 @@ urlpatterns = [
         views.moderer_evenement,
         name="moderer_evenement",
     ),
+    path("bureau/recus/", views.liste_recus, name="liste_recus"),
+    path("bureau/recus/nouveau/", views.creer_recu, name="creer_recu"),
+    path("bureau/recus/<int:pk>/telecharger/", views.telecharger_recu, name="telecharger_recu"),
 ]
