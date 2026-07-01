@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Mon espace — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mon espace</h1>
+
+  {% if membre %}
+    <p>Bonjour {{ membre }}.</p>
+
+    <section aria-labelledby="titre-adhesions">
+      <h2 id="titre-adhesions">Mes adhésions</h2>
+      {% if adhesions %}
+        <ul>
+          {% for adhesion in adhesions %}
+            <li>
+              {{ adhesion.saison }} — {{ adhesion.get_statut_display }}
+              ({{ adhesion.montant_verse }} € versés)
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Aucune adhésion enregistrée pour l'instant.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <p>
+      Votre compte n'est pas encore rattaché à une fiche membre.
+      Contactez le bureau pour la mise en place.
+    </p>
+  {% endif %}
+{% endblock %}

@@ -25,6 +25,21 @@
             <li><a href="{% url 'vitrine:galerie' %}">Galerie</a></li>
             <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
             <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
+            {% if request.user.is_authenticated %}
+              <li><a href="{% url 'espace_membre:tableau_de_bord' %}">Mon espace</a></li>
+              <li>
+                <form
+                  method="post"
+                  action="{% url 'espace_membre:deconnexion' %}"
+                  class="nav-deconnexion"
+                >
+                  {% csrf_token %}
+                  <button type="submit">Déconnexion</button>
+                </form>
+              </li>
+            {% else %}
+              <li><a href="{% url 'espace_membre:connexion' %}">Connexion</a></li>
+            {% endif %}
           </ul>
         </nav>
       </div>

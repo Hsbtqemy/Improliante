@@ -18,7 +18,7 @@ admin.site.index_title = "Back-office"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("apps.vitrine.urls")),  # front public
-    # path("membre/", include("apps.coeur.urls")), # espace membre (à venir)
+    path("", include("apps.espace_membre.urls")),  # espace membre (connecté)
 ]
 
 # En développement uniquement : service des fichiers médias par Django.

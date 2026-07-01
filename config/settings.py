@@ -101,6 +101,7 @@ LOCAL_APPS = [
     "apps.budget",
     "apps.gouvernance",
     "apps.vitrine",  # front public (rendu serveur)
+    "apps.espace_membre",  # espace membre connecté
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -160,6 +161,11 @@ DATABASES = {
 # --- Authentification / mots de passe --------------------------------------
 # Modèle utilisateur custom dès la v1 (extensible sans migration lourde).
 AUTH_USER_MODEL = "coeur.Utilisateur"
+
+# Espace membre : redirections d'authentification.
+LOGIN_URL = "espace_membre:connexion"
+LOGIN_REDIRECT_URL = "espace_membre:tableau_de_bord"
+LOGOUT_REDIRECT_URL = "vitrine:accueil"
 
 # Hachage Argon2 imposé (cf. §10). Nécessite argon2-cffi (requirements.txt).
 

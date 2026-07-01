@@ -99,6 +99,21 @@ select:focus-visible,
 .site-nav a:hover {
   text-decoration: underline;
 }
+.nav-deconnexion {
+  display: inline;
+  margin: 0;
+}
+.nav-deconnexion button {
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  color: var(--couleur-texte);
+  font: inherit;
+  cursor: pointer;
+}
+.nav-deconnexion button:hover {
+  text-decoration: underline;
+}
 
 main {
   padding-block: 2rem;

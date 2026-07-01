@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Connexion — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Connexion à l'espace membre</h1>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="erreurs" role="alert">{{ form.non_field_errors|striptags }}</div>
+    {% endif %}
+
+    <p class="champ">
+      <label for="{{ form.username.id_for_label }}">Identifiant</label>
+      {{ form.username }}
+    </p>
+
+    <p class="champ">
+      <label for="{{ form.password.id_for_label }}">Mot de passe</label>
+      {{ form.password }}
+    </p>
+
+    <input type="hidden" name="next" value="{{ next }}" />
+    <button type="submit" class="lien-bouton">Se connecter</button>
+  </form>
+{% endblock %}
