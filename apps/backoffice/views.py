@@ -160,7 +160,12 @@ def creer_recu(request):
     enregistrement) : le formulaire est simplement pré-rempli quand une
     adhésion source est fournie (`?adhesion=<pk>`)."""
     adhesion_pk = request.POST.get("adhesion") or request.GET.get("adhesion")
-    adhesion = get_object_or_404(Adhesion, pk=adhesion_pk) if adhesion_pk else None
+    # Paramètre non numérique → aucune adhésion source (évite un 500 sur ?adhesion=abc).
+    adhesion = (
+        get_object_or_404(Adhesion, pk=adhesion_pk)
+        if adhesion_pk and adhesion_pk.isdigit()
+        else None
+    )
 
     if request.method == "POST":
         form = RecuFiscalForm(request.POST)
@@ -514,9 +519,12 @@ def ged_nouvelle_version(request, pk):
 
 
 def _saison_demandee(request, defaut_premiere=False):
-    """Saison sélectionnée via ?saison=<pk> (ou la plus récente en repli)."""
+    """Saison sélectionnée via ?saison=<pk> (ou la plus récente en repli).
+
+    On valide que le paramètre est numérique : un `?saison=abc` ne doit pas
+    provoquer d'erreur de conversion de type côté PostgreSQL (500)."""
     saison_pk = request.GET.get("saison")
-    if saison_pk:
+    if saison_pk and saison_pk.isdigit():
         return Saison.objects.filter(pk=saison_pk).first()
     return Saison.objects.first() if defaut_premiere else None
 

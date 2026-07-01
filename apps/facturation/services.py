@@ -125,12 +125,22 @@ def numeroter_devis(devis: Devis) -> None:
 
     Série annuelle « D{annee}-{seq:04d} ». Contrairement aux factures, le devis
     n'a PAS de contrainte légale de continuité : un trou (devis supprimé) est
-    sans conséquence, on ne verrouille donc pas l'attribution."""
+    toléré. On se fonde sur le plus grand numéro déjà attribué dans l'année
+    (et non sur un `count()`) pour ne jamais réutiliser un numéro après une
+    suppression — ce qui créerait un doublon. La concurrence (deux devis créés
+    exactement en même temps) n'est pas verrouillée : acceptable pour un devis,
+    qui n'a pas la criticité légale d'une facture."""
     if devis.numero:
         return
     annee = (devis.date or timezone.localdate()).year
-    seq = Devis.objects.filter(date__year=annee).exclude(pk=devis.pk).count() + 1
-    devis.numero = f"D{annee}-{seq:04d}"
+    prefixe = f"D{annee}-"
+    dernier = 0
+    for numero in Devis.objects.filter(numero__startswith=prefixe).values_list("numero", flat=True):
+        try:
+            dernier = max(dernier, int(numero.removeprefix(prefixe)))
+        except ValueError:
+            continue  # numéro hors format : ignoré
+    devis.numero = f"{prefixe}{dernier + 1:04d}"
     devis.save(update_fields=["numero"])
 
 

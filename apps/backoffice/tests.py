@@ -633,3 +633,14 @@ def test_bilan_affiche_les_totaux(client, db):
     client.force_login(_staff())
     corps = client.get(f"/bureau/budget/bilan/?saison={saison.pk}").content.decode()
     assert "800" in corps
+
+
+def test_bilan_tolere_un_parametre_saison_non_numerique(client, db):
+    """?saison=abc ne doit pas provoquer d'erreur 500 (conversion de pk)."""
+    client.force_login(_staff())
+    assert client.get("/bureau/budget/bilan/?saison=abc").status_code == 200
+
+
+def test_creer_recu_tolere_un_parametre_adhesion_non_numerique(client, db):
+    client.force_login(_staff())
+    assert client.get("/bureau/recus/nouveau/?adhesion=abc").status_code == 200

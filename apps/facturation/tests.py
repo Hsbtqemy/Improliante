@@ -111,6 +111,21 @@ def test_numeroter_devis_ne_reecrit_pas_un_numero_existant(client_facture):
     assert devis.numero == "D2026-0042"
 
 
+def test_numeroter_devis_ne_reutilise_pas_apres_suppression(client_facture):
+    """Un numéro supprimé ne doit jamais être réattribué (pas de doublon)."""
+    d1 = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    numeroter_devis(d1)
+    d2 = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    numeroter_devis(d2)
+    assert [d1.numero, d2.numero] == ["D2026-0001", "D2026-0002"]
+
+    d1.delete()
+    d3 = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    numeroter_devis(d3)
+    assert d3.numero == "D2026-0003"  # 0002 n'est pas réutilisé
+    assert Devis.objects.filter(numero="D2026-0002").count() == 1  # aucun doublon
+
+
 def test_transformer_en_facture_copie_client_et_lignes(client_facture):
     devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1), objet="Spectacle")
     LigneDevis.objects.create(
