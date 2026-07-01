@@ -23,4 +23,10 @@ urlpatterns = [
     path("espace/evenements/", views.mes_evenements, name="mes_evenements"),
     path("espace/evenements/nouveau/", views.creer_evenement, name="creer_evenement"),
     path("espace/evenements/<int:pk>/", views.editer_evenement, name="editer_evenement"),
+    path("espace/documents/", views.mes_documents, name="mes_documents"),
+    path(
+        "espace/documents/<int:pk>/telecharger/",
+        views.telecharger_document,
+        name="telecharger_document",
+    ),
 ]

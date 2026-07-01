@@ -7,13 +7,16 @@ On teste sur un modèle concret héritant du mixin `Moderation` — ici
 from __future__ import annotations
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
+from apps.common.fichiers import reponse_fichier_prive
 from apps.common.models import Moderation
 from apps.common.moderation import (
     TransitionModerationInvalide,
     peut_etre_edite_par_auteur,
     soumettre_a_moderation,
 )
+from apps.documents.models import Document
 from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
@@ -62,3 +65,35 @@ def test_soumettre_un_publie_est_refuse(db):
 def test_peut_etre_edite_par_auteur(db, statut, attendu):
     projet = Spectacle.objects.create(titre="X", statut_moderation=statut)
     assert peut_etre_edite_par_auteur(projet) is attendu
+
+
+# --- Service de fichier privé ----------------------------------------------
+
+
+def _document_pdf():
+    return Document.objects.create(
+        titre="Reçu",
+        confidentialite=Document.Confidentialite.PRIVE,
+        fichier=SimpleUploadedFile("recu.pdf", b"%PDF-1.4 data", content_type="application/pdf"),
+    )
+
+
+def test_reponse_fichier_prive_sert_le_contenu_en_dev(db):
+    """Mode dev (UTILISER_X_ACCEL=False) : Django sert lui-même le flux."""
+    document = _document_pdf()
+    reponse = reponse_fichier_prive(document.fichier)
+    assert b"".join(reponse.streaming_content) == b"%PDF-1.4 data"
+    assert reponse["Content-Type"] == "application/pdf"
+
+
+def test_reponse_fichier_prive_delegue_a_nginx_en_prod(db, settings):
+    """Mode prod : réponse vide + en-tête X-Accel-Redirect, le fichier ne
+    transite pas par Python (c'est Nginx qui le sert)."""
+    settings.UTILISER_X_ACCEL = True
+    settings.X_ACCEL_PREFIXE = "/media-prive/"
+    document = _document_pdf()
+    reponse = reponse_fichier_prive(document.fichier)
+    assert reponse.status_code == 200
+    assert reponse["X-Accel-Redirect"] == "/media-prive/" + document.fichier.name
+    assert reponse.content == b""  # pas de corps : Nginx s'en charge
+    assert "attachment" in reponse["Content-Disposition"]

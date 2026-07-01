@@ -198,11 +198,26 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # cible de collectstatic (prod)
 STATICFILES_DIRS = [BASE_DIR / "front" / "static"]  # assets du front public
 
-# Médias uploadés. En production, les fichiers PRIVÉS (factures, reçus fiscaux,
-# pièces membres) doivent être servis via une vue authentifiée / X-Accel-Redirect,
-# jamais par URL publique devinable, et stockés hors racine web (cf. §9 et §14).
+# Médias uploadés. `MEDIA_ROOT` (servi publiquement par Nginx) ne contient que
+# des fichiers destinés au public. Les fichiers PRIVÉS (factures, reçus fiscaux,
+# pièces membres, documents confidentiels) vont dans `MEDIA_PRIVE_ROOT`, hors
+# racine web, et ne sont servis QUE par une vue authentifiée contrôlant les
+# droits (cf. apps.common.fichiers) — jamais par URL publique devinable.
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Stockage privé : hors racine web publique. En production, Nginx expose ce
+# dossier via une location `internal` (X-Accel-Redirect) accessible uniquement
+# après contrôle des droits côté Django.
+MEDIA_PRIVE_ROOT = Path(os.environ.get("DJANGO_MEDIA_PRIVE_ROOT", BASE_DIR / "media_prive"))
+
+# Service des fichiers privés :
+# - en production, on délègue l'envoi à Nginx via l'en-tête X-Accel-Redirect
+#   (Django ne fait que contrôler les droits, Nginx sert le fichier) ;
+# - en développement, Django sert lui-même le fichier (FileResponse).
+UTILISER_X_ACCEL = env_bool("DJANGO_X_ACCEL", not DEBUG)
+# Préfixe de la location `internal` Nginx pointant vers MEDIA_PRIVE_ROOT.
+X_ACCEL_PREFIXE = os.environ.get("DJANGO_X_ACCEL_PREFIXE", "/media-prive/")
 
 
 # --- Divers -----------------------------------------------------------------

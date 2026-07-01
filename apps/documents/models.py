@@ -17,6 +17,7 @@ from django.db import models
 from treebeard.mp_tree import MP_Node
 
 from apps.common.models import Horodatage
+from apps.common.stockage import StockagePrive
 
 
 class Dossier(MP_Node):
@@ -51,7 +52,9 @@ class Document(Horodatage):
         blank=True,
         related_name="documents",
     )
-    fichier = models.FileField("fichier", upload_to="documents/%Y/%m/")
+    # Stockage privé : hors racine web publique. L'accès passe obligatoirement
+    # par une vue authentifiée (cf. apps.espace_membre.views.telecharger_document).
+    fichier = models.FileField("fichier", upload_to="documents/%Y/%m/", storage=StockagePrive)
     description = models.TextField(blank=True)
     confidentialite = models.CharField(
         "confidentialité",

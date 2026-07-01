@@ -9,12 +9,17 @@ si le membre n'est pas porteur, sans révéler l'existence de la fiche.
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.agenda.models import Evenement
+from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
+from apps.documents.models import Document
 from apps.spectacles.models import Spectacle
 
 from .forms import EvenementMembreForm, ProjetMembreForm
@@ -211,4 +216,59 @@ def editer_evenement(request, pk):
         request,
         "espace_membre/evenement_form.html",
         {"form": form, "evenement": evenement, "editable": editable},
+    )
+
+
+# --- Documents privés : consultation + téléchargement contrôlé -------------
+# Les fichiers vivent hors racine web (StockagePrive) : l'accès passe TOUJOURS
+# par une vue authentifiée qui contrôle la confidentialité (règle 5).
+
+
+def _peut_acceder_document(user, document) -> bool:
+    """Autorisation d'accès à un document selon sa confidentialité.
+
+    - PUBLIC : tout compte connecté.
+    - MEMBRES : comptes rattachés à une fiche membre.
+    - PRIVÉ : bureau (staff) ou la personne qui a déposé le document.
+    Le bureau (staff) a accès à tout.
+    """
+    if user.is_staff:
+        return True
+    conf = document.confidentialite
+    if conf == Document.Confidentialite.PUBLIC:
+        return True
+    if conf == Document.Confidentialite.MEMBRES:
+        return getattr(user, "membre", None) is not None
+    return document.cree_par_id == user.id
+
+
+def _documents_accessibles(user):
+    """Documents (version courante) visibles par l'utilisateur, sans exposer
+    les niveaux qu'il n'a pas le droit de voir."""
+    if user.is_staff:
+        return Document.objects.filter(courant=True).order_by("titre")
+    niveaux = {Document.Confidentialite.PUBLIC}
+    if getattr(user, "membre", None) is not None:
+        niveaux.add(Document.Confidentialite.MEMBRES)
+    return Document.objects.filter(courant=True, confidentialite__in=niveaux).order_by("titre")
+
+
+@login_required
+def mes_documents(request):
+    """Liste des documents que le membre connecté a le droit de consulter."""
+    documents = _documents_accessibles(request.user).select_related("dossier")
+    return render(request, "espace_membre/mes_documents.html", {"documents": documents})
+
+
+@login_required
+def telecharger_document(request, pk):
+    """Sert un document privé après contrôle des droits. Renvoie 404 (et non
+    403) sur un document interdit : on ne révèle pas son existence."""
+    document = get_object_or_404(Document, pk=pk)
+    if not _peut_acceder_document(request.user, document):
+        raise Http404
+    # Nom présenté = titre + extension réelle du fichier.
+    extension = PurePosixPath(document.fichier.name).suffix
+    return reponse_fichier_prive(
+        document.fichier, nom_telechargement=f"{document.titre}{extension}"
     )

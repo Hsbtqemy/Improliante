@@ -5,12 +5,15 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement
 from apps.budget.models import Adhesion, Saison
 from apps.coeur.models import Membre, Utilisateur
 from apps.common.models import Moderation
+from apps.documents.models import Document
 from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
@@ -19,6 +22,15 @@ Statut = Moderation.StatutModeration
 def _membre(username):
     user = Utilisateur.objects.create_user(username=username, password="motdepasse")
     return Membre.objects.create(user=user)
+
+
+def _document(confidentialite, *, cree_par=None, titre="Doc", contenu=b"%PDF-1.4 secret"):
+    return Document.objects.create(
+        titre=titre,
+        confidentialite=confidentialite,
+        cree_par=cree_par,
+        fichier=SimpleUploadedFile(f"{titre}.pdf", contenu, content_type="application/pdf"),
+    )
 
 
 def test_tableau_de_bord_exige_la_connexion(client, db):
@@ -291,3 +303,92 @@ def test_mes_evenements_ne_liste_que_les_siens(client, db):
     corps = client.get("/espace/evenements/").content.decode()
     assert "Le mien" in corps
     assert "Le sien" not in corps
+
+
+# --- Fichiers privés : stockage isolé + téléchargement contrôlé ------------
+
+
+def _corps_stream(reponse):
+    """Concatène le contenu d'une réponse en flux (FileResponse)."""
+    return b"".join(reponse.streaming_content)
+
+
+def test_le_fichier_prive_est_stocke_hors_racine_publique(db):
+    """Propriété de sécurité : le fichier vit sous MEDIA_PRIVE_ROOT, jamais
+    sous MEDIA_ROOT (servi publiquement par Nginx)."""
+    document = _document(Document.Confidentialite.MEMBRES)
+    chemin = document.fichier.path
+    assert chemin.startswith(str(settings.MEDIA_PRIVE_ROOT))
+    assert not chemin.startswith(str(settings.MEDIA_ROOT))
+
+
+def test_telecharger_document_exige_la_connexion(client, db):
+    document = _document(Document.Confidentialite.PUBLIC)
+    reponse = client.get(f"/espace/documents/{document.pk}/telecharger/")
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url
+
+
+def test_document_public_est_servi_a_un_membre_connecte(client, db):
+    membre = _membre("alice")
+    document = _document(Document.Confidentialite.PUBLIC, contenu=b"contenu public")
+    client.force_login(membre.user)
+    reponse = client.get(f"/espace/documents/{document.pk}/telecharger/")
+    assert reponse.status_code == 200
+    assert _corps_stream(reponse) == b"contenu public"
+    assert "attachment" in reponse["Content-Disposition"]
+
+
+def test_document_membres_refuse_sans_fiche_membre(client, db):
+    """Un compte sans fiche membre n'accède pas aux documents « membres »."""
+    user = Utilisateur.objects.create_user(username="technique", password="x")
+    document = _document(Document.Confidentialite.MEMBRES)
+    client.force_login(user)
+    assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 404
+
+
+def test_document_membres_servi_a_un_membre(client, db):
+    membre = _membre("alice")
+    document = _document(Document.Confidentialite.MEMBRES)
+    client.force_login(membre.user)
+    assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 200
+
+
+def test_document_prive_refuse_a_un_autre_membre(client, db):
+    """ANTI-IDOR / anti-énumération : un document privé d'autrui renvoie 404,
+    pas 403 (on ne confirme pas son existence)."""
+    auteur = _membre("auteur")
+    document = _document(Document.Confidentialite.PRIVE, cree_par=auteur.user)
+    intrus = _membre("intrus")
+    client.force_login(intrus.user)
+    assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 404
+
+
+def test_document_prive_servi_a_son_auteur(client, db):
+    auteur = _membre("auteur")
+    document = _document(Document.Confidentialite.PRIVE, cree_par=auteur.user)
+    client.force_login(auteur.user)
+    assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 200
+
+
+def test_document_prive_servi_au_bureau(client, db):
+    staff = Utilisateur.objects.create_user(username="bureau", password="x", is_staff=True)
+    auteur = _membre("auteur")
+    document = _document(Document.Confidentialite.PRIVE, cree_par=auteur.user)
+    client.force_login(staff)
+    assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 200
+
+
+def test_mes_documents_ne_liste_que_les_accessibles(client, db):
+    membre = _membre("alice")
+    _document(Document.Confidentialite.PUBLIC, titre="Statuts")
+    _document(Document.Confidentialite.MEMBRES, titre="ConvocationAG")
+    _document(
+        Document.Confidentialite.PRIVE, titre="ContratConfidentiel", cree_par=_membre("rh").user
+    )
+
+    client.force_login(membre.user)
+    corps = client.get("/espace/documents/").content.decode()
+    assert "Statuts" in corps
+    assert "ConvocationAG" in corps
+    assert "ContratConfidentiel" not in corps  # privé d'autrui : masqué

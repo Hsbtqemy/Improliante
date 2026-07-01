@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Mes documents — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Documents</h1>
+
+  <p class="carte-projet__meta">
+    Ces documents sont servis de façon sécurisée : chaque téléchargement vérifie vos droits.
+  </p>
+
+  {% if documents %}
+    <ul class="liste-projets">
+      {% for document in documents %}
+        <li class="carte-projet">
+          <h2 class="carte-projet__titre">
+            <a href="{% url 'espace_membre:telecharger_document' pk=document.pk %}">{{ document.titre }}</a>
+          </h2>
+          <p class="carte-projet__meta">
+            <span class="badge">{{ document.get_confidentialite_display }}</span>
+            {% if document.dossier %}· {{ document.dossier }}{% endif %}
+            · version {{ document.version }}
+            {% if document.date_validite %}· valide jusqu'au {{ document.date_validite|date:"j F Y" }}{% endif %}
+          </p>
+          {% if document.description %}
+            <p class="carte-projet__meta">{{ document.description }}</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Aucun document disponible pour l'instant.</p>
+  {% endif %}
+
+  <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
+{% endblock %}
