@@ -8,6 +8,7 @@ from django import forms
 
 from apps.budget.models import RecuFiscal
 from apps.coeur.models import Signataire
+from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 
 
@@ -129,3 +130,37 @@ LigneDevisFormSet = forms.inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+# --- GED --------------------------------------------------------------------
+
+
+class DossierForm(forms.ModelForm):
+    """Création d'un dossier (le parent est fourni par la vue, pas ici)."""
+
+    class Meta:
+        model = Dossier
+        fields = ["nom", "description"]
+        widgets = {"description": forms.Textarea(attrs={"rows": 2})}
+
+
+class DocumentForm(forms.ModelForm):
+    """Téléversement d'un document (le dossier et l'auteur sont posés par la vue)."""
+
+    class Meta:
+        model = Document
+        fields = ["titre", "fichier", "confidentialite", "description", "date_validite"]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 2}),
+            "date_validite": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date_validite"].input_formats = ["%Y-%m-%d"]
+
+
+class NouvelleVersionForm(forms.Form):
+    """Remplacement d'un document par une nouvelle version (fichier seul)."""
+
+    fichier = forms.FileField(label="Nouveau fichier")

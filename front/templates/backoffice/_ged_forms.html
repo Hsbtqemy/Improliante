@@ -1,0 +1,33 @@
+{% comment %}Formulaires partagés GED : création de dossier + téléversement.{% endcomment %}
+<section aria-labelledby="titre-nouveau-dossier">
+  <h2 id="titre-nouveau-dossier">Nouveau {% if dossier %}sous-dossier{% else %}dossier{% endif %}</h2>
+  <form method="post" class="formulaire">
+    {% csrf_token %}
+    <input type="hidden" name="form_type" value="dossier" />
+    {% for field in dossier_form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+    <button type="submit" class="lien-bouton">Créer le dossier</button>
+  </form>
+</section>
+
+<section aria-labelledby="titre-televerser">
+  <h2 id="titre-televerser">Téléverser un document</h2>
+  <form method="post" enctype="multipart/form-data" class="formulaire">
+    {% csrf_token %}
+    <input type="hidden" name="form_type" value="document" />
+    {% for field in document_form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+    <button type="submit" class="lien-bouton lien-bouton--primaire">Téléverser</button>
+  </form>
+</section>

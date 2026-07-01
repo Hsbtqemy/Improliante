@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Documents (GED) — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Documents (GED)</h1>
+
+  <section aria-labelledby="titre-arbre">
+    <h2 id="titre-arbre">Dossiers</h2>
+    {% if dossiers %}
+      <ul class="arbre-dossiers">
+        {% for d in dossiers %}
+          <li style="padding-left: {{ d.depth }}em">
+            <a href="{% url 'backoffice:ged_dossier' pk=d.pk %}">{{ d.nom }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucun dossier pour l'instant.</p>
+    {% endif %}
+  </section>
+
+  {% include "backoffice/_ged_forms.html" %}
+
+  <section aria-labelledby="titre-docs-racine">
+    <h2 id="titre-docs-racine">Documents non classés</h2>
+    {% include "backoffice/_ged_documents.html" %}
+  </section>
+{% endblock %}

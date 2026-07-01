@@ -1,0 +1,34 @@
+{% comment %}Liste de documents courants + remplacement par une nouvelle version.{% endcomment %}
+{% if documents %}
+  <table class="tableau">
+    <thead>
+      <tr>
+        <th scope="col">Titre</th>
+        <th scope="col">Confidentialité</th>
+        <th scope="col">Version</th>
+        <th scope="col">Fichier</th>
+        <th scope="col">Nouvelle version</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in documents %}
+        <tr>
+          <td>{{ doc.titre }}</td>
+          <td><span class="badge">{{ doc.get_confidentialite_display }}</span></td>
+          <td>v{{ doc.version }}</td>
+          <td><a href="{% url 'espace_membre:telecharger_document' pk=doc.pk %}">Télécharger</a></td>
+          <td>
+            <form method="post" enctype="multipart/form-data"
+                  action="{% url 'backoffice:ged_nouvelle_version' pk=doc.pk %}">
+              {% csrf_token %}
+              {{ version_form.fichier }}
+              <button type="submit" class="lien-bouton">Remplacer</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>Aucun document.</p>
+{% endif %}

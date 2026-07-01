@@ -608,6 +608,16 @@ html.anim-reduites * {
   color: #7a1220;
 }
 
+/* Arbre des dossiers (GED) */
+.arbre-dossiers {
+  list-style: none;
+  padding-left: 0;
+}
+.arbre-dossiers li {
+  padding-block: 0.2rem;
+  border-bottom: 1px solid var(--bordure);
+}
+
 /* Tableaux (back-office) */
 .tableau {
   width: 100%;

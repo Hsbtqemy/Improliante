@@ -6,6 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement
@@ -14,6 +15,7 @@ from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
+from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.spectacles.models import Spectacle
 
@@ -489,3 +491,75 @@ def test_creer_avoir_sur_brouillon_refuse_par_la_vue(client, db):
     client.force_login(_staff())
     client.post(f"/bureau/factures/{facture.pk}/avoir/")
     assert not Facture.objects.filter(type_piece=Facture.TypePiece.AVOIR).exists()
+
+
+# --- GED --------------------------------------------------------------------
+
+
+def test_ged_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/documents/").status_code == 403
+
+
+def test_creer_dossier_racine(client, db):
+    client.force_login(_staff())
+    client.post("/bureau/documents/", {"form_type": "dossier", "nom": "Statuts", "description": ""})
+    dossier = Dossier.objects.get(nom="Statuts")
+    assert dossier.depth == 1  # dossier racine
+
+
+def test_creer_sous_dossier(client, db):
+    racine = Dossier.add_root(nom="Vie associative")
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/documents/dossier/{racine.pk}/",
+        {"form_type": "dossier", "nom": "PV d'AG", "description": ""},
+    )
+    enfant = Dossier.objects.get(nom="PV d'AG")
+    assert enfant.depth == 2
+    assert enfant.get_parent().nom == "Vie associative"
+
+
+def test_televerser_document_dans_un_dossier(client, db):
+    bureau = _staff()
+    dossier = Dossier.add_root(nom="Documents")
+    client.force_login(bureau)
+    client.post(
+        f"/bureau/documents/dossier/{dossier.pk}/",
+        {
+            "form_type": "document",
+            "titre": "Statuts 2026",
+            "confidentialite": Document.Confidentialite.MEMBRES,
+            "description": "",
+            "date_validite": "",
+            "fichier": SimpleUploadedFile(
+                "statuts.pdf", b"contenu", content_type="application/pdf"
+            ),
+        },
+    )
+    doc = Document.objects.get()
+    assert doc.dossier == dossier
+    assert doc.titre == "Statuts 2026"
+    assert doc.cree_par == bureau
+    assert doc.courant is True
+    assert doc.version == 1
+
+
+def test_nouvelle_version_remplace_l_ancienne(client, db):
+    dossier = Dossier.add_root(nom="Documents")
+    ancien = Document.objects.create(
+        titre="Statuts",
+        dossier=dossier,
+        confidentialite=Document.Confidentialite.MEMBRES,
+        fichier=SimpleUploadedFile("v1.pdf", b"v1"),
+    )
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/documents/{ancien.pk}/nouvelle-version/",
+        {"fichier": SimpleUploadedFile("v2.pdf", b"v2")},
+    )
+    ancien.refresh_from_db()
+    assert ancien.courant is False
+    nouveau = Document.objects.get(version=2)
+    assert nouveau.courant is True
+    assert nouveau.remplace == ancien

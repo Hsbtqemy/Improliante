@@ -37,4 +37,11 @@ urlpatterns = [
     path("bureau/devis/<int:pk>/statut/", views.changer_statut_devis, name="changer_statut_devis"),
     path("bureau/devis/<int:pk>/transformer/", views.transformer_devis, name="transformer_devis"),
     path("bureau/devis/<int:pk>/telecharger/", views.telecharger_devis, name="telecharger_devis"),
+    path("bureau/documents/", views.ged_racine, name="ged_racine"),
+    path("bureau/documents/dossier/<int:pk>/", views.ged_dossier, name="ged_dossier"),
+    path(
+        "bureau/documents/<int:pk>/nouvelle-version/",
+        views.ged_nouvelle_version,
+        name="ged_nouvelle_version",
+    ),
 ]

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dossier.nom }} — GED{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:ged_racine' %}">← Racine des documents</a></p>
+  <h1>{{ dossier.nom }}</h1>
+  {% if dossier.description %}<p>{{ dossier.description }}</p>{% endif %}
+
+  <section aria-labelledby="titre-sous">
+    <h2 id="titre-sous">Sous-dossiers</h2>
+    {% if sous_dossiers %}
+      <ul>
+        {% for sd in sous_dossiers %}
+          <li><a href="{% url 'backoffice:ged_dossier' pk=sd.pk %}">{{ sd.nom }}</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucun sous-dossier.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-documents">
+    <h2 id="titre-documents">Documents</h2>
+    {% include "backoffice/_ged_documents.html" %}
+  </section>
+
+  {% include "backoffice/_ged_forms.html" %}
+{% endblock %}
