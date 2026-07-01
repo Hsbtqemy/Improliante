@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Facture {{ facture.numero }} — Back-office{% endblock %}
+{% block title %}{{ facture.get_type_piece_display }} {{ facture.numero }} — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>Facture {{ facture.numero }}</h1>
+  <h1>{{ facture.get_type_piece_display }} {{ facture.numero }}</h1>
 
   <p class="carte-projet__meta">
     <span class="badge">{{ facture.get_statut_display }}</span>
     · {{ facture.client }}
     {% if facture.date %}· émise le {{ facture.date|date:"j F Y" }}{% endif %}
+    {% if facture.avoir_de %}· avoir sur facture {{ facture.avoir_de.numero }}{% endif %}
   </p>
-  <p class="carte-projet__meta">Une facture validée n'est plus modifiable (document légal).</p>
+  <p class="carte-projet__meta">Cette pièce est validée : elle n'est plus modifiable (document légal).</p>
 
   <table class="tableau">
     <thead>
@@ -37,10 +38,36 @@
 
   <p><strong>Total TTC : {{ facture.total_ttc|floatformat:2 }} €</strong></p>
 
+  {% if facture.type_piece != "avoir" and facture.avoirs.all %}
+    <p class="carte-projet__meta">
+      Avoirs liés :
+      {% for a in facture.avoirs.all %}
+        <a href="{% url 'backoffice:editer_facture' pk=a.pk %}">{{ a }}</a>{% if not forloop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+  {% endif %}
+
   <p class="formulaire__actions">
     <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:telecharger_facture' pk=facture.pk %}">
       Télécharger le PDF
     </a>
+    {% if facture.type_piece != "avoir" %}
+      <a class="lien-bouton" href="{% url 'backoffice:apercu_facture' pk=facture.pk %}" target="_blank">Aperçu</a>
+    {% endif %}
     <a class="lien-bouton" href="{% url 'backoffice:liste_factures' %}">Retour à la liste</a>
   </p>
+
+  {% if facture.type_piece != "avoir" %}
+    <section aria-labelledby="titre-avoir">
+      <h2 id="titre-avoir">Correction</h2>
+      <p class="carte-projet__meta">
+        Une facture validée ne peut être ni supprimée ni renumérotée. Pour l'annuler
+        (totalement ou en partie), créez un avoir : une pièce distincte, à montants inversés.
+      </p>
+      <form method="post" action="{% url 'backoffice:creer_avoir' pk=facture.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton">Créer un avoir</button>
+      </form>
+    </section>
+  {% endif %}
 {% endblock %}

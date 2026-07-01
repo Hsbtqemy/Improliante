@@ -29,6 +29,7 @@ urlpatterns = [
         name="telecharger_facture",
     ),
     path("bureau/factures/<int:pk>/apercu/", views.previsualiser_facture, name="apercu_facture"),
+    path("bureau/factures/<int:pk>/avoir/", views.creer_avoir_vue, name="creer_avoir"),
     path("bureau/clients/", views.liste_clients, name="liste_clients"),
     path("bureau/devis/", views.liste_devis, name="liste_devis"),
     path("bureau/devis/nouveau/", views.creer_devis, name="creer_devis"),

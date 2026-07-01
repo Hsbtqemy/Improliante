@@ -13,10 +13,12 @@ from decimal import Decimal
 import pytest
 from django.core.management import call_command
 
-from apps.facturation.models import Client, Devis, Facture, LigneDevis
+from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.facturation.services import (
     DevisDejaFacture,
     FactureDejaValidee,
+    FactureNonAvoirable,
+    creer_avoir,
     numeroter_devis,
     transformer_en_facture,
     valider_facture,
@@ -132,3 +134,52 @@ def test_transformer_un_devis_deja_facture_leve(client_facture):
     )
     with pytest.raises(DevisDejaFacture):
         transformer_en_facture(devis)
+
+
+# --- Avoir : annulation d'une facture validée ------------------------------
+
+
+def _facture_validee(client_facture, **ligne):
+    facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture,
+        designation=ligne.get("designation", "Prestation"),
+        quantite=ligne.get("quantite", 2),
+        prix_unitaire_ht=ligne.get("prix_unitaire_ht", Decimal("100")),
+        taux_tva=ligne.get("taux_tva", Decimal("20")),
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    return facture
+
+
+def test_creer_avoir_reprend_les_lignes_inversees(client_facture):
+    facture = _facture_validee(client_facture)
+    avoir = creer_avoir(facture)
+    assert avoir.type_piece == Facture.TypePiece.AVOIR
+    assert avoir.avoir_de == facture
+    assert avoir.statut == Facture.Statut.BROUILLON
+    assert avoir.lignes.count() == 1
+    assert avoir.total_ttc == Decimal("-240.00")  # 2×100 +20 %, inversé
+
+
+def test_avoir_valide_prend_un_numero_de_serie_a_continue(client_facture):
+    facture = _facture_validee(client_facture)  # F2026-0001
+    avoir = creer_avoir(facture)
+    valider_facture(avoir, date_emission=date(2026, 3, 1))
+    avoir.refresh_from_db()
+    assert facture.numero == "F2026-0001"
+    assert avoir.numero == "A2026-0002"  # séquence partagée, continue
+
+
+def test_creer_avoir_sur_brouillon_refuse(client_facture):
+    facture = Facture.objects.create(client=client_facture)  # brouillon
+    with pytest.raises(FactureNonAvoirable):
+        creer_avoir(facture)
+
+
+def test_creer_avoir_sur_avoir_refuse(client_facture):
+    facture = _facture_validee(client_facture)
+    avoir = creer_avoir(facture)
+    valider_facture(avoir, date_emission=date(2026, 3, 1))
+    with pytest.raises(FactureNonAvoirable):
+        creer_avoir(avoir)

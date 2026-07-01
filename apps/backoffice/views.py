@@ -35,7 +35,9 @@ from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
     DevisDejaFacture,
     FactureDejaValidee,
+    FactureNonAvoirable,
     assurer_pdf_facture,
+    creer_avoir,
     numeroter_devis,
     pdf_de_devis,
     pdf_de_facture,
@@ -278,6 +280,23 @@ def previsualiser_facture(request, pk):
     reponse = HttpResponse(pdf_de_facture(facture, apercu=apercu), content_type="application/pdf")
     reponse["Content-Disposition"] = 'inline; filename="apercu-facture.pdf"'
     return reponse
+
+
+@bureau_requis
+@require_POST
+def creer_avoir_vue(request, pk):
+    """Crée un avoir (brouillon) sur une facture validée, à corriger puis
+    valider comme une pièce à part entière (numéro de série « A… »)."""
+    facture = get_object_or_404(Facture, pk=pk)
+    try:
+        avoir = creer_avoir(facture)
+    except FactureNonAvoirable as exc:
+        messages.error(request, str(exc))
+        return redirect("backoffice:editer_facture", pk=facture.pk)
+    messages.success(
+        request, "Avoir créé (brouillon). Vérifiez les lignes, puis validez pour le numéroter."
+    )
+    return redirect("backoffice:editer_facture", pk=avoir.pk)
 
 
 @bureau_requis

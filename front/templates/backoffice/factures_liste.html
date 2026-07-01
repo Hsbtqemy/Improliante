@@ -24,7 +24,10 @@
       <tbody>
         {% for facture in factures %}
           <tr>
-            <td>{{ facture }}</td>
+            <td>
+              {{ facture }}
+              {% if facture.type_piece == "avoir" %}<span class="badge badge--refuse">Avoir</span>{% endif %}
+            </td>
             <td>{{ facture.client }}</td>
             <td><span class="badge">{{ facture.get_statut_display }}</span></td>
             <td>{{ facture.total_ttc|floatformat:2 }} €</td>

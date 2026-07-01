@@ -29,6 +29,10 @@ class DevisDejaFacture(Exception):
     """Levée quand on tente de transformer un devis déjà transformé en facture."""
 
 
+class FactureNonAvoirable(Exception):
+    """Levée quand on tente de créer un avoir sur une pièce qui ne le permet pas."""
+
+
 @transaction.atomic
 def valider_facture(facture: Facture, *, date_emission: date | None = None) -> Facture:
     """Valide une facture : lui attribue un numéro et fige sa date d'émission.
@@ -50,12 +54,46 @@ def valider_facture(facture: Facture, *, date_emission: date | None = None) -> F
     compteur.dernier += 1
     compteur.save(update_fields=["dernier"])
 
-    facture.numero = f"F{jour.year}-{compteur.dernier:04d}"
+    # Séquence unique partagée facture/avoir (chronologie continue) ; le préfixe
+    # distingue le type de pièce (F = facture, A = avoir).
+    prefixe = "A" if facture.type_piece == Facture.TypePiece.AVOIR else "F"
+    facture.numero = f"{prefixe}{jour.year}-{compteur.dernier:04d}"
     facture.statut = Facture.Statut.VALIDEE
     facture.date = jour
     facture.date_validation = timezone.now()
     facture.save(update_fields=["numero", "statut", "date", "date_validation"])
     return facture
+
+
+@transaction.atomic
+def creer_avoir(facture: Facture) -> Facture:
+    """Crée un avoir (brouillon) annulant une facture VALIDÉE.
+
+    Reprend le client et les lignes de la facture avec des quantités négatives
+    (montants inversés). L'avoir est ensuite validé comme une facture (numéro
+    de série « A… »). Lève `FactureNonAvoirable` si la pièce n'est pas une
+    facture validée."""
+    if facture.statut == Facture.Statut.BROUILLON:
+        raise FactureNonAvoirable("Seule une facture validée peut faire l'objet d'un avoir.")
+    if facture.type_piece == Facture.TypePiece.AVOIR:
+        raise FactureNonAvoirable("Un avoir ne peut pas lui-même faire l'objet d'un avoir.")
+
+    avoir = Facture.objects.create(
+        client=facture.client,
+        type_piece=Facture.TypePiece.AVOIR,
+        avoir_de=facture,
+        objet=f"Avoir sur facture {facture.numero}",
+    )
+    for ligne in facture.lignes.all():
+        LigneFacture.objects.create(
+            facture=avoir,
+            designation=ligne.designation,
+            quantite=-ligne.quantite,  # montants inversés
+            prix_unitaire_ht=ligne.prix_unitaire_ht,
+            taux_tva=ligne.taux_tva,
+            ordre=ligne.ordre,
+        )
+    return avoir
 
 
 def pdf_de_facture(facture: Facture, *, apercu: bool = False) -> bytes:

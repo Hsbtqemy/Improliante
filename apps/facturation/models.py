@@ -137,8 +137,24 @@ class Facture(AvecTotaux, Horodatage):
         PAYEE = "payee", "Payée"
         ANNULEE = "annulee", "Annulée"
 
+    class TypePiece(models.TextChoices):
+        FACTURE = "facture", "Facture"
+        AVOIR = "avoir", "Avoir"
+
     # NULL tant que brouillon ; attribué (unique, sans trou) à la validation.
     numero = models.CharField("numéro", max_length=20, unique=True, null=True, blank=True)
+    type_piece = models.CharField(
+        "type de pièce", max_length=8, choices=TypePiece.choices, default=TypePiece.FACTURE
+    )
+    # Un avoir annule (tout ou partie de) la facture qu'il référence.
+    avoir_de = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="avoirs",
+        verbose_name="avoir sur la facture",
+    )
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="factures")
     devis_origine = models.ForeignKey(
         Devis,
@@ -168,7 +184,8 @@ class Facture(AvecTotaux, Horodatage):
         ordering = ["-date", "-id"]
 
     def __str__(self) -> str:
-        return self.numero or f"Facture (brouillon #{self.pk})"
+        libelle = "Avoir" if self.type_piece == self.TypePiece.AVOIR else "Facture"
+        return self.numero or f"{libelle} (brouillon #{self.pk})"
 
 
 class LigneFacture(LigneCommerciale):

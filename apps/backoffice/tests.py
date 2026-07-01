@@ -449,3 +449,34 @@ def test_previsualiser_recu_ne_cree_pas_de_recu(client, db, monkeypatch):
     assert reponse.status_code == 200
     assert reponse.content.startswith(b"%PDF")
     assert RecuFiscal.objects.count() == 0  # prévisualisation : rien n'est émis
+
+
+# --- Avoir ------------------------------------------------------------------
+
+
+def _facture_validee_bo(nom="Théâtre"):
+    from apps.facturation.services import valider_facture
+
+    facture = Facture.objects.create(client=Client.objects.create(nom=nom))
+    LigneFacture.objects.create(
+        facture=facture, designation="X", quantite=1, prix_unitaire_ht=Decimal("50")
+    )
+    valider_facture(facture)
+    return facture
+
+
+def test_creer_avoir_depuis_une_facture_validee(client, db):
+    facture = _facture_validee_bo()
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/factures/{facture.pk}/avoir/")
+    assert reponse.status_code == 302
+    avoir = Facture.objects.get(type_piece=Facture.TypePiece.AVOIR)
+    assert avoir.avoir_de == facture
+    assert f"/bureau/factures/{avoir.pk}/" in reponse.url
+
+
+def test_creer_avoir_sur_brouillon_refuse_par_la_vue(client, db):
+    facture = Facture.objects.create(client=Client.objects.create(nom="Théâtre"))
+    client.force_login(_staff())
+    client.post(f"/bureau/factures/{facture.pk}/avoir/")
+    assert not Facture.objects.filter(type_piece=Facture.TypePiece.AVOIR).exists()
