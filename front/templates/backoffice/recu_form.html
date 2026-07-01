@@ -31,7 +31,12 @@
     {% endfor %}
 
     <div class="formulaire__actions">
-      <button type="submit" class="lien-bouton lien-bouton--primaire">Émettre le reçu</button>
+      <button type="submit" name="action" value="previsualiser" class="lien-bouton" formtarget="_blank">
+        Prévisualiser (sans émettre)
+      </button>
+      <button type="submit" name="action" value="emettre" class="lien-bouton lien-bouton--primaire">
+        Émettre le reçu
+      </button>
       <a class="lien-bouton" href="{% url 'backoffice:liste_recus' %}">Annuler</a>
     </div>
   </form>

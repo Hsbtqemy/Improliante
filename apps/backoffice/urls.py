@@ -28,6 +28,7 @@ urlpatterns = [
         views.telecharger_facture,
         name="telecharger_facture",
     ),
+    path("bureau/factures/<int:pk>/apercu/", views.previsualiser_facture, name="apercu_facture"),
     path("bureau/clients/", views.liste_clients, name="liste_clients"),
     path("bureau/devis/", views.liste_devis, name="liste_devis"),
     path("bureau/devis/nouveau/", views.creer_devis, name="creer_devis"),

@@ -19,13 +19,20 @@
       .totaux td { padding: 4px 8px; }
       .totaux .ttc { font-weight: bold; font-size: 14px; border-top: 2px solid #333; }
       .mentions { margin-top: 24px; font-size: 11px; color: #333; }
+      .filigrane {
+        position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
+        font-size: 60px; color: rgba(150, 150, 150, 0.25);
+        transform: rotate(-30deg); z-index: -1;
+      }
     </style>
   </head>
   <body>
+    {% if apercu %}<div class="filigrane">BROUILLON — SANS VALEUR</div>{% endif %}
     <div class="entete">
       <div>
-        <h1>Facture</h1>
-        <p><strong>{{ facture.numero }}</strong></p>
+        <h1>{% if facture.type_piece == "avoir" %}Avoir{% else %}Facture{% endif %}</h1>
+        <p><strong>{% if facture.numero %}{{ facture.numero }}{% else %}BROUILLON (sans valeur){% endif %}</strong></p>
+        {% if facture.avoir_de %}<p>Avoir sur facture {{ facture.avoir_de.numero }}</p>{% endif %}
       </div>
       <div style="text-align: right;">
         <strong>{{ asso.nom }}</strong><br />

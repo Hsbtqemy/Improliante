@@ -82,6 +82,16 @@ def donnees_depuis_adhesion(adhesion) -> dict:
     }
 
 
+def pdf_de_recu(recu: RecuFiscal, *, apercu: bool = False) -> bytes:
+    """Rend le PDF Cerfa d'un reçu. `apercu=True` produit un document filigrané
+    « sans valeur » pour prévisualiser AVANT émission (reçu non enregistré)."""
+    html = render_to_string(
+        "recu/cerfa.html",
+        {"recu": recu, "asso": ParametresAssociation.load(), "apercu": apercu},
+    )
+    return pdf.html_vers_pdf(html)
+
+
 def assurer_pdf_recu(recu: RecuFiscal) -> None:
     """Garantit que le PDF Cerfa du reçu existe dans le stockage privé.
 
@@ -89,9 +99,5 @@ def assurer_pdf_recu(recu: RecuFiscal) -> None:
     régénéré (immuabilité du document légal)."""
     if recu.fichier:
         return
-    html = render_to_string(
-        "recu/cerfa.html",
-        {"recu": recu, "asso": ParametresAssociation.load()},
-    )
-    octets = pdf.html_vers_pdf(html)
+    octets = pdf_de_recu(recu)
     recu.fichier.save(f"recu-{recu.numero}.pdf", ContentFile(octets), save=True)

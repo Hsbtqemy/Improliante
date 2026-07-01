@@ -58,6 +58,16 @@ def valider_facture(facture: Facture, *, date_emission: date | None = None) -> F
     return facture
 
 
+def pdf_de_facture(facture: Facture, *, apercu: bool = False) -> bytes:
+    """Rend le PDF d'une facture. `apercu=True` produit un brouillon filigrané
+    « sans valeur » (dry-run avant validation), sans numéro légal."""
+    html = render_to_string(
+        "facture/facture.html",
+        {"facture": facture, "asso": ParametresAssociation.load(), "apercu": apercu},
+    )
+    return pdf.html_vers_pdf(html)
+
+
 def assurer_pdf_facture(facture: Facture) -> None:
     """Garantit le PDF d'une facture VALIDÉE dans le stockage privé.
 
@@ -65,11 +75,7 @@ def assurer_pdf_facture(facture: Facture) -> None:
     Ne rend rien pour un brouillon (pas de numéro : pas de PDF légal)."""
     if facture.fichier or facture.statut == Facture.Statut.BROUILLON:
         return
-    html = render_to_string(
-        "facture/facture.html",
-        {"facture": facture, "asso": ParametresAssociation.load()},
-    )
-    octets = pdf.html_vers_pdf(html)
+    octets = pdf_de_facture(facture)
     facture.fichier.save(f"facture-{facture.numero}.pdf", ContentFile(octets), save=True)
 
 

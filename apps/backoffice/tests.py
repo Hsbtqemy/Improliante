@@ -420,3 +420,32 @@ def test_telecharger_devis_pdf(client, db, monkeypatch):
     reponse = client.get(f"/bureau/devis/{devis.pk}/telecharger/")
     assert reponse.status_code == 200
     assert reponse.content.startswith(b"%PDF")
+
+
+# --- Aperçus (dry-run avant verrouillage) ----------------------------------
+
+
+def test_apercu_facture_brouillon_ne_consomme_pas_de_numero(client, db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 a"
+    )
+    client_facture = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=client_facture)
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/factures/{facture.pk}/apercu/")
+    assert reponse.status_code == 200
+    assert reponse.content.startswith(b"%PDF")
+    facture.refresh_from_db()
+    assert facture.numero is None  # l'aperçu ne verrouille aucun numéro
+    assert facture.statut == Facture.Statut.BROUILLON
+
+
+def test_previsualiser_recu_ne_cree_pas_de_recu(client, db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 r"
+    )
+    client.force_login(_staff())
+    reponse = client.post("/bureau/recus/nouveau/", _donnees_recu(action="previsualiser"))
+    assert reponse.status_code == 200
+    assert reponse.content.startswith(b"%PDF")
+    assert RecuFiscal.objects.count() == 0  # prévisualisation : rien n'est émis

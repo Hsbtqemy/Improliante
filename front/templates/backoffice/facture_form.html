@@ -59,6 +59,12 @@
       <h2 id="titre-validation">Validation</h2>
       <p class="carte-projet__meta">
         La validation attribue un numéro légal définitif (série continue) et fige la facture.
+        Vérifiez d'abord le rendu avec l'aperçu — il ne consomme aucun numéro.
+      </p>
+      <p class="formulaire__actions">
+        <a class="lien-bouton" href="{% url 'backoffice:apercu_facture' pk=facture.pk %}" target="_blank">
+          Aperçu PDF (brouillon)
+        </a>
       </p>
       <form method="post" action="{% url 'backoffice:valider_facture' pk=facture.pk %}">
         {% csrf_token %}

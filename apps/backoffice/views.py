@@ -13,11 +13,17 @@ from pathlib import PurePosixPath
 from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.agenda.models import Evenement
 from apps.budget.models import Adhesion, RecuFiscal
-from apps.budget.services import assurer_pdf_recu, donnees_depuis_adhesion, emettre_recu
+from apps.budget.services import (
+    assurer_pdf_recu,
+    donnees_depuis_adhesion,
+    emettre_recu,
+    pdf_de_recu,
+)
 from apps.coeur.roles import bureau_requis
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import (
@@ -32,6 +38,7 @@ from apps.facturation.services import (
     assurer_pdf_facture,
     numeroter_devis,
     pdf_de_devis,
+    pdf_de_facture,
     transformer_en_facture,
     valider_facture,
 )
@@ -147,6 +154,14 @@ def creer_recu(request):
     if request.method == "POST":
         form = RecuFiscalForm(request.POST)
         if form.is_valid():
+            if request.POST.get("action") == "previsualiser":
+                # Reçu transitoire (non enregistré, sans numéro) pour contrôle.
+                recu = RecuFiscal(**form.cleaned_data, date_emission=timezone.localdate())
+                reponse = HttpResponse(
+                    pdf_de_recu(recu, apercu=True), content_type="application/pdf"
+                )
+                reponse["Content-Disposition"] = 'inline; filename="apercu-recu.pdf"'
+                return reponse
             recu = emettre_recu(
                 **form.cleaned_data,
                 membre=adhesion.membre if adhesion else None,
@@ -252,6 +267,17 @@ def telecharger_facture(request, pk):
     return reponse_fichier_prive(
         facture.fichier, nom_telechargement=f"facture-{facture.numero}.pdf"
     )
+
+
+@bureau_requis
+def previsualiser_facture(request, pk):
+    """Aperçu PDF d'une facture (dry-run) : rendu à la volée, filigrané
+    « brouillon » tant qu'elle n'est pas validée — ne consomme aucun numéro."""
+    facture = get_object_or_404(Facture, pk=pk)
+    apercu = facture.statut == Facture.Statut.BROUILLON
+    reponse = HttpResponse(pdf_de_facture(facture, apercu=apercu), content_type="application/pdf")
+    reponse["Content-Disposition"] = 'inline; filename="apercu-facture.pdf"'
+    return reponse
 
 
 @bureau_requis

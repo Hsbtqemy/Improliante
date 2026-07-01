@@ -17,13 +17,22 @@
       .signature { margin-top: 28px; }
       table { width: 100%; border-collapse: collapse; }
       td { vertical-align: top; padding: 2px 4px; }
+      .filigrane {
+        position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
+        font-size: 60px; color: rgba(150, 150, 150, 0.25);
+        transform: rotate(-30deg); z-index: -1;
+      }
     </style>
   </head>
   <body>
+    {% if apercu %}<div class="filigrane">APERÇU — SANS VALEUR</div>{% endif %}
     <h1>Reçu au titre des dons à certains organismes d'intérêt général</h1>
     <p class="sous-titre">Article {{ asso.article_cgi }} du Code général des impôts — Cerfa n° 11580</p>
 
-    <p class="numero">Reçu n° {{ recu.numero }} — émis le {{ recu.date_emission|date:"j F Y" }}</p>
+    <p class="numero">
+      {% if recu.numero %}Reçu n° {{ recu.numero }} — émis le {{ recu.date_emission|date:"j F Y" }}
+      {% else %}APERÇU (sans valeur) — non émis{% endif %}
+    </p>
 
     <div class="bloc">
       <h2>Bénéficiaire des versements</h2>
