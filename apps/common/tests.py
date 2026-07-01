@@ -9,12 +9,15 @@ from __future__ import annotations
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from apps.coeur.models import Utilisateur
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.models import Moderation
 from apps.common.moderation import (
     TransitionModerationInvalide,
     peut_etre_edite_par_auteur,
+    refuser,
     soumettre_a_moderation,
+    valider,
 )
 from apps.documents.models import Document
 from apps.spectacles.models import Spectacle
@@ -51,6 +54,38 @@ def test_soumettre_un_publie_est_refuse(db):
     projet = Spectacle.objects.create(titre="En ligne", statut_moderation=Statut.PUBLIE)
     with pytest.raises(TransitionModerationInvalide):
         soumettre_a_moderation(projet)
+
+
+def test_valider_publie_et_trace_le_valideur(db):
+    bureau = Utilisateur.objects.create_user(username="bureau", password="x")
+    projet = Spectacle.objects.create(titre="À publier", statut_moderation=Statut.PROPOSE)
+    valider(projet, par=bureau)
+    projet.refresh_from_db()
+    assert projet.statut_moderation == Statut.PUBLIE
+    assert projet.valide_par == bureau
+    assert projet.date_publication is not None
+
+
+def test_valider_une_fiche_non_proposee_est_refuse(db):
+    projet = Spectacle.objects.create(titre="Brouillon", statut_moderation=Statut.BROUILLON)
+    with pytest.raises(TransitionModerationInvalide):
+        valider(projet, par=None)
+
+
+def test_refuser_enregistre_le_motif_et_le_valideur(db):
+    bureau = Utilisateur.objects.create_user(username="bureau", password="x")
+    projet = Spectacle.objects.create(titre="Incomplet", statut_moderation=Statut.PROPOSE)
+    refuser(projet, par=bureau, motif="Synopsis manquant.")
+    projet.refresh_from_db()
+    assert projet.statut_moderation == Statut.REFUSE
+    assert projet.motif_refus == "Synopsis manquant."
+    assert projet.valide_par == bureau
+
+
+def test_refuser_sans_motif_leve_une_erreur(db):
+    projet = Spectacle.objects.create(titre="Incomplet", statut_moderation=Statut.PROPOSE)
+    with pytest.raises(ValueError):
+        refuser(projet, par=None, motif="   ")
 
 
 @pytest.mark.parametrize(

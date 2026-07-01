@@ -26,6 +26,9 @@
             <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
             <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
             {% if request.user.is_authenticated %}
+              {% if est_bureau %}
+                <li><a href="{% url 'backoffice:file_moderation' %}">Modération</a></li>
+              {% endif %}
               <li><a href="{% url 'espace_membre:tableau_de_bord' %}">Mon espace</a></li>
               <li>
                 <form

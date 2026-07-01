@@ -9,6 +9,8 @@ réutilisée partout ») et « pas de logique métier dans les routes ».
 
 from __future__ import annotations
 
+from django.utils import timezone
+
 from apps.common.models import Moderation
 
 # États dans lesquels l'auteur d'une fiche peut encore la modifier ou la
@@ -46,4 +48,36 @@ def soumettre_a_moderation(fiche: Moderation) -> None:
         )
     fiche.statut_moderation = Moderation.StatutModeration.PROPOSE
     fiche.motif_refus = ""
+    fiche.save()
+
+
+def valider(fiche: Moderation, *, par) -> None:
+    """Publie une fiche `proposée` (action du bureau).
+
+    Enregistre le valideur et la date de publication. Lève
+    `TransitionModerationInvalide` si la fiche n'est pas au statut « proposé ».
+    """
+    if fiche.statut_moderation != Moderation.StatutModeration.PROPOSE:
+        raise TransitionModerationInvalide("Seule une fiche « proposée » peut être publiée.")
+    fiche.statut_moderation = Moderation.StatutModeration.PUBLIE
+    fiche.valide_par = par
+    fiche.date_publication = timezone.now()
+    fiche.motif_refus = ""
+    fiche.save()
+
+
+def refuser(fiche: Moderation, *, par, motif: str) -> None:
+    """Refuse une fiche `proposée` avec un motif (action du bureau).
+
+    Le motif est obligatoire : c'est lui que l'auteur verra pour corriger.
+    Lève `TransitionModerationInvalide` si la fiche n'est pas « proposée »,
+    `ValueError` si le motif est vide.
+    """
+    if fiche.statut_moderation != Moderation.StatutModeration.PROPOSE:
+        raise TransitionModerationInvalide("Seule une fiche « proposée » peut être refusée.")
+    if not motif.strip():
+        raise ValueError("Un motif de refus est obligatoire.")
+    fiche.statut_moderation = Moderation.StatutModeration.REFUSE
+    fiche.valide_par = par
+    fiche.motif_refus = motif.strip()
     fiche.save()

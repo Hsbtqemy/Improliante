@@ -102,6 +102,7 @@ LOCAL_APPS = [
     "apps.gouvernance",
     "apps.vitrine",  # front public (rendu serveur)
     "apps.espace_membre",  # espace membre connecté
+    "apps.backoffice",  # back-office bureau (modération, GED, facturation…)
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -129,6 +130,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.backoffice.context_processors.roles",
             ],
         },
     },

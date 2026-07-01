@@ -19,6 +19,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("apps.vitrine.urls")),  # front public
     path("", include("apps.espace_membre.urls")),  # espace membre (connecté)
+    path("", include("apps.backoffice.urls")),  # back-office bureau
 ]
 
 # En développement uniquement : service des fichiers médias par Django.

@@ -17,6 +17,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.agenda.models import Evenement
+from apps.coeur.roles import est_bureau
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.documents.models import Document
@@ -233,7 +234,7 @@ def _peut_acceder_document(user, document) -> bool:
     - PRIVÉ : bureau (staff) ou la personne qui a déposé le document.
     Le bureau (staff) a accès à tout.
     """
-    if user.is_staff:
+    if est_bureau(user):
         return True
     conf = document.confidentialite
     if conf == Document.Confidentialite.PUBLIC:
@@ -246,7 +247,7 @@ def _peut_acceder_document(user, document) -> bool:
 def _documents_accessibles(user):
     """Documents (version courante) visibles par l'utilisateur, sans exposer
     les niveaux qu'il n'a pas le droit de voir."""
-    if user.is_staff:
+    if est_bureau(user):
         return Document.objects.filter(courant=True).order_by("titre")
     niveaux = {Document.Confidentialite.PUBLIC}
     if getattr(user, "membre", None) is not None:
@@ -290,7 +291,7 @@ _STATUTS_REUNION_VISIBLES = [
 def _reunions_visibles(user):
     """Réunions consultables par l'utilisateur, selon son rôle."""
     qs = Reunion.objects.filter(statut__in=_STATUTS_REUNION_VISIBLES)
-    if user.is_staff:
+    if est_bureau(user):
         return qs  # le bureau voit aussi les réunions de bureau
     if getattr(user, "membre", None) is None:
         return Reunion.objects.none()

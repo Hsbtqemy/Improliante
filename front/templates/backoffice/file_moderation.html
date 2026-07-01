@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Modération — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>File de modération</h1>
+  <p class="carte-projet__meta">Fiches proposées par les membres, en attente de validation.</p>
+
+  <section aria-labelledby="titre-projets">
+    <h2 id="titre-projets">Projets ({{ projets|length }})</h2>
+    {% if projets %}
+      <ul class="liste-projets">
+        {% for projet in projets %}
+          <li class="carte-projet">
+            <h3 class="carte-projet__titre">{{ projet.titre }}</h3>
+            <p class="carte-projet__meta">
+              <span class="badge">{{ projet.get_type_portage_display }}</span>
+              {% if projet.cree_par %}· proposé par {{ projet.cree_par }}{% endif %}
+            </p>
+            {% if projet.synopsis %}<p>{{ projet.synopsis|truncatewords:40 }}</p>{% endif %}
+
+            <form method="post" action="{% url 'backoffice:moderer_projet' pk=projet.pk %}" class="formulaire">
+              {% csrf_token %}
+              <p class="champ">
+                <label for="motif-projet-{{ projet.pk }}">Motif (obligatoire en cas de refus)</label>
+                <textarea id="motif-projet-{{ projet.pk }}" name="motif" rows="2"></textarea>
+              </p>
+              <div class="formulaire__actions">
+                <button type="submit" name="action" value="valider" class="lien-bouton lien-bouton--primaire">
+                  Publier
+                </button>
+                <button type="submit" name="action" value="refuser" class="lien-bouton">Refuser</button>
+              </div>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucun projet en attente.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-evenements">
+    <h2 id="titre-evenements">Événements ({{ evenements|length }})</h2>
+    {% if evenements %}
+      <ul class="liste-projets">
+        {% for evenement in evenements %}
+          <li class="carte-projet">
+            <h3 class="carte-projet__titre">{{ evenement.titre }}</h3>
+            <p class="carte-projet__meta">
+              {{ evenement.date_debut|date:"l j F Y à H:i" }}
+              {% if evenement.lieu_texte %}· {{ evenement.lieu_texte }}{% endif %}
+              {% if evenement.cree_par %}· proposé par {{ evenement.cree_par }}{% endif %}
+            </p>
+            {% if evenement.description %}<p>{{ evenement.description|truncatewords:40 }}</p>{% endif %}
+
+            <form method="post" action="{% url 'backoffice:moderer_evenement' pk=evenement.pk %}" class="formulaire">
+              {% csrf_token %}
+              <p class="champ">
+                <label for="vis-{{ evenement.pk }}">Visibilité à la publication</label>
+                <select id="vis-{{ evenement.pk }}" name="visibilite">
+                  {% for valeur, libelle in visibilites %}
+                    <option value="{{ valeur }}">{{ libelle }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p class="champ">
+                <label for="motif-evt-{{ evenement.pk }}">Motif (obligatoire en cas de refus)</label>
+                <textarea id="motif-evt-{{ evenement.pk }}" name="motif" rows="2"></textarea>
+              </p>
+              <div class="formulaire__actions">
+                <button type="submit" name="action" value="valider" class="lien-bouton lien-bouton--primaire">
+                  Publier
+                </button>
+                <button type="submit" name="action" value="refuser" class="lien-bouton">Refuser</button>
+              </div>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucun événement en attente.</p>
+    {% endif %}
+  </section>
+{% endblock %}
