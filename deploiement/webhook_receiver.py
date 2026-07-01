@@ -71,8 +71,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         # 1. Vérification de la signature (sécurité prioritaire)
         signature = self.headers.get("X-Hub-Signature-256", "")
         if not signature_valide(corps, signature):
-            log.warning("Signature invalide — requête rejetée (IP %s).",
-                        self.client_address[0])
+            log.warning("Signature invalide — requête rejetée (IP %s).", self.client_address[0])
             self._repondre(403, "Signature invalide")
             return
 
@@ -105,7 +104,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
         try:
             resultat = subprocess.run(
                 ["/usr/bin/env", "bash", DEPLOY_SCRIPT],
-                capture_output=True, text=True, timeout=600,
+                capture_output=True,
+                text=True,
+                timeout=600,
             )
             if resultat.returncode == 0:
                 log.info("Déploiement réussi.")
@@ -127,8 +128,12 @@ def main() -> None:
         log.error("GITHUB_WEBHOOK_SECRET manquant. Arrêt.")
         sys.exit(1)
     serveur = HTTPServer((LISTEN_HOST, LISTEN_PORT), WebhookHandler)
-    log.info("Récepteur de webhook démarré sur %s:%s (branche : %s).",
-             LISTEN_HOST, LISTEN_PORT, WATCHED_BRANCH)
+    log.info(
+        "Récepteur de webhook démarré sur %s:%s (branche : %s).",
+        LISTEN_HOST,
+        LISTEN_PORT,
+        WATCHED_BRANCH,
+    )
     try:
         serveur.serve_forever()
     except KeyboardInterrupt:
