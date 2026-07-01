@@ -4,9 +4,10 @@ Contexte et règles de travail pour Claude Code sur ce dépôt.
 Ce fichier est court par nature : il **oriente**. Le détail fonctionnel complet
 vit dans `docs/cahier-des-charges-asso.md` — s'y référer pour toute question métier.
 
-> État du projet : **amorçage**. Le code n'existe pas encore ou est minimal.
-> Ce fichier sera enrichi (commandes exactes, arborescence réelle, conventions
-> concrètes) une fois le squelette Django en place — via `/init` ou mise à jour manuelle.
+> État du projet : **squelette en place**. Projet Django `config` + 8 apps
+> métier sous `apps/` créés ; `manage.py check` et `check --deploy` passent.
+> **Les modèles ne sont pas encore codés** (`models.py` vides, placeholders).
+> Prochaine étape : coder les modèles domaine par domaine (cf. cahier §17).
 
 ---
 
@@ -33,7 +34,7 @@ Priorité du projet : **sur-mesure et flexible**. Détails → `docs/cahier-des-
 
 ---
 
-## Arborescence cible (plan, à ajuster au fil de l'eau)
+## Arborescence (en place, à étoffer au fil de l'eau)
 
 ```
 /
@@ -56,6 +57,9 @@ Priorité du projet : **sur-mesure et flexible**. Détails → `docs/cahier-des-
 ```
 
 Découpage en **apps Django par domaine métier** — une app par module du cahier des charges.
+Chaque app vit sous `apps/` et déclare `name = "apps.<nom>"` dans son `AppConfig`
+(avec un `verbose_name` en français). Le package projet s'appelle `config`
+(imposé par `deploiement/asso.service` → `config.wsgi:application`).
 
 ---
 
@@ -106,14 +110,19 @@ Concevoir les modèles v1 en gardant v2/v3 possibles, mais **ne coder que la v1*
 
 ## Commandes
 
-> À compléter une fois le projet initialisé (placeholder d'amorçage).
+> Dev : un `venv/` local (gitignoré). `django-admin` n'est pas sur le PATH →
+> utiliser `python -m django`. En dev, définir `DJANGO_DEBUG=1` (sinon la
+> `SECRET_KEY` est exigée). `makemigrations` et `check` marchent hors-ligne ;
+> `migrate` / `runserver` exigent un PostgreSQL joignable.
 
 ```bash
 # Environnement
-python -m venv venv && source venv/bin/activate
+python -m venv venv
+source venv/bin/activate          # Windows : venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env              # renseigner DJANGO_SECRET_KEY / DB_* (ou DJANGO_DEBUG=1)
 
-# Base & développement
+# Base & développement (PostgreSQL requis)
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver

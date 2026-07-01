@@ -154,6 +154,9 @@ DATABASES = {
 
 
 # --- Authentification / mots de passe --------------------------------------
+# Modèle utilisateur custom dès la v1 (extensible sans migration lourde).
+AUTH_USER_MODEL = "coeur.Utilisateur"
+
 # Hachage Argon2 imposé (cf. §10). Nécessite argon2-cffi (requirements.txt).
 
 PASSWORD_HASHERS = [
