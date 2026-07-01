@@ -8,7 +8,9 @@ import pytest
 from django.utils import timezone
 
 from apps.agenda.models import Evenement
-from apps.spectacles.models import Spectacle
+from apps.coeur.models import Membre, Utilisateur
+from apps.medias.models import Media
+from apps.spectacles.models import ImageSpectacle, Spectacle
 
 
 @pytest.fixture
@@ -108,3 +110,55 @@ def test_ical_exclut_les_non_publics(client, db):
     corps = client.get("/agenda/agenda.ics").content.decode()
     assert "PublicOui" in corps
     assert "InterneNon" not in corps
+
+
+# --- Association / membres ------------------------------------------------
+
+
+def _membre(nom, *, visible=True):
+    user = Utilisateur.objects.create(username=nom.lower(), last_name=nom)
+    return Membre.objects.create(user=user, visible_sur_site=visible)
+
+
+def test_association_montre_uniquement_les_membres_visibles(client, db):
+    _membre("MembreVisible", visible=True)
+    _membre("MembreCache", visible=False)
+    corps = client.get("/association/").content.decode()
+    assert "MembreVisible" in corps
+    assert "MembreCache" not in corps
+
+
+def test_membre_detail_404_si_non_visible(client, db):
+    membre = _membre("Secret", visible=False)
+    assert client.get(f"/membres/{membre.pk}/").status_code == 404
+
+
+def test_membre_detail_liste_ses_projets(client, db):
+    membre = _membre("Porteuse", visible=True)
+    spectacle = Spectacle.objects.create(
+        titre="ProjetDuMembre", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    spectacle.porteurs.add(membre)
+    corps = client.get(f"/membres/{membre.pk}/").content.decode()
+    assert "ProjetDuMembre" in corps
+
+
+# --- Galerie --------------------------------------------------------------
+
+
+def _media_video(alt):
+    return Media.objects.create(
+        alt=alt, type_media=Media.TypeMedia.VIDEO, url_externe="https://youtu.be/x"
+    )
+
+
+def test_galerie_montre_medias_des_spectacles_publies(client, db):
+    publie = Spectacle.objects.create(
+        titre="SpecPub", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    brouillon = Spectacle.objects.create(titre="SpecBrouillon")
+    ImageSpectacle.objects.create(spectacle=publie, media=_media_video("VideoPubliee"))
+    ImageSpectacle.objects.create(spectacle=brouillon, media=_media_video("VideoBrouillon"))
+    corps = client.get("/galerie/").content.decode()
+    assert "VideoPubliee" in corps
+    assert "VideoBrouillon" not in corps

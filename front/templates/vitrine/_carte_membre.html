@@ -1,0 +1,17 @@
+{% comment %}Carte d'un membre public (attend la variable `membre`).{% endcomment %}
+<li class="carte carte--membre">
+  {% if membre.photo and membre.photo.fichier %}
+    <img
+      class="carte__image"
+      src="{{ membre.photo.fichier.url }}"
+      alt="{{ membre.photo.alt }}"
+      loading="lazy"
+    />
+  {% endif %}
+  <h3 class="carte__titre">
+    <a href="{% url 'vitrine:membre' membre.pk %}">{{ membre }}</a>
+  </h3>
+  {% if membre.role_public %}
+    <p class="carte__meta">{{ membre.role_public }}</p>
+  {% endif %}
+</li>

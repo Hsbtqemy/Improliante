@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ membre }} — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <article class="fiche">
+    <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>
+
+    <h1>{{ membre }}</h1>
+    {% if membre.role_public %}
+      <p class="fiche__meta">{{ membre.role_public }}</p>
+    {% endif %}
+
+    {% if membre.photo and membre.photo.fichier %}
+      <img
+        class="fiche__affiche"
+        src="{{ membre.photo.fichier.url }}"
+        alt="{{ membre.photo.alt }}"
+      />
+    {% endif %}
+
+    {% if membre.bio %}{{ membre.bio|linebreaks }}{% endif %}
+
+    {% if projets %}
+      <h2>Ses projets</h2>
+      <ul class="cartes">
+        {% for spectacle in projets %}
+          {% include "vitrine/_carte_spectacle.html" %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </article>
+{% endblock %}

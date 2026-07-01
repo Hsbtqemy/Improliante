@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Galerie — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Galerie</h1>
+  {% if medias %}
+    <ul class="galerie">
+      {% for media in medias %}
+        <li class="galerie__item">
+          {% if media.type_media == "image" and media.fichier %}
+            <img src="{{ media.fichier.url }}" alt="{{ media.alt }}" loading="lazy" />
+          {% elif media.type_media == "video" and media.url_externe %}
+            <a class="galerie__video" href="{{ media.url_externe }}" target="_blank" rel="noopener">
+              ▶ {{ media.alt }}
+              <span class="sr-only">(vidéo, ouvre dans un nouvel onglet)</span>
+            </a>
+          {% endif %}
+          {% if media.legende %}
+            <p class="galerie__legende">{{ media.legende }}</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>La galerie se remplira au fil des spectacles et des événements.</p>
+  {% endif %}
+{% endblock %}

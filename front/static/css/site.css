@@ -295,6 +295,56 @@ h2 {
   margin-bottom: 0.15rem;
 }
 
+/* Galerie */
+.galerie {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--espace);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 40rem) {
+  .galerie {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 60rem) {
+  .galerie {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.galerie__item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--rayon);
+}
+.galerie__video {
+  display: block;
+  padding: 2rem 1rem;
+  text-align: center;
+  background: var(--couleur-primaire-clair);
+  border-radius: var(--rayon);
+  text-decoration: none;
+  color: var(--couleur-primaire);
+  font-weight: 600;
+}
+.galerie__legende {
+  margin: 0.4rem 0 0;
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+}
+
+/* Carte membre : photo en médaillon */
+.carte--membre {
+  text-align: center;
+  padding-bottom: 0.75rem;
+}
+.carte--membre .carte__image {
+  height: 12rem;
+}
+
 /* Respect de la préférence de réduction des animations */
 @media (prefers-reduced-motion: reduce) {
   * {

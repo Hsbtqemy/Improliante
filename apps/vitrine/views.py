@@ -9,12 +9,15 @@ from __future__ import annotations
 import calendar
 from datetime import date, timedelta
 
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
-from apps.agenda.models import Evenement
-from apps.spectacles.models import Spectacle
+from apps.agenda.models import Evenement, ImageEvenement
+from apps.coeur.models import Membre
+from apps.medias.models import Media
+from apps.spectacles.models import ImageSpectacle, Spectacle
 
 from .calendrier import bornes_grille, construire_calendrier
 from .ical import generer_ical
@@ -134,3 +137,47 @@ def agenda_ical(request):
         content_type="text/calendar; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="agenda.ics"'},
     )
+
+
+def association(request):
+    """Présentation de l'association et de ses membres publics."""
+    membres = (
+        Membre.objects.filter(visible_sur_site=True)
+        .select_related("user", "photo")
+        .order_by("user__last_name", "user__first_name")
+    )
+    return render(request, "vitrine/association.html", {"membres": membres})
+
+
+def detail_membre(request, pk: int):
+    """Fiche publique d'un membre (404 s'il n'est pas visible sur le site)."""
+    membre = get_object_or_404(
+        Membre.objects.select_related("user", "photo"), pk=pk, visible_sur_site=True
+    )
+    projets = (
+        Spectacle.objects.filter(statut_moderation=_PUBLIE)
+        .filter(Q(porteurs=membre) | Q(metteur_en_scene=membre) | Q(distribution__membre=membre))
+        .distinct()
+        .order_by("titre")
+    )
+    contexte = {"membre": membre, "projets": projets}
+    return render(request, "vitrine/membre_detail.html", contexte)
+
+
+def galerie(request):
+    """Galerie : médias des galeries des spectacles et événements publiés."""
+    return render(request, "vitrine/galerie.html", {"medias": _medias_galerie()})
+
+
+def _medias_galerie():
+    ids = set(
+        ImageSpectacle.objects.filter(spectacle__statut_moderation=_PUBLIE).values_list(
+            "media_id", flat=True
+        )
+    )
+    ids |= set(
+        ImageEvenement.objects.filter(
+            evenement__statut_moderation=_EVT_PUBLIE, evenement__visibilite=_EVT_PUBLIC
+        ).values_list("media_id", flat=True)
+    )
+    return Media.objects.filter(id__in=ids).order_by("-date_creation")
