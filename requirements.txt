@@ -1,0 +1,39 @@
+# Dépendances de l'application de l'association.
+# Stack arrêtée dans docs/cahier-des-charges-asso.md §2.
+#
+# NB (amorçage) : à ce stade, settings.py ne charge que Django et (si présent)
+# python-dotenv. Les autres apps tierces sont commentées dans INSTALLED_APPS —
+# les activer au fur et à mesure de leur mise en œuvre.
+
+# --- Socle ------------------------------------------------------------------
+Django>=6.0,<6.1
+djangorestframework>=3.16        # API REST (back-office / futur front)
+psycopg[binary]>=3.2             # pilote PostgreSQL (v3)
+python-dotenv>=1.0               # chargement .env en développement
+
+# --- Sécurité ---------------------------------------------------------------
+argon2-cffi>=23.1                # hachage des mots de passe (Argon2, cf. §10)
+django-axes>=7.0                 # anti-brute-force
+django-otp>=1.5                  # 2FA (admin/bureau)
+qrcode>=7.4                      # génération des QR codes TOTP
+django-csp>=4.0                  # en-têtes Content-Security-Policy
+django-simple-history>=3.7       # journal d'audit (qui a fait quoi)
+
+# --- Permissions / arbres ---------------------------------------------------
+django-guardian>=2.4             # permissions par objet (finesse si besoin)
+django-treebeard>=4.7            # arborescence GED (Dossier auto-référent)
+
+# --- Documents (PDF / Excel) -----------------------------------------------
+# WeasyPrint nécessite des dépendances SYSTÈME (Pango, cairo, gdk-pixbuf…).
+# Voir https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
+WeasyPrint>=63                   # génération PDF (devis, factures, reçus)
+openpyxl>=3.1                    # exports Excel (budget, compta)
+
+# --- Serveur de production --------------------------------------------------
+gunicorn>=23.0                   # serveur WSGI (derrière Nginx, cf. deploiement/)
+
+# --- Outils de développement (optionnels) ----------------------------------
+# pytest>=8.0
+# pytest-django>=4.9
+# ruff>=0.6
+# pip-audit>=2.7

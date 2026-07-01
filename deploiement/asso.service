@@ -1,0 +1,48 @@
+# /etc/systemd/system/asso.service
+#
+# Service systemd qui fait tourner l'application Django via Gunicorn.
+# C'est ce service que deploy.sh redémarre à la fin d'un déploiement.
+#
+# Installation :
+#   sudo cp asso.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now asso
+#
+# Gunicorn écoute sur un socket Unix ; Nginx fait le reverse proxy vers lui.
+
+[Unit]
+Description=Application Django de l'association (Gunicorn)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=deploy
+Group=www-data
+WorkingDirectory=/srv/asso/app
+
+# Variables d'environnement de l'app (SECRET_KEY, identifiants base,
+# DEBUG=False, etc.) — dans un fichier protégé, jamais dans Git.
+EnvironmentFile=/srv/asso/app.env
+
+# Gunicorn : 3 workers (ajuster selon les vCPU : règle de départ ~ 2×CPU+1).
+ExecStart=/srv/asso/venv/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/srv/asso/run/gunicorn.sock \
+    --access-logfile /srv/asso/logs/gunicorn-access.log \
+    --error-logfile /srv/asso/logs/gunicorn-error.log \
+    config.wsgi:application
+
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# Durcissement
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/asso
+
+[Install]
+WantedBy=multi-user.target

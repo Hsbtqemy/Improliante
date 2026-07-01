@@ -1,0 +1,39 @@
+# /etc/systemd/system/asso-webhook.service
+#
+# Service systemd qui maintient le récepteur de webhook actif en permanence
+# et le redémarre automatiquement en cas de plantage ou de reboot du VPS.
+#
+# Installation :
+#   sudo cp asso-webhook.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now asso-webhook
+#
+# Le secret et les chemins sont lus depuis un fichier d'environnement
+# (EnvironmentFile) — jamais écrits en clair dans ce fichier de service.
+
+[Unit]
+Description=Récepteur de webhook GitHub (déploiement asso)
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+
+# Fichier contenant GITHUB_WEBHOOK_SECRET et les autres variables.
+# Permissions recommandées : chmod 600, propriétaire deploy.
+EnvironmentFile=/srv/asso/webhook.env
+
+ExecStart=/usr/bin/python3 /srv/asso/webhook_receiver.py
+Restart=on-failure
+RestartSec=5
+
+# Durcissement : on limite ce que le service peut faire sur le système.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/asso
+
+[Install]
+WantedBy=multi-user.target

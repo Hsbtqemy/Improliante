@@ -1,0 +1,18 @@
+# Normalisation des fins de ligne : LF dans le dépôt pour tout le texte.
+# Essentiel pour les scripts de déploiement (.sh) exécutés sur le VPS Linux.
+* text=auto eol=lf
+
+# Scripts et code : LF strict.
+*.sh   text eol=lf
+*.py   text eol=lf
+*.service text eol=lf
+
+# Fichiers binaires : pas de conversion.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
