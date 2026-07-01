@@ -171,3 +171,23 @@ class LigneFacture(LigneCommerciale):
         verbose_name = "ligne de facture"
         verbose_name_plural = "lignes"
         ordering = ["ordre", "id"]
+
+
+class CompteurFacture(models.Model):
+    """Compteur séquentiel de numéros de facture, par année.
+
+    Une ligne par année ; `dernier` est incrémenté sous verrou
+    (`select_for_update`) à la validation d'une facture, pour garantir une
+    numérotation continue et sans trou (cf. facturation/services.py).
+    """
+
+    annee = models.PositiveIntegerField("année", unique=True)
+    dernier = models.PositiveIntegerField("dernier numéro attribué", default=0)
+
+    class Meta:
+        verbose_name = "compteur de factures"
+        verbose_name_plural = "compteurs de factures"
+        ordering = ["-annee"]
+
+    def __str__(self) -> str:
+        return f"{self.annee} → {self.dernier}"

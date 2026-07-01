@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import Client, Devis, Facture, LigneDevis, LigneFacture
+from .models import Client, CompteurFacture, Devis, Facture, LigneDevis, LigneFacture
+from .services import FactureDejaValidee, valider_facture
 
 
 @admin.register(Client)
@@ -36,6 +37,23 @@ class DevisAdmin(admin.ModelAdmin):
     inlines = (LigneDevisInline,)
 
 
+@admin.action(description="Valider et numéroter les factures sélectionnées")
+def valider_factures(modeladmin, request, queryset):
+    """Attribue un numéro (séquentiel, à la validation) aux factures en brouillon."""
+    valides = 0
+    ignorees = 0
+    for facture in queryset:
+        try:
+            valider_facture(facture)
+            valides += 1
+        except FactureDejaValidee:
+            ignorees += 1
+    message = f"{valides} facture(s) validée(s)."
+    if ignorees:
+        message += f" {ignorees} ignorée(s) (déjà validée(s))."
+    modeladmin.message_user(request, message)
+
+
 @admin.register(Facture)
 class FactureAdmin(admin.ModelAdmin):
     list_display = ("__str__", "client", "date", "statut", "total_ttc")
@@ -43,5 +61,19 @@ class FactureAdmin(admin.ModelAdmin):
     search_fields = ("numero", "objet", "client__nom")
     autocomplete_fields = ("client", "devis_origine")
     date_hierarchy = "date"
-    readonly_fields = ("date_creation", "date_modification", "date_validation")
+    # Numéro et dates figés par la validation (service) : non éditables à la main.
+    readonly_fields = ("numero", "date", "date_validation", "date_creation", "date_modification")
     inlines = (LigneFactureInline,)
+    actions = (valider_factures,)
+
+
+@admin.register(CompteurFacture)
+class CompteurFactureAdmin(admin.ModelAdmin):
+    list_display = ("annee", "dernier")
+    readonly_fields = ("annee", "dernier")
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
