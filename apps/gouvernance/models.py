@@ -25,6 +25,10 @@ from apps.common.models import Horodatage
 class ParametresGouvernance(models.Model):
     """Configuration statutaire éditable (unique instance)."""
 
+    class BaseMajorite(models.TextChoices):
+        EXPRIMES = "exprimes", "Suffrages exprimés (hors abstentions)"
+        PRESENTS = "presents", "Présents/représentés (abstentions comprises)"
+
     vote_reserve_aux_membres_a_jour = models.BooleanField(
         "vote réservé aux membres à jour de cotisation",
         default=True,
@@ -45,6 +49,13 @@ class ParametresGouvernance(models.Model):
     )
     majorite_qualifiee = models.DecimalField(
         "majorité qualifiée", max_digits=4, decimal_places=3, default=Decimal("0.667")
+    )
+    base_majorite = models.CharField(
+        "base de la majorité",
+        max_length=10,
+        choices=BaseMajorite.choices,
+        default=BaseMajorite.EXPRIMES,
+        help_text="Dénominateur des votes : exprimés (hors abstentions) ou présents/représentés.",
     )
 
     class Meta:

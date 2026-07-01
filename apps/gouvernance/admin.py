@@ -12,6 +12,7 @@ from .models import (
     Reunion,
     Sujet,
 )
+from .services import calcul_quorum, resultat_resolution
 
 
 @admin.register(ParametresGouvernance)
@@ -51,8 +52,22 @@ class ReunionAdmin(admin.ModelAdmin):
     date_hierarchy = "date"
     autocomplete_fields = ("compte_rendu", "evenement")
     filter_horizontal = ("documents",)
-    readonly_fields = ("date_creation", "date_modification")
+    readonly_fields = ("quorum", "date_creation", "date_modification")
     inlines = (ResolutionInline, PresenceInline, PouvoirInline)
+
+    @admin.display(description="Quorum")
+    def quorum(self, obj):
+        """Affiche l'état du quorum (calculé par le service)."""
+        if obj.pk is None:
+            return "—"
+        resultat = calcul_quorum(obj)
+        if not resultat.applicable:
+            return "non applicable (réunion de bureau)"
+        etat = "atteint" if resultat.atteint else "NON atteint"
+        return (
+            f"{etat} — {resultat.presents_representes}/{resultat.electorat} "
+            f"(seuil {resultat.seuil})"
+        )
 
 
 @admin.register(Sujet)
@@ -74,8 +89,14 @@ class ResolutionAdmin(admin.ModelAdmin):
         "nombre_pour",
         "nombre_contre",
         "nombre_abstention",
+        "est_adoptee",
     )
     list_filter = ("type_majorite",)
     search_fields = ("intitule",)
     autocomplete_fields = ("reunion", "sujet")
     readonly_fields = ("date_creation", "date_modification")
+
+    @admin.display(description="Adoptée ?", boolean=True)
+    def est_adoptee(self, obj):
+        """Résultat du vote calculé par le service (selon les paramètres)."""
+        return resultat_resolution(obj).adoptee
