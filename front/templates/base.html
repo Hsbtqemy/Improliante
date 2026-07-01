@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -43,5 +43,48 @@
         </p>
       </div>
     </footer>
+
+    {# Panneau d'accessibilité (options d'affichage) #}
+    <button
+      type="button"
+      id="a11y-bouton"
+      class="a11y__bouton"
+      aria-expanded="false"
+      aria-controls="a11y-panneau"
+      aria-label="Options d'accessibilité"
+    >
+      ♿
+    </button>
+    <div
+      id="a11y-panneau"
+      class="a11y__panneau"
+      role="dialog"
+      aria-label="Options d'accessibilité"
+      hidden
+    >
+      <div class="a11y__entete">
+        <h2>Accessibilité</h2>
+        <button type="button" class="a11y__fermer" aria-label="Fermer le panneau">✕</button>
+      </div>
+      <button type="button" class="a11y__option" data-a11y-cycle-texte>Taille du texte</button>
+      <button type="button" class="a11y__option" data-a11y-toggle="contraste" aria-pressed="false">
+        Fort contraste
+      </button>
+      <button type="button" class="a11y__option" data-a11y-toggle="sombre" aria-pressed="false">
+        Mode sombre
+      </button>
+      <button type="button" class="a11y__option" data-a11y-toggle="espacement" aria-pressed="false">
+        Espacement augmenté
+      </button>
+      <button type="button" class="a11y__option" data-a11y-toggle="dyslexie" aria-pressed="false">
+        Police lisible
+      </button>
+      <button type="button" class="a11y__option" data-a11y-toggle="anim-reduites" aria-pressed="false">
+        Réduire les animations
+      </button>
+      <button type="button" class="a11y__reset">Réinitialiser</button>
+    </div>
+
+    <script src="{% static 'js/accessibilite.js' %}"></script>
   </body>
 </html>

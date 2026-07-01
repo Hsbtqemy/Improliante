@@ -214,3 +214,17 @@ def test_contact_honeypot_bloque_le_spam(client, db):
     reponse = client.post("/contact/", donnees)
     assert reponse.status_code == 200
     assert MessageContact.objects.count() == 0
+
+
+# --- Accessibilité --------------------------------------------------------
+
+
+def test_panneau_accessibilite_present(client, db):
+    corps = client.get("/").content.decode()
+    assert 'id="a11y-bouton"' in corps
+
+
+def test_preferences_accessibilite_appliquees_via_cookie(client, db):
+    client.cookies["a11y"] = "sombre txt-grand"
+    corps = client.get("/").content.decode()
+    assert 'class="sombre txt-grand"' in corps

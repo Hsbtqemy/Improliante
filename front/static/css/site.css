@@ -5,6 +5,7 @@
   --couleur-fond: #ffffff;
   --couleur-primaire: #7a1f2b; /* bordeaux, contraste AA sur blanc */
   --couleur-primaire-clair: #f3e7e9;
+  --couleur-lien: #7a1f2b; /* liens texte (thémé en mode sombre) */
   --couleur-muet: #565656;
   --bordure: #e2e2e2;
   --espace: 1rem;
@@ -27,6 +28,10 @@ body {
   line-height: var(--interligne);
   color: var(--couleur-texte);
   background: var(--couleur-fond);
+}
+
+a {
+  color: var(--couleur-lien);
 }
 
 .conteneur {
@@ -74,7 +79,7 @@ select:focus-visible,
 .site-logo {
   font-weight: 700;
   font-size: 1.25rem;
-  color: var(--couleur-primaire);
+  color: var(--couleur-lien);
   text-decoration: none;
 }
 .site-nav {
@@ -327,7 +332,7 @@ h2 {
   background: var(--couleur-primaire-clair);
   border-radius: var(--rayon);
   text-decoration: none;
-  color: var(--couleur-primaire);
+  color: var(--couleur-lien);
   font-weight: 600;
 }
 .galerie__legende {
@@ -399,6 +404,121 @@ h2 {
 }
 .pot-de-miel {
   display: none;
+}
+
+/* --- Panneau d'accessibilité ---------------------------------------------- */
+.a11y__bouton {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 200;
+  width: 3.25rem;
+  height: 3.25rem;
+  border: none;
+  border-radius: 50%;
+  background: var(--couleur-primaire);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.a11y__panneau {
+  position: fixed;
+  right: 1rem;
+  bottom: 5rem;
+  z-index: 200;
+  width: min(21rem, calc(100vw - 2rem));
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+.a11y__panneau[hidden] {
+  display: none;
+}
+.a11y__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.a11y__entete h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.a11y__fermer {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: none;
+  background: none;
+  color: var(--couleur-texte);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.a11y__option,
+.a11y__reset {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  min-height: 2.75rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  cursor: pointer;
+}
+.a11y__option[aria-pressed="true"] {
+  background: var(--couleur-primaire);
+  color: #fff;
+  border-color: var(--couleur-primaire);
+}
+@media (max-width: 40rem) {
+  .a11y__panneau {
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: var(--rayon) var(--rayon) 0 0;
+  }
+}
+
+/* Préférences d'affichage appliquées via une classe sur <html> */
+html.txt-grand {
+  font-size: 112.5%;
+}
+html.txt-max {
+  font-size: 131.25%;
+}
+html.contraste {
+  --couleur-texte: #000;
+  --couleur-muet: #1a1a1a;
+  --bordure: #000;
+}
+html.sombre {
+  --couleur-fond: #141414;
+  --couleur-texte: #f2f2f2;
+  --couleur-muet: #c9c9c9;
+  --bordure: #3a3a3a;
+  --couleur-primaire-clair: #2a1e20;
+  --couleur-lien: #e8a0ab;
+}
+html.espacement body {
+  line-height: 1.9;
+  letter-spacing: 0.05em;
+  word-spacing: 0.12em;
+}
+html.dyslexie body {
+  font-family: "Comic Sans MS", "Trebuchet MS", Verdana, sans-serif;
+  letter-spacing: 0.03em;
+}
+html.anim-reduites * {
+  animation: none !important;
+  transition: none !important;
 }
 
 /* Respect de la préférence de réduction des animations */
