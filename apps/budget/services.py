@@ -20,7 +20,7 @@ from django.utils import timezone
 from apps.coeur.models import ParametresAssociation
 from apps.common import pdf
 
-from .models import CompteurRecu, RecuFiscal
+from .models import CompteurRecu, RecuFiscal, Transaction
 
 
 @transaction.atomic
@@ -103,3 +103,50 @@ def assurer_pdf_recu(recu: RecuFiscal) -> None:
         return
     octets = pdf_de_recu(recu)
     recu.fichier.save(f"recu-{recu.numero}.pdf", ContentFile(octets), save=True)
+
+
+# --- Bilan budgétaire -------------------------------------------------------
+
+_ZERO = Decimal("0.00")
+_CLES_MONTANT = ("recette_prevu", "recette_realise", "depense_prevu", "depense_realise")
+
+
+def _ligne_vide(nom: str) -> dict:
+    ligne = {"categorie": nom}
+    for cle in _CLES_MONTANT:
+        ligne[cle] = _ZERO
+    return ligne
+
+
+def _completer_soldes(ligne: dict) -> None:
+    ligne["solde_prevu"] = ligne["recette_prevu"] - ligne["depense_prevu"]
+    ligne["solde_realise"] = ligne["recette_realise"] - ligne["depense_realise"]
+
+
+def bilan_par_categorie(saison) -> dict:
+    """Synthèse budgétaire d'une saison, ventilée par catégorie.
+
+    Pour chaque catégorie : recettes et dépenses, en prévu et en réalisé, avec
+    le solde (recettes − dépenses). Renvoie les lignes triées + une ligne de
+    totaux. Les transactions sans catégorie sont regroupées sous « Sans
+    catégorie »."""
+    lignes: dict[str, dict] = {}
+    transactions = Transaction.objects.filter(saison=saison).select_related("categorie")
+    for t in transactions:
+        nom = t.categorie.nom if t.categorie_id else "Sans catégorie"
+        ligne = lignes.setdefault(nom, _ligne_vide(nom))
+        flux = "recette" if t.type_flux == Transaction.TypeFlux.RECETTE else "depense"
+        etat = "prevu" if t.statut == Transaction.Statut.PREVU else "realise"
+        ligne[f"{flux}_{etat}"] += t.montant
+
+    totaux = _ligne_vide("Total")
+    resultat = []
+    for nom in sorted(lignes):
+        ligne = lignes[nom]
+        _completer_soldes(ligne)
+        resultat.append(ligne)
+        for cle in _CLES_MONTANT:
+            totaux[cle] += ligne[cle]
+    _completer_soldes(totaux)
+
+    return {"lignes": resultat, "totaux": totaux}

@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement
-from apps.budget.models import Adhesion, RecuFiscal, Saison
+from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
@@ -563,3 +563,73 @@ def test_nouvelle_version_remplace_l_ancienne(client, db):
     nouveau = Document.objects.get(version=2)
     assert nouveau.courant is True
     assert nouveau.remplace == ancien
+
+
+# --- Budget -----------------------------------------------------------------
+
+
+def test_budget_reserve_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/budget/").status_code == 403
+
+
+def test_creer_transaction(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/budget/transaction/nouvelle/",
+        {
+            "saison": saison.pk,
+            "type_flux": Transaction.TypeFlux.RECETTE,
+            "statut": Transaction.Statut.REALISE,
+            "libelle": "Subvention",
+            "montant": "500.00",
+            "date": "2026-03-01",
+            "categorie": "",
+        },
+    )
+    assert reponse.status_code == 302
+    mouvement = Transaction.objects.get()
+    assert mouvement.libelle == "Subvention"
+    assert mouvement.montant == Decimal("500.00")
+
+
+def test_supprimer_transaction(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    mouvement = Transaction.objects.create(
+        saison=saison,
+        type_flux=Transaction.TypeFlux.DEPENSE,
+        libelle="x",
+        montant=Decimal("10"),
+        date=date(2026, 3, 1),
+    )
+    client.force_login(_staff())
+    client.post(f"/bureau/budget/transaction/{mouvement.pk}/supprimer/")
+    assert not Transaction.objects.filter(pk=mouvement.pk).exists()
+
+
+def test_creer_saison(client, db):
+    client.force_login(_staff())
+    client.post("/bureau/budget/saisons/", {"nom": "2026-2027", "date_debut": "", "date_fin": ""})
+    assert Saison.objects.filter(nom="2026-2027").exists()
+
+
+def test_creer_categorie(client, db):
+    client.force_login(_staff())
+    client.post("/bureau/budget/categories/", {"nom": "Communication", "description": ""})
+    assert Categorie.objects.filter(nom="Communication").exists()
+
+
+def test_bilan_affiche_les_totaux(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    Transaction.objects.create(
+        saison=saison,
+        type_flux=Transaction.TypeFlux.RECETTE,
+        statut=Transaction.Statut.REALISE,
+        libelle="Don",
+        montant=Decimal("800"),
+        date=date(2026, 3, 1),
+    )
+    client.force_login(_staff())
+    corps = client.get(f"/bureau/budget/bilan/?saison={saison.pk}").content.decode()
+    assert "800" in corps

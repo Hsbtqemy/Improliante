@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mouvement %}Modifier un mouvement{% else %}Nouveau mouvement{% endif %} — Budget{% endblock %}
+
+{% block contenu %}
+  <h1>{% if mouvement %}Modifier le mouvement{% else %}Nouveau mouvement{% endif %}</h1>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <a class="lien-bouton" href="{% url 'backoffice:budget_transactions' %}">Annuler</a>
+    </div>
+  </form>
+{% endblock %}

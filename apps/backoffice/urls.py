@@ -44,4 +44,23 @@ urlpatterns = [
         views.ged_nouvelle_version,
         name="ged_nouvelle_version",
     ),
+    path("bureau/budget/", views.budget_transactions, name="budget_transactions"),
+    path(
+        "bureau/budget/transaction/nouvelle/",
+        views.budget_creer_transaction,
+        name="budget_creer_transaction",
+    ),
+    path(
+        "bureau/budget/transaction/<int:pk>/",
+        views.budget_editer_transaction,
+        name="budget_editer_transaction",
+    ),
+    path(
+        "bureau/budget/transaction/<int:pk>/supprimer/",
+        views.budget_supprimer_transaction,
+        name="budget_supprimer_transaction",
+    ),
+    path("bureau/budget/bilan/", views.budget_bilan, name="budget_bilan"),
+    path("bureau/budget/saisons/", views.budget_saisons, name="budget_saisons"),
+    path("bureau/budget/categories/", views.budget_categories, name="budget_categories"),
 ]

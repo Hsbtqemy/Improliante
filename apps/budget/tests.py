@@ -10,9 +10,10 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from apps.budget.models import Adhesion, RecuFiscal, Saison
+from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.budget.services import (
     assurer_pdf_recu,
+    bilan_par_categorie,
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
@@ -112,3 +113,64 @@ def test_cerfa_retombe_sur_le_signataire_des_parametres(db, monkeypatch):
     recu = _emettre()  # sans signataire choisi
     html = pdf_de_recu(recu).decode()
     assert "Bureau Test" in html
+
+
+# --- Bilan par catégorie ----------------------------------------------------
+
+
+def _transaction(saison, categorie, type_flux, statut, montant):
+    return Transaction.objects.create(
+        saison=saison,
+        categorie=categorie,
+        type_flux=type_flux,
+        statut=statut,
+        libelle="x",
+        montant=Decimal(montant),
+        date=date(2026, 3, 1),
+    )
+
+
+def test_bilan_ventile_par_categorie_et_statut(db):
+    saison = Saison.objects.create(nom="2025-2026")
+    subventions = Categorie.objects.create(nom="Subventions")
+    materiel = Categorie.objects.create(nom="Matériel")
+
+    _transaction(
+        saison, subventions, Transaction.TypeFlux.RECETTE, Transaction.Statut.PREVU, "1000"
+    )
+    _transaction(
+        saison, subventions, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "800"
+    )
+    _transaction(saison, materiel, Transaction.TypeFlux.DEPENSE, Transaction.Statut.PREVU, "300")
+    _transaction(saison, materiel, Transaction.TypeFlux.DEPENSE, Transaction.Statut.REALISE, "250")
+
+    bilan = bilan_par_categorie(saison)
+    lignes = {ligne["categorie"]: ligne for ligne in bilan["lignes"]}
+
+    assert lignes["Subventions"]["recette_prevu"] == Decimal("1000")
+    assert lignes["Subventions"]["recette_realise"] == Decimal("800")
+    assert lignes["Matériel"]["depense_prevu"] == Decimal("300")
+    assert lignes["Matériel"]["solde_realise"] == Decimal("-250")
+
+    totaux = bilan["totaux"]
+    assert totaux["recette_realise"] == Decimal("800")
+    assert totaux["depense_realise"] == Decimal("250")
+    assert totaux["solde_realise"] == Decimal("550")  # 800 − 250
+    assert totaux["solde_prevu"] == Decimal("700")  # 1000 − 300
+
+
+def test_bilan_regroupe_les_sans_categorie(db):
+    saison = Saison.objects.create(nom="2025-2026")
+    _transaction(saison, None, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "50")
+    bilan = bilan_par_categorie(saison)
+    assert bilan["lignes"][0]["categorie"] == "Sans catégorie"
+    assert bilan["totaux"]["recette_realise"] == Decimal("50")
+
+
+def test_bilan_ignore_les_autres_saisons(db):
+    saison = Saison.objects.create(nom="2025-2026")
+    autre = Saison.objects.create(nom="2024-2025")
+    _transaction(autre, None, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "999")
+    bilan = bilan_par_categorie(saison)
+    assert bilan["lignes"] == []
+    assert bilan["totaux"]["recette_realise"] == Decimal("0.00")

@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from django import forms
 
-from apps.budget.models import RecuFiscal
+from apps.budget.models import Categorie, RecuFiscal, Saison, Transaction
 from apps.coeur.models import Signataire
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
@@ -164,3 +164,47 @@ class NouvelleVersionForm(forms.Form):
     """Remplacement d'un document par une nouvelle version (fichier seul)."""
 
     fichier = forms.FileField(label="Nouveau fichier")
+
+
+# --- Budget -----------------------------------------------------------------
+
+
+class TransactionForm(forms.ModelForm):
+    """Recette ou dépense, prévue ou réalisée, rattachée à une saison."""
+
+    class Meta:
+        model = Transaction
+        fields = ["saison", "type_flux", "statut", "libelle", "montant", "date", "categorie"]
+        widgets = {"date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date"].input_formats = ["%Y-%m-%d"]
+
+    def clean_montant(self) -> Decimal:
+        montant = self.cleaned_data["montant"]
+        if montant is None or montant <= 0:
+            raise forms.ValidationError("Le montant doit être strictement positif.")
+        return montant
+
+
+class SaisonForm(forms.ModelForm):
+    class Meta:
+        model = Saison
+        fields = ["nom", "date_debut", "date_fin"]
+        widgets = {
+            "date_debut": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "date_fin": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for champ in ("date_debut", "date_fin"):
+            self.fields[champ].input_formats = ["%Y-%m-%d"]
+
+
+class CategorieForm(forms.ModelForm):
+    class Meta:
+        model = Categorie
+        fields = ["nom", "description"]
+        widgets = {"description": forms.Textarea(attrs={"rows": 2})}

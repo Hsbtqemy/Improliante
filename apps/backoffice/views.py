@@ -17,9 +17,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.agenda.models import Evenement
-from apps.budget.models import Adhesion, RecuFiscal
+from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.budget.services import (
     assurer_pdf_recu,
+    bilan_par_categorie,
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
@@ -49,6 +50,7 @@ from apps.facturation.services import (
 from apps.spectacles.models import Spectacle
 
 from .forms import (
+    CategorieForm,
     ClientForm,
     DevisForm,
     DocumentForm,
@@ -58,6 +60,8 @@ from .forms import (
     LigneFactureFormSet,
     NouvelleVersionForm,
     RecuFiscalForm,
+    SaisonForm,
+    TransactionForm,
 )
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
@@ -504,3 +508,101 @@ def ged_nouvelle_version(request, pk):
     if ancien.dossier_id:
         return redirect("backoffice:ged_dossier", pk=ancien.dossier_id)
     return redirect("backoffice:ged_racine")
+
+
+# --- Budget -----------------------------------------------------------------
+
+
+def _saison_demandee(request, defaut_premiere=False):
+    """Saison sélectionnée via ?saison=<pk> (ou la plus récente en repli)."""
+    saison_pk = request.GET.get("saison")
+    if saison_pk:
+        return Saison.objects.filter(pk=saison_pk).first()
+    return Saison.objects.first() if defaut_premiere else None
+
+
+@bureau_requis
+def budget_transactions(request):
+    """Liste des mouvements, filtrable par saison."""
+    saison = _saison_demandee(request)
+    transactions = Transaction.objects.select_related("categorie", "saison").order_by(
+        "-date", "-id"
+    )
+    if saison is not None:
+        transactions = transactions.filter(saison=saison)
+    return render(
+        request,
+        "backoffice/budget_transactions.html",
+        {"saisons": Saison.objects.all(), "saison_courante": saison, "transactions": transactions},
+    )
+
+
+@bureau_requis
+def budget_creer_transaction(request):
+    return _editer_transaction(request, mouvement=None)
+
+
+@bureau_requis
+def budget_editer_transaction(request, pk):
+    return _editer_transaction(request, mouvement=get_object_or_404(Transaction, pk=pk))
+
+
+def _editer_transaction(request, *, mouvement):
+    form = TransactionForm(request.POST or None, instance=mouvement)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Mouvement enregistré.")
+        return redirect("backoffice:budget_transactions")
+    return render(
+        request,
+        "backoffice/transaction_form.html",
+        {"form": form, "mouvement": mouvement},
+    )
+
+
+@bureau_requis
+@require_POST
+def budget_supprimer_transaction(request, pk):
+    get_object_or_404(Transaction, pk=pk).delete()
+    messages.success(request, "Mouvement supprimé.")
+    return redirect("backoffice:budget_transactions")
+
+
+@bureau_requis
+def budget_bilan(request):
+    """Bilan par catégorie (recettes/dépenses, prévu/réalisé) d'une saison."""
+    saison = _saison_demandee(request, defaut_premiere=True)
+    bilan = bilan_par_categorie(saison) if saison is not None else None
+    return render(
+        request,
+        "backoffice/budget_bilan.html",
+        {"saisons": Saison.objects.all(), "saison_courante": saison, "bilan": bilan},
+    )
+
+
+@bureau_requis
+def budget_saisons(request):
+    form = SaisonForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Saison enregistrée.")
+        return redirect("backoffice:budget_saisons")
+    return render(
+        request,
+        "backoffice/budget_saisons.html",
+        {"form": form, "saisons": Saison.objects.all()},
+    )
+
+
+@bureau_requis
+def budget_categories(request):
+    form = CategorieForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Catégorie enregistrée.")
+        return redirect("backoffice:budget_categories")
+    return render(
+        request,
+        "backoffice/budget_categories.html",
+        {"form": form, "categories": Categorie.objects.all()},
+    )

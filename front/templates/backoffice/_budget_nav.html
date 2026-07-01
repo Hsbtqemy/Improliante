@@ -1,0 +1,7 @@
+{% comment %}Sous-navigation du module Budget.{% endcomment %}
+<nav aria-label="Budget" class="espace-actions">
+  <a class="lien-bouton" href="{% url 'backoffice:budget_transactions' %}">Mouvements</a>
+  <a class="lien-bouton" href="{% url 'backoffice:budget_bilan' %}">Bilan</a>
+  <a class="lien-bouton" href="{% url 'backoffice:budget_saisons' %}">Saisons</a>
+  <a class="lien-bouton" href="{% url 'backoffice:budget_categories' %}">Catégories</a>
+</nav>

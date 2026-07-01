@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Budget — saisons{% endblock %}
+
+{% block contenu %}
+  <h1>Saisons</h1>
+  {% include "backoffice/_budget_nav.html" %}
+
+  <section aria-labelledby="titre-nouvelle">
+    <h2 id="titre-nouvelle">Nouvelle saison</h2>
+    <form method="post" class="formulaire">
+      {% csrf_token %}
+      {% for field in form %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="titre-liste">
+    <h2 id="titre-liste">Saisons enregistrées</h2>
+    {% if saisons %}
+      <ul>
+        {% for s in saisons %}
+          <li>{{ s.nom }}{% if s.date_debut %} ({{ s.date_debut|date:"j M Y" }} → {{ s.date_fin|date:"j M Y" }}){% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucune saison.</p>
+    {% endif %}
+  </section>
+{% endblock %}
