@@ -21,6 +21,8 @@ from decimal import Decimal
 
 from django.db.models import Count
 
+from apps.budget.models import Adhesion
+
 from .models import ParametresGouvernance, Presence, Resolution, Reunion
 
 _TROIS_DECIMALES = Decimal("0.001")
@@ -106,3 +108,35 @@ def mandataires_en_exces(reunion: Reunion) -> dict[int, int]:
         .filter(n__gt=params.max_pouvoirs_par_personne)
     )
     return {row["mandataire"]: row["n"] for row in exces}
+
+
+def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
+    """Renseigne `Presence.peut_voter` pour la réunion, selon l'adhésion à jour.
+
+    Si `vote_reserve_aux_membres_a_jour` est faux, tout le monde peut voter.
+    Sinon, seul un membre à jour de cotisation pour la `saison` donnée le peut
+    (le droit de vote est ainsi figé au moment de la tenue). Retourne le nombre
+    de présences effectivement modifiées.
+    """
+    params = ParametresGouvernance.load()
+    reserve = params.vote_reserve_aux_membres_a_jour
+    if reserve and saison is None:
+        raise ValueError("Une saison est requise quand le vote est réservé aux membres à jour.")
+
+    membres_a_jour: set[int] = set()
+    if reserve:
+        membres_a_jour = set(
+            Adhesion.objects.filter(
+                saison=saison,
+                statut__in=[Adhesion.Statut.PAYEE, Adhesion.Statut.EXONEREE],
+            ).values_list("membre_id", flat=True)
+        )
+
+    modifies = 0
+    for presence in reunion.presences.all():
+        nouveau = (not reserve) or (presence.membre_id in membres_a_jour)
+        if presence.peut_voter != nouveau:
+            presence.peut_voter = nouveau
+            presence.save(update_fields=["peut_voter"])
+            modifies += 1
+    return modifies

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 
+from apps.budget.models import Adhesion, Saison
 from apps.coeur.models import Membre, Utilisateur
 from apps.gouvernance.models import (
     ParametresGouvernance,
@@ -17,6 +18,7 @@ from apps.gouvernance.models import (
 from apps.gouvernance.services import (
     calcul_quorum,
     mandataires_en_exces,
+    preremplir_droit_de_vote,
     resultat_resolution,
 )
 
@@ -165,3 +167,50 @@ def test_pouvoirs_conformes(params, make_membre):
         Pouvoir.objects.create(reunion=reunion, mandant=make_membre(), mandataire=mandataire)
 
     assert mandataires_en_exces(reunion) == {}
+
+
+# --- Pré-remplissage du droit de vote -------------------------------------
+
+
+def test_prerempli_vote_ouvert_a_tous_si_non_reserve(params, make_membre):
+    params.vote_reserve_aux_membres_a_jour = False
+    params.save()
+    reunion = _reunion()
+    presences = [
+        _presence(reunion, make_membre(), Presence.Statut.PRESENT, peut_voter=False)
+        for _ in range(2)
+    ]
+
+    assert preremplir_droit_de_vote(reunion) == 2
+    for presence in presences:
+        presence.refresh_from_db()
+        assert presence.peut_voter is True
+
+
+def test_prerempli_reserve_aux_membres_a_jour(params, make_membre):
+    params.vote_reserve_aux_membres_a_jour = True
+    params.save()
+    saison = Saison.objects.create(nom="2025-2026")
+    reunion = _reunion()
+    membre_a_jour = make_membre()
+    membre_pas_a_jour = make_membre()
+    Adhesion.objects.create(membre=membre_a_jour, saison=saison, statut=Adhesion.Statut.PAYEE)
+    Adhesion.objects.create(
+        membre=membre_pas_a_jour, saison=saison, statut=Adhesion.Statut.EN_ATTENTE
+    )
+    p_ok = _presence(reunion, membre_a_jour, Presence.Statut.PRESENT, peut_voter=False)
+    p_ko = _presence(reunion, membre_pas_a_jour, Presence.Statut.PRESENT, peut_voter=True)
+
+    preremplir_droit_de_vote(reunion, saison)
+
+    p_ok.refresh_from_db()
+    p_ko.refresh_from_db()
+    assert p_ok.peut_voter is True
+    assert p_ko.peut_voter is False
+
+
+def test_prerempli_reserve_sans_saison_leve_erreur(params):
+    params.vote_reserve_aux_membres_a_jour = True
+    params.save()
+    with pytest.raises(ValueError):
+        preremplir_droit_de_vote(_reunion())
