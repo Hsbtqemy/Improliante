@@ -100,6 +100,7 @@ LOCAL_APPS = [
     "apps.facturation",
     "apps.budget",
     "apps.gouvernance",
+    "apps.vitrine",  # front public (rendu serveur)
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

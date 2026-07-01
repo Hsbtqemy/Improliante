@@ -8,7 +8,7 @@ l'espace membre seront ajoutées via des include() par app, au fur et à mesure.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 
 # Personnalisation de l'en-tête de l'admin (back-office).
 admin.site.site_header = "Administration — Association"
@@ -17,7 +17,7 @@ admin.site.index_title = "Back-office"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # path("", include("apps.spectacles.urls")),   # front public (à venir)
+    path("", include("apps.vitrine.urls")),  # front public
     # path("membre/", include("apps.coeur.urls")), # espace membre (à venir)
 ]
 

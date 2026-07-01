@@ -1,0 +1,15 @@
+{% comment %}Carte d'un spectacle (attend la variable `spectacle`).{% endcomment %}
+<li class="carte">
+  {% if spectacle.affiche and spectacle.affiche.fichier %}
+    <img
+      class="carte__image"
+      src="{{ spectacle.affiche.fichier.url }}"
+      alt="{{ spectacle.affiche.alt }}"
+      loading="lazy"
+    />
+  {% endif %}
+  <h3 class="carte__titre">
+    <a href="{% url 'vitrine:spectacle' spectacle.pk %}">{{ spectacle.titre }}</a>
+  </h3>
+  <p class="carte__meta">{{ spectacle.get_statut_projet_display }}</p>
+</li>

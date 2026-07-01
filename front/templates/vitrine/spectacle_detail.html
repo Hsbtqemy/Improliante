@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ spectacle.titre }} — L'Improliante{% endblock %}
+{% block description %}{{ spectacle.synopsis|truncatewords:25 }}{% endblock %}
+
+{% block contenu %}
+  <article class="fiche">
+    <p><a href="{% url 'vitrine:spectacles' %}">← Retour aux spectacles</a></p>
+
+    <h1>{{ spectacle.titre }}</h1>
+    <p class="fiche__meta">
+      {{ spectacle.get_statut_projet_display }} ·
+      {{ spectacle.get_type_portage_display }}
+    </p>
+
+    {% if spectacle.affiche and spectacle.affiche.fichier %}
+      <img
+        class="fiche__affiche"
+        src="{{ spectacle.affiche.fichier.url }}"
+        alt="{{ spectacle.affiche.alt }}"
+      />
+    {% endif %}
+
+    {% if spectacle.synopsis %}
+      <h2>Synopsis</h2>
+      {{ spectacle.synopsis|linebreaks }}
+    {% endif %}
+
+    {% if spectacle.note_intention %}
+      <h2>Note d'intention</h2>
+      {{ spectacle.note_intention|linebreaks }}
+    {% endif %}
+
+    {% with distribution=spectacle.distribution.all %}
+      {% if distribution %}
+        <h2>Distribution</h2>
+        <ul>
+          {% for ligne in distribution %}<li>{{ ligne }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% if prochaines_dates %}
+      <h2>Prochaines dates</h2>
+      <ul>
+        {% for evenement in prochaines_dates %}
+          <li>{{ evenement.titre }} — {{ evenement.date_debut|date:"DATETIME_FORMAT" }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </article>
+{% endblock %}

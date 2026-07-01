@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}L'Improliante{% endblock %}</title>
+    <meta
+      name="description"
+      content="{% block description %}Association de spectacle vivant : créations, projets et rendez-vous.{% endblock %}"
+    />
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
+  </head>
+  <body>
+    <a class="lien-evitement" href="#contenu">Aller au contenu principal</a>
+
+    <header class="site-entete">
+      <div class="conteneur site-entete__inner">
+        <a href="{% url 'vitrine:accueil' %}" class="site-logo">L'Improliante</a>
+        <nav aria-label="Navigation principale">
+          <ul class="site-nav">
+            <li><a href="{% url 'vitrine:accueil' %}">Accueil</a></li>
+            <li><a href="{% url 'vitrine:spectacles' %}">Spectacles</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="contenu" class="conteneur" tabindex="-1">
+      {% block contenu %}{% endblock %}
+    </main>
+
+    <footer class="site-pied">
+      <div class="conteneur">
+        <p>© L'Improliante — association de spectacle vivant.</p>
+      </div>
+    </footer>
+  </body>
+</html>

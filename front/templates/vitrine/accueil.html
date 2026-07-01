@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>L'Improliante</h1>
+  <p class="intro">
+    Association de spectacle vivant : nos créations, les projets portés par nos
+    membres, et les prochains rendez-vous.
+  </p>
+
+  <section aria-labelledby="titre-affiche">
+    <h2 id="titre-affiche">À l'affiche</h2>
+    {% if a_l_affiche %}
+      <ul class="cartes">
+        {% for spectacle in a_l_affiche %}
+          {% include "vitrine/_carte_spectacle.html" %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucun spectacle à l'affiche pour le moment.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-creation">
+    <h2 id="titre-creation">Nos créations en cours</h2>
+    {% if en_creation %}
+      <ul class="cartes">
+        {% for spectacle in en_creation %}
+          {% include "vitrine/_carte_spectacle.html" %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucune création en cours pour le moment.</p>
+    {% endif %}
+  </section>
+
+  <p>
+    <a class="lien-bouton" href="{% url 'vitrine:spectacles' %}">
+      Voir tous les spectacles
+    </a>
+  </p>
+{% endblock %}

@@ -1,0 +1,220 @@
+/* Front public — mobile-first, unités relatives (rem), contrastes AA. */
+
+:root {
+  --couleur-texte: #1a1a1a;
+  --couleur-fond: #ffffff;
+  --couleur-primaire: #7a1f2b; /* bordeaux, contraste AA sur blanc */
+  --couleur-primaire-clair: #f3e7e9;
+  --couleur-muet: #565656;
+  --bordure: #e2e2e2;
+  --espace: 1rem;
+  --largeur-max: 62rem;
+  --rayon: 0.375rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  color: var(--couleur-texte);
+  background: var(--couleur-fond);
+}
+
+.conteneur {
+  width: 100%;
+  max-width: var(--largeur-max);
+  margin-inline: auto;
+  padding-inline: var(--espace);
+}
+
+/* Lien d'évitement (visible au focus clavier) */
+.lien-evitement {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  z-index: 100;
+  background: var(--couleur-primaire);
+  color: #fff;
+  padding: 0.5rem 1rem;
+}
+.lien-evitement:focus {
+  left: 0;
+}
+
+/* Focus visible homogène */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--couleur-primaire);
+  outline-offset: 2px;
+}
+
+/* En-tête */
+.site-entete {
+  border-bottom: 1px solid var(--bordure);
+}
+.site-entete__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace);
+  padding-block: 0.75rem;
+}
+.site-logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--couleur-primaire);
+  text-decoration: none;
+}
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.site-nav a {
+  display: inline-block;
+  padding: 0.5rem; /* zone tactile */
+  color: var(--couleur-texte);
+  text-decoration: none;
+}
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
+main {
+  padding-block: 2rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+h2 {
+  font-size: 1.35rem;
+  margin-top: 2rem;
+}
+.intro {
+  font-size: 1.1rem;
+  color: var(--couleur-muet);
+}
+
+/* Grille de cartes responsive */
+.cartes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--espace);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 40rem) {
+  .cartes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 60rem) {
+  .cartes {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.carte {
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+.carte__image {
+  width: 100%;
+  height: 10rem;
+  object-fit: cover;
+  display: block;
+}
+.carte__titre {
+  margin: 0.75rem;
+  font-size: 1.1rem;
+}
+.carte__titre a {
+  color: var(--couleur-texte);
+  text-decoration: none;
+}
+.carte__titre a:hover {
+  text-decoration: underline;
+}
+.carte__meta {
+  margin: 0 0.75rem 0.75rem;
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+}
+
+/* Filtres */
+.filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace);
+  margin-block: 1.5rem;
+  padding: var(--espace);
+  background: var(--couleur-primaire-clair);
+  border-radius: var(--rayon);
+}
+.filtres__champ {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.filtres label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.filtres select {
+  min-height: 2.75rem; /* zone tactile ~44px */
+  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+}
+
+/* Lien-bouton */
+.lien-bouton {
+  display: inline-block;
+  min-height: 2.75rem;
+  padding: 0.6rem 1.1rem;
+  background: var(--couleur-primaire);
+  color: #fff;
+  text-decoration: none;
+  border-radius: var(--rayon);
+}
+.lien-bouton:hover {
+  opacity: 0.9;
+}
+
+/* Fiche */
+.fiche__affiche {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--rayon);
+}
+.fiche__meta {
+  color: var(--couleur-muet);
+}
+
+/* Pied de page */
+.site-pied {
+  margin-top: 3rem;
+  padding-block: 1.5rem;
+  border-top: 1px solid var(--bordure);
+  color: var(--couleur-muet);
+}
+
+/* Respect de la préférence de réduction des animations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

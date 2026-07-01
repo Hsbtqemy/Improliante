@@ -48,8 +48,9 @@ Priorité du projet : **sur-mesure et flexible**. Détails → `docs/cahier-des-
 │   ├── documents/          # Dossier (arbre), Document
 │   ├── facturation/        # Client, Devis, Facture, lignes
 │   ├── budget/             # Adhesion, Saison, Transaction, Categorie
-│   └── gouvernance/        # Sujet, Reunion, Resolution, Pouvoir, Presence, Parametres
-├── front/                  # templates / assets front public (ou app front dédiée)
+│   ├── gouvernance/        # Sujet, Reunion, Resolution, Pouvoir, Presence, Parametres
+│   └── vitrine/            # front public : vues + urls (templates dans front/)
+├── front/                  # templates & assets du front public (rendu serveur)
 ├── docs/
 │   └── cahier-des-charges-asso.md
 ├── deploiement/            # deploy.sh, webhook_receiver.py, *.service, backup.sh

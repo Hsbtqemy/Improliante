@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Spectacles &amp; projets — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Spectacles &amp; projets</h1>
+
+  <form method="get" class="filtres" aria-label="Filtrer les spectacles">
+    <div class="filtres__champ">
+      <label for="filtre-statut">Statut du projet</label>
+      <select name="statut" id="filtre-statut" onchange="this.form.submit()">
+        <option value="">Tous</option>
+        {% for valeur, libelle in statuts %}
+          <option value="{{ valeur }}" {% if valeur == statut_actif %}selected{% endif %}>
+            {{ libelle }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filtres__champ">
+      <label for="filtre-portage">Portage</label>
+      <select name="portage" id="filtre-portage" onchange="this.form.submit()">
+        <option value="">Tous</option>
+        {% for valeur, libelle in portages %}
+          <option value="{{ valeur }}" {% if valeur == portage_actif %}selected{% endif %}>
+            {{ libelle }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <noscript><button type="submit">Filtrer</button></noscript>
+  </form>
+
+  {% if spectacles %}
+    <ul class="cartes">
+      {% for spectacle in spectacles %}
+        {% include "vitrine/_carte_spectacle.html" %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Aucun spectacle ne correspond à ces critères.</p>
+  {% endif %}
+{% endblock %}
