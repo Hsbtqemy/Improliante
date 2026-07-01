@@ -81,7 +81,7 @@ DJANGO_APPS = [
 # pour que le squelette tourne avec Django seul.
 THIRD_PARTY_APPS: list[str] = [
     # "rest_framework",                 # API (DRF)
-    # "treebeard",                      # arbres GED (Dossier auto-référent)
+    "treebeard",                      # arbres GED (Dossier auto-référent)
     # "guardian",                       # permissions par objet
     # "axes",                           # anti-brute-force
     # "django_otp",                     # 2FA
