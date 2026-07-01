@@ -29,4 +29,6 @@ urlpatterns = [
         views.telecharger_document,
         name="telecharger_document",
     ),
+    path("espace/convocations/", views.mes_convocations, name="mes_convocations"),
+    path("espace/convocations/<int:pk>/", views.detail_convocation, name="detail_convocation"),
 ]

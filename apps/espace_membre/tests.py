@@ -14,6 +14,7 @@ from apps.budget.models import Adhesion, Saison
 from apps.coeur.models import Membre, Utilisateur
 from apps.common.models import Moderation
 from apps.documents.models import Document
+from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
 from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
@@ -392,3 +393,103 @@ def test_mes_documents_ne_liste_que_les_accessibles(client, db):
     assert "Statuts" in corps
     assert "ConvocationAG" in corps
     assert "ContratConfidentiel" not in corps  # privé d'autrui : masqué
+
+
+# --- Convocations / CR d'AG : visibilité + contenu -------------------------
+
+
+def _reunion(type_reunion, statut, *, titre="Réunion"):
+    return Reunion.objects.create(
+        titre=titre,
+        type_reunion=type_reunion,
+        statut=statut,
+        date=make_aware(datetime(2026, 10, 15, 18, 30)),
+    )
+
+
+def _ag(statut=Reunion.Statut.CONVOQUEE, titre="AG 2026"):
+    return _reunion(Reunion.TypeReunion.AG_ORDINAIRE, statut, titre=titre)
+
+
+def test_convocations_exige_la_connexion(client, db):
+    reponse = client.get("/espace/convocations/")
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url
+
+
+def test_membre_voit_une_ag_convoquee(client, db):
+    membre = _membre("alice")
+    _ag(titre="AG ordinaire 2026")
+    client.force_login(membre.user)
+    corps = client.get("/espace/convocations/").content.decode()
+    assert "AG ordinaire 2026" in corps
+
+
+def test_membre_ne_voit_pas_une_ag_en_preparation(client, db):
+    """Une AG encore en préparation n'est pas exposée (liste + détail 404)."""
+    membre = _membre("alice")
+    ag = _ag(statut=Reunion.Statut.PREPARATION, titre="Brouillon AG")
+    client.force_login(membre.user)
+    corps = client.get("/espace/convocations/").content.decode()
+    assert "Brouillon AG" not in corps
+    assert client.get(f"/espace/convocations/{ag.pk}/").status_code == 404
+
+
+def test_membre_ne_voit_pas_une_reunion_de_bureau(client, db):
+    """ANTI-IDOR : les réunions de bureau sont réservées au bureau (staff)."""
+    membre = _membre("alice")
+    bureau = _reunion(Reunion.TypeReunion.BUREAU, Reunion.Statut.CONVOQUEE, titre="Bureau interne")
+    client.force_login(membre.user)
+    corps = client.get("/espace/convocations/").content.decode()
+    assert "Bureau interne" not in corps
+    assert client.get(f"/espace/convocations/{bureau.pk}/").status_code == 404
+
+
+def test_staff_voit_une_reunion_de_bureau(client, db):
+    staff = Utilisateur.objects.create_user(username="bureau", password="x", is_staff=True)
+    bureau = _reunion(Reunion.TypeReunion.BUREAU, Reunion.Statut.CONVOQUEE, titre="Bureau interne")
+    client.force_login(staff)
+    assert client.get(f"/espace/convocations/{bureau.pk}/").status_code == 200
+
+
+def test_detail_convocation_montre_l_ordre_du_jour(client, db):
+    membre = _membre("alice")
+    ag = _ag()
+    Sujet.objects.create(titre="Vote du budget 2026", reunion=ag, ordre_du_jour=1)
+    client.force_login(membre.user)
+    corps = client.get(f"/espace/convocations/{ag.pk}/").content.decode()
+    assert "Vote du budget 2026" in corps
+
+
+def test_pv_prive_non_liste_mais_pv_membres_visible(client, db):
+    """Les documents liés à l'AG sont filtrés selon les droits : un PV privé
+    d'autrui reste masqué, un document « membres » est proposé."""
+    membre = _membre("alice")
+    ag = _ag()
+    pv_prive = _document(
+        Document.Confidentialite.PRIVE, titre="PVConfidentiel", cree_par=_membre("rh").user
+    )
+    ag.compte_rendu = pv_prive
+    ag.save()
+    doc_membres = _document(Document.Confidentialite.MEMBRES, titre="AnnexeMembres")
+    ag.documents.add(doc_membres)
+
+    client.force_login(membre.user)
+    corps = client.get(f"/espace/convocations/{ag.pk}/").content.decode()
+    assert "PVConfidentiel" not in corps
+    assert "AnnexeMembres" in corps
+
+
+def test_membre_voit_son_statut_de_presence(client, db):
+    membre = _membre("alice")
+    ag = _ag()
+    Presence.objects.create(
+        reunion=ag, membre=membre, statut=Presence.Statut.REPRESENTE, peut_voter=True
+    )
+    mandataire = _membre("bob")
+    Pouvoir.objects.create(reunion=ag, mandant=membre, mandataire=mandataire)
+
+    client.force_login(membre.user)
+    corps = client.get(f"/espace/convocations/{ag.pk}/").content.decode()
+    assert "Représenté" in corps
+    assert "donné pouvoir" in corps

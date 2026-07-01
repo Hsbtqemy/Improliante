@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Mes convocations — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Convocations et assemblées</h1>
+
+  {% if reunions %}
+    <ul class="liste-projets">
+      {% for reunion in reunions %}
+        <li class="carte-projet">
+          <h2 class="carte-projet__titre">
+            <a href="{% url 'espace_membre:detail_convocation' pk=reunion.pk %}">{{ reunion.titre }}</a>
+          </h2>
+          <p class="carte-projet__meta">
+            <span class="badge">{{ reunion.get_type_reunion_display }}</span>
+            <span class="badge badge--{{ reunion.statut }}">{{ reunion.get_statut_display }}</span>
+            {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
+            {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
+          </p>
+          {% if reunion.compte_rendu %}
+            <p class="carte-projet__meta">Compte-rendu disponible.</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Aucune convocation pour l'instant.</p>
+  {% endif %}
+
+  <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
+{% endblock %}

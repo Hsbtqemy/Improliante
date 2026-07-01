@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ reunion.titre }} — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>{{ reunion.titre }}</h1>
+
+  <p class="carte-projet__meta">
+    <span class="badge">{{ reunion.get_type_reunion_display }}</span>
+    <span class="badge badge--{{ reunion.statut }}">{{ reunion.get_statut_display }}</span>
+    {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
+    {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
+  </p>
+
+  {% if ma_presence or pouvoir_donne or pouvoir_recu %}
+    <section aria-labelledby="titre-statut">
+      <h2 id="titre-statut">Votre situation</h2>
+      <ul>
+        {% if ma_presence %}
+          <li>
+            Vous êtes noté : <strong>{{ ma_presence.get_statut_display }}</strong>
+            {% if ma_presence.peut_voter %}(droit de vote){% else %}(sans droit de vote){% endif %}
+          </li>
+        {% endif %}
+        {% if pouvoir_donne %}
+          <li>Vous avez donné pouvoir à <strong>{{ pouvoir_donne.mandataire }}</strong>.</li>
+        {% endif %}
+        {% if pouvoir_recu %}
+          <li>Vous représentez <strong>{{ pouvoir_recu.mandant }}</strong>.</li>
+        {% endif %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if reunion.convocation_texte %}
+    <section aria-labelledby="titre-convocation">
+      <h2 id="titre-convocation">Convocation</h2>
+      <p>{{ reunion.convocation_texte|linebreaksbr }}</p>
+    </section>
+  {% endif %}
+
+  <section aria-labelledby="titre-odj">
+    <h2 id="titre-odj">Ordre du jour</h2>
+    {% if ordre_du_jour %}
+      <ol>
+        {% for sujet in ordre_du_jour %}
+          <li>
+            <strong>{{ sujet.titre }}</strong>
+            {% if sujet.description %}<br />{{ sujet.description }}{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p>L'ordre du jour n'est pas encore publié.</p>
+    {% endif %}
+  </section>
+
+  {% if compte_rendu or documents %}
+    <section aria-labelledby="titre-docs">
+      <h2 id="titre-docs">Documents</h2>
+      <ul>
+        {% if compte_rendu %}
+          <li>
+            <a href="{% url 'espace_membre:telecharger_document' pk=compte_rendu.pk %}">
+              Compte-rendu (PV) — {{ compte_rendu.titre }}
+            </a>
+          </li>
+        {% endif %}
+        {% for document in documents %}
+          <li>
+            <a href="{% url 'espace_membre:telecharger_document' pk=document.pk %}">{{ document.titre }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <p><a href="{% url 'espace_membre:mes_convocations' %}">← Retour aux convocations</a></p>
+{% endblock %}

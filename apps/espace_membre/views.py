@@ -20,6 +20,7 @@ from apps.agenda.models import Evenement
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.documents.models import Document
+from apps.gouvernance.models import Reunion
 from apps.spectacles.models import Spectacle
 
 from .forms import EvenementMembreForm, ProjetMembreForm
@@ -271,4 +272,78 @@ def telecharger_document(request, pk):
     extension = PurePosixPath(document.fichier.name).suffix
     return reponse_fichier_prive(
         document.fichier, nom_telechargement=f"{document.titre}{extension}"
+    )
+
+
+# --- Convocations / comptes-rendus d'AG ------------------------------------
+# Périmètre (anti-IDOR par queryset) : un membre voit les ASSEMBLÉES GÉNÉRALES
+# une fois convoquées ; les réunions de bureau restent réservées au bureau
+# (staff). Les réunions en préparation ne sont jamais exposées.
+
+_STATUTS_REUNION_VISIBLES = [
+    Reunion.Statut.CONVOQUEE,
+    Reunion.Statut.TENUE,
+    Reunion.Statut.ARCHIVEE,
+]
+
+
+def _reunions_visibles(user):
+    """Réunions consultables par l'utilisateur, selon son rôle."""
+    qs = Reunion.objects.filter(statut__in=_STATUTS_REUNION_VISIBLES)
+    if user.is_staff:
+        return qs  # le bureau voit aussi les réunions de bureau
+    if getattr(user, "membre", None) is None:
+        return Reunion.objects.none()
+    return qs.filter(
+        type_reunion__in=[
+            Reunion.TypeReunion.AG_ORDINAIRE,
+            Reunion.TypeReunion.AG_EXTRAORDINAIRE,
+        ]
+    )
+
+
+@login_required
+def mes_convocations(request):
+    """Liste des réunions (AG) auxquelles le membre connecté est convié."""
+    reunions = _reunions_visibles(request.user).order_by("-date", "-id")
+    return render(request, "espace_membre/mes_convocations.html", {"reunions": reunions})
+
+
+@login_required
+def detail_convocation(request, pk):
+    """Détail d'une convocation : ordre du jour, documents joints, PV, et le
+    statut personnel du membre. 404 hors périmètre de visibilité (anti-IDOR)."""
+    reunion = get_object_or_404(_reunions_visibles(request.user), pk=pk)
+
+    ordre_du_jour = reunion.sujets.order_by("ordre_du_jour", "id")
+
+    # On ne présente que les documents que l'utilisateur a le droit d'ouvrir
+    # (pas de lien mort/interdit) — le téléchargement re-contrôle les droits.
+    documents = [d for d in reunion.documents.all() if _peut_acceder_document(request.user, d)]
+    compte_rendu = reunion.compte_rendu
+    if compte_rendu is not None and not _peut_acceder_document(request.user, compte_rendu):
+        compte_rendu = None
+
+    # Statut personnel du membre (présence figée + éventuels pouvoirs).
+    membre = _membre_connecte(request)
+    ma_presence = None
+    pouvoir_donne = None
+    pouvoir_recu = None
+    if membre is not None:
+        ma_presence = reunion.presences.filter(membre=membre).first()
+        pouvoir_donne = reunion.pouvoirs.filter(mandant=membre).select_related("mandataire").first()
+        pouvoir_recu = reunion.pouvoirs.filter(mandataire=membre).select_related("mandant").first()
+
+    return render(
+        request,
+        "espace_membre/convocation_detail.html",
+        {
+            "reunion": reunion,
+            "ordre_du_jour": ordre_du_jour,
+            "documents": documents,
+            "compte_rendu": compte_rendu,
+            "ma_presence": ma_presence,
+            "pouvoir_donne": pouvoir_donne,
+            "pouvoir_recu": pouvoir_recu,
+        },
     )
