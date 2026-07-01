@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+from django.core.management import call_command
 
 from apps.facturation.models import Client, Facture
 from apps.facturation.services import FactureDejaValidee, valider_facture
@@ -63,3 +64,22 @@ def test_serie_annuelle_independante(client_facture):
     f2027.refresh_from_db()
     assert f2026.numero == "F2026-0001"
     assert f2027.numero == "F2027-0001"
+
+
+def test_reinit_factures_remet_la_numerotation_a_zero(client_facture, settings):
+    # La commande refuse de tourner hors DEBUG (protection prod) ; pytest force
+    # DEBUG=False, on le réactive donc explicitement pour ce test.
+    settings.DEBUG = True
+
+    f = Facture.objects.create(client=client_facture)
+    valider_facture(f, date_emission=date(2026, 3, 1))
+    assert Facture.objects.count() == 1
+
+    call_command("reinit_factures", "--yes")
+    assert Facture.objects.count() == 0
+
+    # La numérotation repart bien à 0001.
+    f2 = Facture.objects.create(client=client_facture)
+    valider_facture(f2, date_emission=date(2026, 3, 1))
+    f2.refresh_from_db()
+    assert f2.numero == "F2026-0001"
