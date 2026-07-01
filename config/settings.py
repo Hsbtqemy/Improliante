@@ -149,6 +149,9 @@ DATABASES = {
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
         "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+        # connect_timeout borne l'attente quand la base est injoignable
+        # (utile en dev hors-ligne : makemigrations / check échouent vite).
+        "OPTIONS": {"connect_timeout": int(os.environ.get("DB_CONNECT_TIMEOUT", "5"))},
     }
 }
 

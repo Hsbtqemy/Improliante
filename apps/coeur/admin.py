@@ -23,7 +23,7 @@ class MembreAdmin(admin.ModelAdmin):
         "user__username",
         "user__email",
     )
-    autocomplete_fields = ("user",)
+    autocomplete_fields = ("user", "photo")
     readonly_fields = ("date_creation", "date_modification")
 
 

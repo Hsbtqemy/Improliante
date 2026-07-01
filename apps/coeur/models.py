@@ -65,8 +65,15 @@ class Membre(models.Model):
     date_creation = models.DateTimeField("créé le", auto_now_add=True)
     date_modification = models.DateTimeField("modifié le", auto_now=True)
 
-    # NB : la photo du membre sera ajoutée en clé étrangère vers `medias.Media`
-    # (texte alternatif obligatoire) lorsque l'app `medias` sera implémentée.
+    photo = models.ForeignKey(
+        "medias.Media",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="photo",
+        help_text="Portrait affiché sur la fiche publique (si le membre est visible).",
+    )
 
     class Meta:
         verbose_name = "membre"

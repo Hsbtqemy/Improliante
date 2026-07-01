@@ -23,6 +23,9 @@ django-simple-history>=3.7       # journal d'audit (qui a fait quoi)
 django-guardian>=2.4             # permissions par objet (finesse si besoin)
 django-treebeard>=4.7            # arborescence GED (Dossier auto-référent)
 
+# --- Images / médias --------------------------------------------------------
+Pillow>=10.4                     # traitement d'images (ImageField, vignettes)
+
 # --- Documents (PDF / Excel) -----------------------------------------------
 # WeasyPrint nécessite des dépendances SYSTÈME (Pango, cairo, gdk-pixbuf…).
 # Voir https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
