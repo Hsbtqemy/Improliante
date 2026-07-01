@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Clients — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Clients</h1>
+
+  <section aria-labelledby="titre-nouveau">
+    <h2 id="titre-nouveau">Nouveau client</h2>
+    <form method="post" class="formulaire">
+      {% csrf_token %}
+      {% for field in form %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="titre-liste">
+    <h2 id="titre-liste">Clients enregistrés</h2>
+    {% if clients %}
+      <ul>
+        {% for client in clients %}
+          <li>{{ client.nom }}{% if client.ville %} — {{ client.ville }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucun client enregistré.</p>
+    {% endif %}
+  </section>
+
+  <p><a href="{% url 'backoffice:liste_factures' %}">← Retour aux factures</a></p>
+{% endblock %}

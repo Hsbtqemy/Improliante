@@ -17,6 +17,7 @@ from decimal import Decimal
 from django.db import models
 
 from apps.common.models import Horodatage
+from apps.common.stockage import StockagePrive
 
 CENT = Decimal("0.01")
 
@@ -154,6 +155,12 @@ class Facture(AvecTotaux, Horodatage):
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.BROUILLON)
     date_validation = models.DateTimeField("validée le", null=True, blank=True)
     mentions_legales = models.TextField("mentions légales", blank=True)
+
+    # PDF rendu paresseusement au 1er téléchargement d'une facture validée, puis
+    # mis en cache (stockage privé, hors racine web — document légal immuable).
+    fichier = models.FileField(
+        "PDF de la facture", upload_to="factures/%Y/", storage=StockagePrive, blank=True
+    )
 
     class Meta:
         verbose_name = "facture"

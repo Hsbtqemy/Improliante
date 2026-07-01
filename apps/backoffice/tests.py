@@ -14,6 +14,7 @@ from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
+from apps.facturation.models import Client, Facture, LigneFacture
 from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
@@ -232,3 +233,114 @@ def test_bureau_telecharge_le_pdf(client, db, monkeypatch):
     reponse = client.get(f"/bureau/recus/{recu.pk}/telecharger/")
     assert reponse.status_code == 200
     assert b"".join(reponse.streaming_content).startswith(b"%PDF")
+
+
+# --- Facturation ------------------------------------------------------------
+
+
+def _donnees_facture(client_facture, **extra):
+    donnees = {
+        "client": client_facture.pk,
+        "objet": "Prestation artistique",
+        "date_echeance": "",
+        "mentions_legales": "",
+        "lignes-TOTAL_FORMS": "1",
+        "lignes-INITIAL_FORMS": "0",
+        "lignes-MIN_NUM_FORMS": "0",
+        "lignes-MAX_NUM_FORMS": "1000",
+        "lignes-0-designation": "Atelier théâtre",
+        "lignes-0-quantite": "2",
+        "lignes-0-prix_unitaire_ht": "100.00",
+        "lignes-0-taux_tva": "20.00",
+        "lignes-0-ordre": "0",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_factures_reservees_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/factures/").status_code == 403
+
+
+def test_creer_facture_avec_lignes(client, db):
+    client_facture = Client.objects.create(nom="Théâtre municipal")
+    client.force_login(_staff())
+    reponse = client.post("/bureau/factures/nouvelle/", _donnees_facture(client_facture))
+    assert reponse.status_code == 302
+    facture = Facture.objects.get()
+    assert facture.statut == Facture.Statut.BROUILLON
+    assert facture.numero is None
+    assert facture.lignes.count() == 1
+    assert facture.total_ttc == Decimal("240.00")  # 2 × 100 HT + 20 % TVA
+
+
+def test_valider_facture_attribue_le_numero(client, db):
+    client_facture = Client.objects.create(nom="Théâtre municipal")
+    facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture, designation="Prestation", quantite=1, prix_unitaire_ht=Decimal("50")
+    )
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/factures/{facture.pk}/valider/")
+    assert reponse.status_code == 302
+    facture.refresh_from_db()
+    assert facture.statut == Facture.Statut.VALIDEE
+    assert facture.numero and facture.numero.startswith("F")
+
+
+def test_valider_facture_sans_ligne_refuse(client, db):
+    client_facture = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=client_facture)
+    client.force_login(_staff())
+    client.post(f"/bureau/factures/{facture.pk}/valider/")
+    facture.refresh_from_db()
+    assert facture.statut == Facture.Statut.BROUILLON  # non validée
+    assert facture.numero is None
+
+
+def test_facture_validee_non_editable(client, db):
+    """Une facture validée est présentée en lecture seule (pas de formulaire)."""
+    from apps.facturation.services import valider_facture
+
+    client_facture = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture, designation="X", quantite=1, prix_unitaire_ht=Decimal("10")
+    )
+    valider_facture(facture)
+    client.force_login(_staff())
+    corps = client.get(f"/bureau/factures/{facture.pk}/").content.decode()
+    assert "n'est plus modifiable" in corps
+
+
+def test_telecharger_facture_brouillon_404(client, db):
+    client_facture = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=client_facture)
+    client.force_login(_staff())
+    assert client.get(f"/bureau/factures/{facture.pk}/telecharger/").status_code == 404
+
+
+def test_telecharger_facture_validee(client, db, monkeypatch):
+    from apps.facturation.services import valider_facture
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 f"
+    )
+    client_facture = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture, designation="X", quantite=1, prix_unitaire_ht=Decimal("10")
+    )
+    valider_facture(facture)
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/factures/{facture.pk}/telecharger/")
+    assert reponse.status_code == 200
+    assert b"".join(reponse.streaming_content).startswith(b"%PDF")
+
+
+def test_creer_client(client, db):
+    client.force_login(_staff())
+    reponse = client.post("/bureau/clients/", {"nom": "Nouvelle scène", "ville": "Lyon"})
+    assert reponse.status_code == 302
+    assert Client.objects.filter(nom="Nouvelle scène").exists()

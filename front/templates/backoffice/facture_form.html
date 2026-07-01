@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if facture %}Facture (brouillon #{{ facture.pk }}){% else %}Nouvelle facture{% endif %} — Back-office
+{% endblock %}
+
+{% block contenu %}
+  <h1>{% if facture %}Modifier la facture (brouillon){% else %}Nouvelle facture{% endif %}</h1>
+
+  <form method="post" class="formulaire">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+
+    <h2>Lignes</h2>
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}<div class="erreurs" role="alert">{{ formset.non_form_errors }}</div>{% endif %}
+    <table class="tableau">
+      <thead>
+        <tr>
+          <th scope="col">Désignation</th>
+          <th scope="col">Qté</th>
+          <th scope="col">PU HT</th>
+          <th scope="col">TVA %</th>
+          <th scope="col">Ordre</th>
+          <th scope="col">Suppr.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in formset %}
+          <tr>
+            {{ ligne.id }}
+            <td>{{ ligne.designation }}{% for e in ligne.designation.errors %}<span class="champ__erreur">{{ e }}</span>{% endfor %}</td>
+            <td>{{ ligne.quantite }}</td>
+            <td>{{ ligne.prix_unitaire_ht }}</td>
+            <td>{{ ligne.taux_tva }}</td>
+            <td>{{ ligne.ordre }}</td>
+            <td>{{ ligne.DELETE }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer le brouillon</button>
+      <a class="lien-bouton" href="{% url 'backoffice:liste_factures' %}">Retour à la liste</a>
+    </div>
+  </form>
+
+  {% if facture %}
+    <section aria-labelledby="titre-validation">
+      <h2 id="titre-validation">Validation</h2>
+      <p class="carte-projet__meta">
+        La validation attribue un numéro légal définitif (série continue) et fige la facture.
+      </p>
+      <form method="post" action="{% url 'backoffice:valider_facture' pk=facture.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton">Valider et numéroter</button>
+      </form>
+    </section>
+  {% endif %}
+{% endblock %}

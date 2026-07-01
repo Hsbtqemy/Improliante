@@ -10,8 +10,13 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.core.files.base import ContentFile
 from django.db import transaction
+from django.template.loader import render_to_string
 from django.utils import timezone
+
+from apps.coeur.models import ParametresAssociation
+from apps.common import pdf
 
 from .models import CompteurFacture, Facture
 
@@ -47,3 +52,18 @@ def valider_facture(facture: Facture, *, date_emission: date | None = None) -> F
     facture.date_validation = timezone.now()
     facture.save(update_fields=["numero", "statut", "date", "date_validation"])
     return facture
+
+
+def assurer_pdf_facture(facture: Facture) -> None:
+    """Garantit le PDF d'une facture VALIDÉE dans le stockage privé.
+
+    Rendu une seule fois puis mis en cache (immuabilité du document légal).
+    Ne rend rien pour un brouillon (pas de numéro : pas de PDF légal)."""
+    if facture.fichier or facture.statut == Facture.Statut.BROUILLON:
+        return
+    html = render_to_string(
+        "facture/facture.html",
+        {"facture": facture, "asso": ParametresAssociation.load()},
+    )
+    octets = pdf.html_vers_pdf(html)
+    facture.fichier.save(f"facture-{facture.numero}.pdf", ContentFile(octets), save=True)

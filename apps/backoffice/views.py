@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -24,9 +25,11 @@ from apps.common.moderation import (
     refuser,
     valider,
 )
+from apps.facturation.models import Client, Facture
+from apps.facturation.services import FactureDejaValidee, assurer_pdf_facture, valider_facture
 from apps.spectacles.models import Spectacle
 
-from .forms import RecuFiscalForm
+from .forms import ClientForm, FactureForm, LigneFactureFormSet, RecuFiscalForm
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
 
@@ -159,3 +162,96 @@ def servir_recu(recu: RecuFiscal):
     assurer_pdf_recu(recu)
     nom = f"recu-{recu.numero}{PurePosixPath(recu.fichier.name).suffix}"
     return reponse_fichier_prive(recu.fichier, nom_telechargement=nom)
+
+
+# --- Facturation ------------------------------------------------------------
+
+
+@bureau_requis
+def liste_factures(request):
+    """Liste des factures (brouillons et validées)."""
+    factures = Facture.objects.select_related("client").all()
+    return render(request, "backoffice/factures_liste.html", {"factures": factures})
+
+
+@bureau_requis
+def creer_facture(request):
+    """Crée une facture (brouillon) avec ses lignes."""
+    return _editer_facture(request, facture=Facture())
+
+
+@bureau_requis
+def editer_facture(request, pk):
+    """Édite une facture. Une facture validée n'est plus modifiable (document
+    légal) : elle est présentée en lecture seule avec le lien de téléchargement."""
+    facture = get_object_or_404(Facture, pk=pk)
+    if facture.statut != Facture.Statut.BROUILLON:
+        return render(request, "backoffice/facture_detail.html", {"facture": facture})
+    return _editer_facture(request, facture=facture)
+
+
+def _editer_facture(request, *, facture: Facture):
+    """En-tête + lignes (formset) d'une facture brouillon."""
+    if request.method == "POST":
+        form = FactureForm(request.POST, instance=facture)
+        formset = LigneFactureFormSet(request.POST, instance=facture, prefix="lignes")
+        if form.is_valid() and formset.is_valid():
+            facture = form.save()
+            formset.instance = facture
+            formset.save()
+            messages.success(request, "Facture enregistrée.")
+            return redirect("backoffice:editer_facture", pk=facture.pk)
+    else:
+        form = FactureForm(instance=facture)
+        formset = LigneFactureFormSet(instance=facture, prefix="lignes")
+    return render(
+        request,
+        "backoffice/facture_form.html",
+        {"form": form, "formset": formset, "facture": facture if facture.pk else None},
+    )
+
+
+@bureau_requis
+@require_POST
+def valider_facture_vue(request, pk):
+    """Valide une facture : lui attribue son numéro légal (via le service)."""
+    facture = get_object_or_404(Facture, pk=pk)
+    if not facture.lignes.exists():
+        messages.error(request, "Impossible de valider une facture sans ligne.")
+        return redirect("backoffice:editer_facture", pk=facture.pk)
+    try:
+        valider_facture(facture)
+        messages.success(request, f"Facture {facture.numero} validée.")
+    except FactureDejaValidee as exc:
+        messages.error(request, str(exc))
+    return redirect("backoffice:editer_facture", pk=facture.pk)
+
+
+@bureau_requis
+def telecharger_facture(request, pk):
+    """Sert le PDF d'une facture validée (rendu paresseux + cache)."""
+    facture = get_object_or_404(Facture, pk=pk)
+    if facture.statut == Facture.Statut.BROUILLON:
+        raise Http404  # pas de PDF légal pour un brouillon
+    assurer_pdf_facture(facture)
+    return reponse_fichier_prive(
+        facture.fichier, nom_telechargement=f"facture-{facture.numero}.pdf"
+    )
+
+
+@bureau_requis
+def liste_clients(request):
+    """Liste des clients + création."""
+    if request.method == "POST":
+        form = ClientForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Client enregistré.")
+            return redirect("backoffice:liste_clients")
+    else:
+        form = ClientForm()
+    return render(
+        request,
+        "backoffice/clients.html",
+        {"form": form, "clients": Client.objects.all()},
+    )

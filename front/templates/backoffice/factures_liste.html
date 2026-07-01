@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Factures — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Factures</h1>
+
+  <p>
+    <a class="lien-bouton" href="{% url 'backoffice:creer_facture' %}">Nouvelle facture</a>
+    <a class="lien-bouton" href="{% url 'backoffice:liste_clients' %}">Clients</a>
+  </p>
+
+  {% if factures %}
+    <table class="tableau">
+      <thead>
+        <tr>
+          <th scope="col">Facture</th>
+          <th scope="col">Client</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Total TTC</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for facture in factures %}
+          <tr>
+            <td>{{ facture }}</td>
+            <td>{{ facture.client }}</td>
+            <td><span class="badge">{{ facture.get_statut_display }}</span></td>
+            <td>{{ facture.total_ttc|floatformat:2 }} €</td>
+            <td>
+              <a href="{% url 'backoffice:editer_facture' pk=facture.pk %}">
+                {% if facture.statut == "brouillon" %}Éditer{% else %}Voir{% endif %}
+              </a>
+              {% if facture.statut != "brouillon" %}
+                · <a href="{% url 'backoffice:telecharger_facture' pk=facture.pk %}">PDF</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Aucune facture pour l'instant.</p>
+  {% endif %}
+{% endblock %}

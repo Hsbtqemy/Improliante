@@ -61,8 +61,15 @@ class FactureAdmin(admin.ModelAdmin):
     search_fields = ("numero", "objet", "client__nom")
     autocomplete_fields = ("client", "devis_origine")
     date_hierarchy = "date"
-    # Numéro et dates figés par la validation (service) : non éditables à la main.
-    readonly_fields = ("numero", "date", "date_validation", "date_creation", "date_modification")
+    # Numéro, dates et PDF figés par la validation (service) : non éditables à la main.
+    readonly_fields = (
+        "numero",
+        "date",
+        "date_validation",
+        "fichier",
+        "date_creation",
+        "date_modification",
+    )
     inlines = (LigneFactureInline,)
     actions = (valider_factures,)
 

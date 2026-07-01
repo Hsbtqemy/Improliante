@@ -7,6 +7,7 @@ from decimal import Decimal
 from django import forms
 
 from apps.budget.models import RecuFiscal
+from apps.facturation.models import Client, Facture, LigneFacture
 
 
 class RecuFiscalForm(forms.ModelForm):
@@ -44,3 +45,48 @@ class RecuFiscalForm(forms.ModelForm):
         if montant is None or montant <= 0:
             raise forms.ValidationError("Le montant doit être strictement positif.")
         return montant
+
+
+class ClientForm(forms.ModelForm):
+    """Création / édition d'un client (destinataire de facture)."""
+
+    class Meta:
+        model = Client
+        fields = [
+            "nom",
+            "adresse",
+            "code_postal",
+            "ville",
+            "email",
+            "telephone",
+            "siret",
+            "numero_tva",
+        ]
+        widgets = {"adresse": forms.Textarea(attrs={"rows": 2})}
+
+
+class FactureForm(forms.ModelForm):
+    """En-tête d'une facture. Numéro, date d'émission et statut sont posés par
+    le service `valider_facture`, jamais saisis à la main."""
+
+    class Meta:
+        model = Facture
+        fields = ["client", "objet", "date_echeance", "mentions_legales"]
+        widgets = {
+            "date_echeance": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "mentions_legales": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date_echeance"].input_formats = ["%Y-%m-%d"]
+
+
+# Lignes d'une facture éditées en bloc avec l'en-tête (formset inline).
+LigneFactureFormSet = forms.inlineformset_factory(
+    Facture,
+    LigneFacture,
+    fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
+    extra=1,
+    can_delete=True,
+)

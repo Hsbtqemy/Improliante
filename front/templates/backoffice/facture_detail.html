@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Facture {{ facture.numero }} — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Facture {{ facture.numero }}</h1>
+
+  <p class="carte-projet__meta">
+    <span class="badge">{{ facture.get_statut_display }}</span>
+    · {{ facture.client }}
+    {% if facture.date %}· émise le {{ facture.date|date:"j F Y" }}{% endif %}
+  </p>
+  <p class="carte-projet__meta">Une facture validée n'est plus modifiable (document légal).</p>
+
+  <table class="tableau">
+    <thead>
+      <tr>
+        <th scope="col">Désignation</th>
+        <th scope="col">Qté</th>
+        <th scope="col">PU HT</th>
+        <th scope="col">TVA %</th>
+        <th scope="col">Total HT</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ligne in facture.lignes.all %}
+        <tr>
+          <td>{{ ligne.designation }}</td>
+          <td>{{ ligne.quantite|floatformat:2 }}</td>
+          <td>{{ ligne.prix_unitaire_ht|floatformat:2 }} €</td>
+          <td>{{ ligne.taux_tva|floatformat:2 }} %</td>
+          <td>{{ ligne.total_ht|floatformat:2 }} €</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><strong>Total TTC : {{ facture.total_ttc|floatformat:2 }} €</strong></p>
+
+  <p class="formulaire__actions">
+    <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:telecharger_facture' pk=facture.pk %}">
+      Télécharger le PDF
+    </a>
+    <a class="lien-bouton" href="{% url 'backoffice:liste_factures' %}">Retour à la liste</a>
+  </p>
+{% endblock %}
