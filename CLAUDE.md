@@ -40,6 +40,7 @@ Priorité du projet : **sur-mesure et flexible**. Détails → `docs/cahier-des-
 /
 ├── config/                 # projet Django (settings, urls, wsgi)
 ├── apps/
+│   ├── common/            # abstraits partagés (Horodatage, Moderation) — technique
 │   ├── coeur/              # Membre, Lieu
 │   ├── spectacles/         # Spectacle, LigneDistribution
 │   ├── agenda/             # Evenement

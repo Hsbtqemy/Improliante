@@ -91,7 +91,9 @@ THIRD_PARTY_APPS: list[str] = [
 ]
 
 # Apps métier — une app par domaine (cf. docs/cahier-des-charges-asso.md §16).
+# `apps.common` : abstraits techniques partagés (Horodatage, Moderation).
 LOCAL_APPS = [
+    "apps.common",
     "apps.coeur",
     "apps.spectacles",
     "apps.agenda",
