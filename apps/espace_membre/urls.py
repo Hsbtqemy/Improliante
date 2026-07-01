@@ -20,4 +20,7 @@ urlpatterns = [
     path("espace/projets/", views.mes_projets, name="mes_projets"),
     path("espace/projets/nouveau/", views.creer_projet, name="creer_projet"),
     path("espace/projets/<int:pk>/", views.editer_projet, name="editer_projet"),
+    path("espace/evenements/", views.mes_evenements, name="mes_evenements"),
+    path("espace/evenements/nouveau/", views.creer_evenement, name="creer_evenement"),
+    path("espace/evenements/<int:pk>/", views.editer_evenement, name="editer_evenement"),
 ]

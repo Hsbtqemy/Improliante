@@ -13,10 +13,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.agenda.models import Evenement
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.spectacles.models import Spectacle
 
-from .forms import ProjetMembreForm
+from .forms import EvenementMembreForm, ProjetMembreForm
 
 
 def _membre_connecte(request):
@@ -127,4 +128,87 @@ def editer_projet(request, pk):
         request,
         "espace_membre/projet_form.html",
         {"form": form, "projet": projet, "editable": editable},
+    )
+
+
+# --- Événements proposés par le membre -------------------------------------
+# Propriété par `cree_par` (l'événement n'a pas de « porteurs ») : le filtre
+# `cree_par=request.user` est la garantie anti-IDOR.
+
+
+@login_required
+def mes_evenements(request):
+    """Liste des événements proposés par le membre connecté."""
+    evenements = Evenement.objects.filter(cree_par=request.user).order_by("-date_debut")
+    return render(
+        request,
+        "espace_membre/mes_evenements.html",
+        {"membre": _membre_connecte(request), "evenements": evenements},
+    )
+
+
+@login_required
+def creer_evenement(request):
+    """Proposition d'un événement : enregistré en brouillon puis, au choix,
+    soumis à la modération. La visibilité reste fixée par le bureau."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(
+            request, "Votre compte n'est pas rattaché à une fiche membre : proposition impossible."
+        )
+        return redirect("espace_membre:tableau_de_bord")
+
+    if request.method == "POST":
+        form = EvenementMembreForm(request.POST, membre=membre)
+        if form.is_valid():
+            evenement = form.save(commit=False)
+            evenement.cree_par = request.user
+            evenement.save()
+            if request.POST.get("action") == "soumettre":
+                soumettre_a_moderation(evenement)
+                messages.success(request, "Événement créé et soumis à validation du bureau.")
+            else:
+                messages.success(request, "Brouillon d'événement enregistré.")
+            return redirect("espace_membre:editer_evenement", pk=evenement.pk)
+    else:
+        form = EvenementMembreForm(membre=membre)
+
+    return render(
+        request,
+        "espace_membre/evenement_form.html",
+        {"form": form, "evenement": None, "editable": True},
+    )
+
+
+@login_required
+def editer_evenement(request, pk):
+    """Édition d'un événement du membre. Propriété vérifiée par
+    `cree_par=request.user` (anti-IDOR). Verrouillé dès la proposition."""
+    membre = _membre_connecte(request)
+    evenement = get_object_or_404(Evenement, pk=pk, cree_par=request.user)
+    editable = peut_etre_edite_par_auteur(evenement)
+
+    if request.method == "POST":
+        if not editable:
+            messages.error(
+                request,
+                "Cet événement est en cours de validation ou publié : il n'est plus modifiable ici.",
+            )
+            return redirect("espace_membre:editer_evenement", pk=evenement.pk)
+        form = EvenementMembreForm(request.POST, instance=evenement, membre=membre)
+        if form.is_valid():
+            form.save()
+            if request.POST.get("action") == "soumettre":
+                soumettre_a_moderation(evenement)
+                messages.success(request, "Événement soumis à validation du bureau.")
+                return redirect("espace_membre:mes_evenements")
+            messages.success(request, "Modifications enregistrées.")
+            return redirect("espace_membre:editer_evenement", pk=evenement.pk)
+    else:
+        form = EvenementMembreForm(instance=evenement, membre=membre)
+
+    return render(
+        request,
+        "espace_membre/evenement_form.html",
+        {"form": form, "evenement": evenement, "editable": editable},
     )

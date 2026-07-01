@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Mes événements — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mes événements</h1>
+
+  <p><a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
+
+  {% if evenements %}
+    <ul class="liste-projets">
+      {% for evenement in evenements %}
+        <li class="carte-projet">
+          <h2 class="carte-projet__titre">
+            <a href="{% url 'espace_membre:editer_evenement' pk=evenement.pk %}">{{ evenement.titre }}</a>
+          </h2>
+          <p class="carte-projet__meta">
+            <span class="badge badge--{{ evenement.statut_moderation }}">
+              {{ evenement.get_statut_moderation_display }}
+            </span>
+            · {{ evenement.date_debut|date:"l j F Y à H:i" }}
+            {% if evenement.lieu_texte %}· {{ evenement.lieu_texte }}{% endif %}
+          </p>
+          {% if evenement.statut_moderation == "refuse" and evenement.motif_refus %}
+            <p class="carte-projet__refus"><strong>Refusé :</strong> {{ evenement.motif_refus }}</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Vous n'avez proposé aucun événement pour l'instant.</p>
+  {% endif %}
+
+  <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
+{% endblock %}

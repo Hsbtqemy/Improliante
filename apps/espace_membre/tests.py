@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
+from django.utils.timezone import make_aware
+
+from apps.agenda.models import Evenement
 from apps.budget.models import Adhesion, Saison
 from apps.coeur.models import Membre, Utilisateur
 from apps.common.models import Moderation
@@ -162,5 +166,128 @@ def test_mes_projets_ne_liste_que_les_siens(client, db):
 
     client.force_login(membre.user)
     corps = client.get("/espace/projets/").content.decode()
+    assert "Le mien" in corps
+    assert "Le sien" not in corps
+
+
+# --- Événements du membre : création, soumission, anti-IDOR ----------------
+
+
+def _donnees_evenement(**extra):
+    donnees = {
+        "titre": "Ma représentation",
+        "description": "",
+        "date_debut": "2026-09-01T20:30",
+        "date_fin": "",
+        "lieu_texte": "Salle des fêtes",
+        "spectacle": "",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_creer_evenement_exige_la_connexion(client, db):
+    reponse = client.get("/espace/evenements/nouveau/")
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url
+
+
+def test_membre_cree_un_evenement_en_brouillon(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    reponse = client.post("/espace/evenements/nouveau/", _donnees_evenement(action="enregistrer"))
+    assert reponse.status_code == 302
+    evenement = Evenement.objects.get()
+    assert evenement.statut_moderation == Statut.BROUILLON
+    assert evenement.cree_par == membre.user
+
+
+def test_membre_soumet_un_evenement(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post("/espace/evenements/nouveau/", _donnees_evenement(action="soumettre"))
+    evenement = Evenement.objects.get()
+    assert evenement.statut_moderation == Statut.PROPOSE
+
+
+def test_date_fin_avant_debut_refusee(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    reponse = client.post(
+        "/espace/evenements/nouveau/",
+        _donnees_evenement(date_fin="2026-09-01T19:00", action="enregistrer"),
+    )
+    assert reponse.status_code == 200  # formulaire réaffiché avec l'erreur
+    assert Evenement.objects.count() == 0
+
+
+def test_membre_ne_peut_pas_editer_evenement_d_un_autre(client, db):
+    """ANTI-IDOR : la propriété d'un événement passe par `cree_par`."""
+    proprietaire = _membre("proprio")
+    evenement = Evenement.objects.create(
+        titre="Privé",
+        date_debut=make_aware(datetime(2026, 9, 1, 20, 30)),
+        cree_par=proprietaire.user,
+    )
+    intrus = _membre("intrus")
+    client.force_login(intrus.user)
+
+    assert client.get(f"/espace/evenements/{evenement.pk}/").status_code == 404
+    reponse = client.post(
+        f"/espace/evenements/{evenement.pk}/",
+        _donnees_evenement(titre="Piraté", action="enregistrer"),
+    )
+    assert reponse.status_code == 404
+    evenement.refresh_from_db()
+    assert evenement.titre == "Privé"
+
+
+def test_evenement_propose_n_est_plus_editable(client, db):
+    membre = _membre("alice")
+    evenement = Evenement.objects.create(
+        titre="En attente",
+        date_debut=make_aware(datetime(2026, 9, 1, 20, 30)),
+        cree_par=membre.user,
+        statut_moderation=Statut.PROPOSE,
+    )
+    client.force_login(membre.user)
+    reponse = client.post(
+        f"/espace/evenements/{evenement.pk}/",
+        _donnees_evenement(titre="Modif interdite", action="enregistrer"),
+    )
+    assert reponse.status_code == 302
+    evenement.refresh_from_db()
+    assert evenement.titre == "En attente"
+
+
+def test_membre_ne_peut_rattacher_que_ses_propres_spectacles(client, db):
+    """Anti-IDOR au niveau du champ : un membre ne peut pas lier son événement
+    au spectacle d'un autre."""
+    membre = _membre("alice")
+    autre = _membre("bob")
+    spectacle_autrui = Spectacle.objects.create(titre="Show de Bob")
+    spectacle_autrui.porteurs.add(autre)
+
+    client.force_login(membre.user)
+    reponse = client.post(
+        "/espace/evenements/nouveau/",
+        _donnees_evenement(spectacle=str(spectacle_autrui.pk), action="enregistrer"),
+    )
+    assert reponse.status_code == 200  # choix invalide : formulaire réaffiché
+    assert Evenement.objects.count() == 0
+
+
+def test_mes_evenements_ne_liste_que_les_siens(client, db):
+    membre = _membre("alice")
+    Evenement.objects.create(
+        titre="Le mien", date_debut=make_aware(datetime(2026, 9, 1, 20, 30)), cree_par=membre.user
+    )
+    autre = _membre("bob")
+    Evenement.objects.create(
+        titre="Le sien", date_debut=make_aware(datetime(2026, 9, 2, 20, 30)), cree_par=autre.user
+    )
+
+    client.force_login(membre.user)
+    corps = client.get("/espace/evenements/").content.decode()
     assert "Le mien" in corps
     assert "Le sien" not in corps

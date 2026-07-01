@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if evenement %}Modifier « {{ evenement.titre }} »{% else %}Nouvel événement{% endif %} — L'Improliante
+{% endblock %}
+
+{% block contenu %}
+  {% if evenement %}
+    <h1>Modifier « {{ evenement.titre }} »</h1>
+    <p class="carte-projet__meta">
+      Statut :
+      <span class="badge badge--{{ evenement.statut_moderation }}">
+        {{ evenement.get_statut_moderation_display }}
+      </span>
+    </p>
+    {% if evenement.statut_moderation == "refuse" and evenement.motif_refus %}
+      <div class="message message--error" role="alert">
+        <strong>Événement refusé.</strong> {{ evenement.motif_refus }}
+        Corrigez puis soumettez à nouveau.
+      </div>
+    {% endif %}
+  {% else %}
+    <h1>Proposer un événement</h1>
+  {% endif %}
+
+  <p class="carte-projet__meta">
+    La visibilité (public / membres / interne) est fixée par le bureau à la validation.
+  </p>
+
+  {% if editable %}
+    <form method="post" class="formulaire" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      {% for field in form %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}
+            <span class="champ__aide">{{ field.help_text }}</span>
+          {% endif %}
+          {% for erreur in field.errors %}
+            <span class="champ__erreur" role="alert">{{ erreur }}</span>
+          {% endfor %}
+        </p>
+      {% endfor %}
+
+      <div class="formulaire__actions">
+        <button type="submit" name="action" value="enregistrer" class="lien-bouton">
+          Enregistrer le brouillon
+        </button>
+        <button type="submit" name="action" value="soumettre" class="lien-bouton lien-bouton--primaire">
+          Soumettre à validation
+        </button>
+      </div>
+    </form>
+  {% else %}
+    <p>
+      Cet événement est en cours de validation par le bureau (ou déjà publié) :
+      il n'est plus modifiable ici. Contactez le bureau si une correction est nécessaire.
+    </p>
+  {% endif %}
+
+  <p><a href="{% url 'espace_membre:mes_evenements' %}">← Retour à mes événements</a></p>
+{% endblock %}
