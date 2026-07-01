@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Politique de confidentialité — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Politique de confidentialité</h1>
+  <p><em>Modèle à compléter et à valider par l'association.</em></p>
+
+  <h2>Responsable du traitement</h2>
+  <p>
+    L'association L'Improliante. Pour toute question, utilisez la page
+    <a href="{% url 'vitrine:contact' %}">Contact</a>.
+  </p>
+
+  <h2>Données collectées</h2>
+  <p>
+    Via le formulaire de contact : votre nom, votre adresse e-mail et le contenu
+    de votre message.
+  </p>
+
+  <h2>Finalité</h2>
+  <p>Répondre aux demandes envoyées via le formulaire de contact.</p>
+
+  <h2>Durée de conservation</h2>
+  <p>
+    Les messages sont conservés le temps nécessaire au traitement de la demande,
+    puis supprimés ou anonymisés.
+  </p>
+
+  <h2>Vos droits</h2>
+  <p>
+    Vous disposez d'un droit d'accès, de rectification et de suppression de vos
+    données. Pour l'exercer, contactez l'association.
+  </p>
+
+  <h2>Consentement</h2>
+  <p>
+    L'envoi du formulaire vaut consentement au traitement de vos données pour la
+    finalité ci-dessus ; ce consentement est horodaté.
+  </p>
+{% endblock %}

@@ -11,6 +11,7 @@ from apps.agenda.models import Evenement
 from apps.coeur.models import Membre, Utilisateur
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
+from apps.vitrine.models import MessageContact
 
 
 @pytest.fixture
@@ -162,3 +163,54 @@ def test_galerie_montre_medias_des_spectacles_publies(client, db):
     corps = client.get("/galerie/").content.decode()
     assert "VideoPubliee" in corps
     assert "VideoBrouillon" not in corps
+
+
+# --- Contact --------------------------------------------------------------
+
+
+def test_contact_get_affiche_le_formulaire(client, db):
+    reponse = client.get("/contact/")
+    assert reponse.status_code == 200
+    assert "formulaire" in reponse.content.decode()
+
+
+def test_contact_post_valide_enregistre_le_message(client, db):
+    donnees = {
+        "nom": "Alice",
+        "email": "alice@example.org",
+        "sujet": "Bonjour",
+        "message": "Un message de test.",
+        "consentement": "on",
+        "site_web": "",
+    }
+    reponse = client.post("/contact/", donnees)
+    assert reponse.status_code == 302  # PRG vers la page de remerciement
+    message = MessageContact.objects.get()
+    assert message.nom == "Alice"
+    assert message.consentement is True
+    assert message.date_consentement is not None
+
+
+def test_contact_sans_consentement_est_rejete(client, db):
+    donnees = {
+        "nom": "Bob",
+        "email": "bob@example.org",
+        "message": "Coucou",
+        "site_web": "",
+    }
+    reponse = client.post("/contact/", donnees)
+    assert reponse.status_code == 200  # le formulaire est réaffiché
+    assert MessageContact.objects.count() == 0
+
+
+def test_contact_honeypot_bloque_le_spam(client, db):
+    donnees = {
+        "nom": "Spam",
+        "email": "spam@example.org",
+        "message": "Achetez ceci",
+        "consentement": "on",
+        "site_web": "http://spam.example",
+    }
+    reponse = client.post("/contact/", donnees)
+    assert reponse.status_code == 200
+    assert MessageContact.objects.count() == 0

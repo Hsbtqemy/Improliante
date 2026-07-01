@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Message envoyé — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Merci&nbsp;!</h1>
+  <p>Votre message a bien été enregistré. Nous vous répondrons dès que possible.</p>
+  <p><a class="lien-bouton" href="{% url 'vitrine:accueil' %}">Retour à l'accueil</a></p>
+{% endblock %}

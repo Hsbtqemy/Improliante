@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from django.db.models import Q
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.agenda.models import Evenement, ImageEvenement
@@ -20,7 +20,9 @@ from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
 
 from .calendrier import bornes_grille, construire_calendrier
+from .forms import ContactForm
 from .ical import generer_ical
+from .models import MessageContact
 
 _PUBLIE = Spectacle.StatutModeration.PUBLIE
 _EVT_PUBLIE = Evenement.StatutModeration.PUBLIE
@@ -181,3 +183,33 @@ def _medias_galerie():
         ).values_list("media_id", flat=True)
     )
     return Media.objects.filter(id__in=ids).order_by("-date_creation")
+
+
+def contact(request):
+    """Formulaire de contact : persiste le message (envoi e-mail non activé)."""
+    if request.method == "POST":
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            MessageContact.objects.create(
+                nom=form.cleaned_data["nom"],
+                email=form.cleaned_data["email"],
+                sujet=form.cleaned_data["sujet"],
+                message=form.cleaned_data["message"],
+                consentement=True,
+                date_consentement=timezone.now(),
+            )
+            # Notification e-mail au bureau : à activer plus tard (backend console).
+            return redirect("vitrine:contact_merci")
+    else:
+        form = ContactForm()
+    return render(request, "vitrine/contact.html", {"form": form})
+
+
+def contact_merci(request):
+    """Confirmation d'envoi du message de contact."""
+    return render(request, "vitrine/contact_merci.html")
+
+
+def confidentialite(request):
+    """Politique de confidentialité (RGPD)."""
+    return render(request, "vitrine/confidentialite.html")

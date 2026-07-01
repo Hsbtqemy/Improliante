@@ -345,6 +345,62 @@ h2 {
   height: 12rem;
 }
 
+/* Formulaires */
+.formulaire {
+  max-width: 40rem;
+}
+.champ {
+  margin-block: 1rem;
+}
+.champ label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.formulaire input,
+.formulaire textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  font-size: 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.formulaire textarea {
+  min-height: 8rem;
+}
+.champ--case {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.champ--case input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.35rem;
+}
+.champ--case label {
+  font-weight: 400;
+  margin: 0;
+}
+.champ__erreur {
+  display: block;
+  margin-top: 0.25rem;
+  color: #b3261e;
+  font-size: 0.9rem;
+}
+.champ__aide {
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+}
+.erreurs {
+  margin-block: 1rem;
+  color: #b3261e;
+}
+.pot-de-miel {
+  display: none;
+}
+
 /* Respect de la préférence de réduction des animations */
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -24,6 +24,7 @@
             <li><a href="{% url 'vitrine:agenda' %}">Agenda</a></li>
             <li><a href="{% url 'vitrine:galerie' %}">Galerie</a></li>
             <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
+            <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
           </ul>
         </nav>
       </div>
@@ -36,6 +37,10 @@
     <footer class="site-pied">
       <div class="conteneur">
         <p>© L'Improliante — association de spectacle vivant.</p>
+        <p class="site-pied__liens">
+          <a href="{% url 'vitrine:confidentialite' %}">Politique de confidentialité</a>
+          · <a href="{% url 'vitrine:contact' %}">Contact</a>
+        </p>
       </div>
     </footer>
   </body>

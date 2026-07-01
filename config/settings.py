@@ -204,6 +204,17 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
+# --- E-mail -----------------------------------------------------------------
+# Envoi non activé pour l'instant : backend console en dev. Les messages de
+# contact sont persistés en base (admin) plutôt qu'envoyés. Pour activer l'envoi
+# (SMTP), renseigner DJANGO_EMAIL_BACKEND + EMAIL_* + CONTACT_EMAIL dans app.env.
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@improliante.example")
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
+
+
 # --- Durcissement en production --------------------------------------------
 # Actif uniquement hors debug. `manage.py check --deploy` doit passer en prod.
 

@@ -17,4 +17,7 @@ urlpatterns = [
     path("galerie/", views.galerie, name="galerie"),
     path("association/", views.association, name="association"),
     path("membres/<int:pk>/", views.detail_membre, name="membre"),
+    path("contact/", views.contact, name="contact"),
+    path("contact/merci/", views.contact_merci, name="contact_merci"),
+    path("confidentialite/", views.confidentialite, name="confidentialite"),
 ]

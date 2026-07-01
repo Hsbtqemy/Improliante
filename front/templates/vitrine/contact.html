@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Contact — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Contact</h1>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="erreurs" role="alert">{{ form.non_field_errors|striptags }}</div>
+    {% endif %}
+
+    <p class="champ">
+      <label for="{{ form.nom.id_for_label }}">
+        {{ form.nom.label }} <span aria-hidden="true">*</span>
+      </label>
+      {{ form.nom }}
+      {% if form.nom.errors %}
+        <span class="champ__erreur" role="alert">{{ form.nom.errors|striptags }}</span>
+      {% endif %}
+    </p>
+
+    <p class="champ">
+      <label for="{{ form.email.id_for_label }}">
+        {{ form.email.label }} <span aria-hidden="true">*</span>
+      </label>
+      {{ form.email }}
+      {% if form.email.errors %}
+        <span class="champ__erreur" role="alert">{{ form.email.errors|striptags }}</span>
+      {% endif %}
+    </p>
+
+    <p class="champ">
+      <label for="{{ form.sujet.id_for_label }}">{{ form.sujet.label }}</label>
+      {{ form.sujet }}
+    </p>
+
+    <p class="champ">
+      <label for="{{ form.message.id_for_label }}">
+        {{ form.message.label }} <span aria-hidden="true">*</span>
+      </label>
+      {{ form.message }}
+      {% if form.message.errors %}
+        <span class="champ__erreur" role="alert">{{ form.message.errors|striptags }}</span>
+      {% endif %}
+    </p>
+
+    <p class="champ champ--case">
+      {{ form.consentement }}
+      <label for="{{ form.consentement.id_for_label }}">{{ form.consentement.label }}</label>
+      {% if form.consentement.errors %}
+        <span class="champ__erreur" role="alert">{{ form.consentement.errors|striptags }}</span>
+      {% endif %}
+    </p>
+    <p class="champ__aide">
+      Vos données ne servent qu'à traiter votre demande — voir la
+      <a href="{% url 'vitrine:confidentialite' %}">politique de confidentialité</a>.
+    </p>
+
+    {# Champ piège anti-spam : masqué visuellement et aux lecteurs d'écran. #}
+    <div class="pot-de-miel" aria-hidden="true">
+      <label for="{{ form.site_web.id_for_label }}">{{ form.site_web.label }}</label>
+      {{ form.site_web }}
+    </div>
+
+    <button type="submit" class="lien-bouton">Envoyer</button>
+  </form>
+{% endblock %}
