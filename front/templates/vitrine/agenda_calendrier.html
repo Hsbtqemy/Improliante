@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Agenda</h1>
+  {% include "vitrine/_agenda_bascule.html" %}
+
+  <nav class="calendrier-nav" aria-label="Navigation par mois">
+    <a href="?vue=calendrier&amp;annee={{ mois_precedent.year }}&amp;mois={{ mois_precedent.month }}">
+      ← Mois précédent
+    </a>
+    <strong>{{ premier_du_mois|date:"F Y" }}</strong>
+    <a href="?vue=calendrier&amp;annee={{ mois_suivant.year }}&amp;mois={{ mois_suivant.month }}">
+      Mois suivant →
+    </a>
+  </nav>
+
+  <table class="calendrier">
+    <caption class="sr-only">Calendrier de {{ premier_du_mois|date:"F Y" }}</caption>
+    <thead>
+      <tr>
+        {% for jour in jours_semaine %}<th scope="col">{{ jour }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for semaine in grille %}
+        <tr>
+          {% for jour in semaine %}
+            <td class="{% if not jour.dans_le_mois %}hors-mois{% endif %}">
+              <span class="calendrier-jour">{{ jour.date.day }}</span>
+              {% if jour.evenements %}
+                <ul>
+                  {% for evenement in jour.evenements %}
+                    <li>
+                      <a href="{% if evenement.spectacle_id %}{% url 'vitrine:spectacle' evenement.spectacle.pk %}{% else %}{% url 'vitrine:agenda' %}{% endif %}">
+                        {{ evenement.date_debut|date:"H:i" }} {{ evenement.titre }}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

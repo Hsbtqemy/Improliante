@@ -10,6 +10,10 @@
   --espace: 1rem;
   --largeur-max: 62rem;
   --rayon: 0.375rem;
+  /* Contrat de variables pour le futur panneau d'accessibilité
+     (taille du texte, interligne — bascule via une classe sur <html>). */
+  --taille-base: 1rem;
+  --interligne: 1.6;
 }
 
 * {
@@ -19,7 +23,8 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.6;
+  font-size: var(--taille-base);
+  line-height: var(--interligne);
   color: var(--couleur-texte);
   background: var(--couleur-fond);
 }
@@ -209,6 +214,85 @@ h2 {
   padding-block: 1.5rem;
   border-top: 1px solid var(--bordure);
   color: var(--couleur-muet);
+}
+
+/* Utilitaire visuellement masqué mais lu par les lecteurs d'écran */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Agenda */
+.agenda-bascule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+.agenda-bascule a {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  text-decoration: none;
+  color: var(--couleur-texte);
+}
+.agenda-bascule a[aria-current="true"] {
+  background: var(--couleur-primaire);
+  color: #fff;
+  border-color: var(--couleur-primaire);
+}
+.agenda-liste {
+  list-style: none;
+  padding: 0;
+}
+.agenda-liste li {
+  padding-block: 0.6rem;
+  border-bottom: 1px solid var(--bordure);
+}
+.calendrier-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+.calendrier {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.calendrier th,
+.calendrier td {
+  border: 1px solid var(--bordure);
+  padding: 0.35rem;
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+.calendrier td {
+  height: 5rem;
+}
+.calendrier .hors-mois {
+  background: #fafafa;
+  color: var(--couleur-muet);
+}
+.calendrier td ul {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+.calendrier td li {
+  background: var(--couleur-primaire-clair);
+  border-radius: 0.2rem;
+  padding: 0.1rem 0.25rem;
+  margin-bottom: 0.15rem;
 }
 
 /* Respect de la préférence de réduction des animations */

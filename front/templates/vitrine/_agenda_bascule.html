@@ -1,0 +1,11 @@
+{% comment %}Bascule liste / calendrier + export iCal (attend `vue`).{% endcomment %}
+<div class="agenda-bascule">
+  <span id="label-affichage">Affichage :</span>
+  <a href="?vue=liste"
+     {% if vue == "liste" %}aria-current="true"{% endif %}
+     aria-describedby="label-affichage">Liste</a>
+  <a href="?vue=calendrier"
+     {% if vue == "calendrier" %}aria-current="true"{% endif %}
+     aria-describedby="label-affichage">Calendrier</a>
+  <a class="agenda-ical" href="{% url 'vitrine:agenda_ical' %}">Exporter (.ics)</a>
+</div>

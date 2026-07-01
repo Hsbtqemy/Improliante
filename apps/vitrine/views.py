@@ -6,12 +6,22 @@ refusée) n'est jamais accessible publiquement (renvoie 404). Lecture seule.
 
 from __future__ import annotations
 
+import calendar
+from datetime import date, timedelta
+
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 
 from apps.agenda.models import Evenement
 from apps.spectacles.models import Spectacle
 
+from .calendrier import bornes_grille, construire_calendrier
+from .ical import generer_ical
+
 _PUBLIE = Spectacle.StatutModeration.PUBLIE
+_EVT_PUBLIE = Evenement.StatutModeration.PUBLIE
+_EVT_PUBLIC = Evenement.Visibilite.PUBLIC
 
 
 def accueil(request):
@@ -59,3 +69,68 @@ def detail_spectacle(request, pk: int):
     ).order_by("date_debut")
     contexte = {"spectacle": spectacle, "prochaines_dates": prochaines_dates}
     return render(request, "vitrine/spectacle_detail.html", contexte)
+
+
+def _evenements_publics():
+    return Evenement.objects.filter(statut_moderation=_EVT_PUBLIE, visibilite=_EVT_PUBLIC)
+
+
+def agenda(request):
+    """Agenda public : vue liste ou calendrier au choix (préférence mémorisée)."""
+    vue = request.GET.get("vue")
+    choix_explicite = vue in ("liste", "calendrier")
+    if not choix_explicite:
+        vue = request.COOKIES.get("agenda_vue", "liste")
+        if vue not in ("liste", "calendrier"):
+            vue = "liste"
+
+    if vue == "calendrier":
+        contexte = _contexte_calendrier(request)
+        template = "vitrine/agenda_calendrier.html"
+    else:
+        contexte = {
+            "evenements": _evenements_publics()
+            .filter(date_debut__gte=timezone.now())
+            .order_by("date_debut")
+        }
+        template = "vitrine/agenda_liste.html"
+
+    reponse = render(request, template, {**contexte, "vue": vue})
+    if choix_explicite:
+        reponse.set_cookie("agenda_vue", vue, max_age=60 * 60 * 24 * 365, samesite="Lax")
+    return reponse
+
+
+def _contexte_calendrier(request) -> dict:
+    aujourdhui = timezone.localdate()
+    try:
+        annee = int(request.GET.get("annee", aujourdhui.year))
+        mois = int(request.GET.get("mois", aujourdhui.month))
+    except (TypeError, ValueError):
+        annee, mois = aujourdhui.year, aujourdhui.month
+    if not 1 <= mois <= 12:
+        annee, mois = aujourdhui.year, aujourdhui.month
+
+    premier, dernier = bornes_grille(annee, mois)
+    evenements = _evenements_publics().filter(
+        date_debut__date__gte=premier, date_debut__date__lte=dernier
+    )
+    premier_du_mois = date(annee, mois, 1)
+    dernier_jour = calendar.monthrange(annee, mois)[1]
+    return {
+        "grille": construire_calendrier(annee, mois, evenements),
+        "premier_du_mois": premier_du_mois,
+        "mois_precedent": premier_du_mois - timedelta(days=1),
+        "mois_suivant": date(annee, mois, dernier_jour) + timedelta(days=1),
+        "jours_semaine": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+    }
+
+
+def agenda_ical(request):
+    """Export iCalendar (.ics) des événements publics."""
+    evenements = _evenements_publics().order_by("date_debut")
+    return HttpResponse(
+        generer_ical(evenements),
+        content_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="agenda.ics"'},
+    )

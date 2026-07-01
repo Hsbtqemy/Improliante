@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Agenda</h1>
+  {% include "vitrine/_agenda_bascule.html" %}
+
+  {% if evenements %}
+    <ul class="agenda-liste">
+      {% for evenement in evenements %}
+        <li>
+          <time datetime="{{ evenement.date_debut|date:'c' }}">
+            {{ evenement.date_debut|date:"l j F Y, H:i" }}
+          </time>
+          — <strong>{{ evenement.titre }}</strong>
+          {% if evenement.lieu_texte or evenement.lieu_id %}
+            <span class="agenda-lieu">· {{ evenement.lieu_texte|default:evenement.lieu.nom }}</span>
+          {% endif %}
+          {% if evenement.spectacle_id %}
+            (<a href="{% url 'vitrine:spectacle' evenement.spectacle.pk %}">{{ evenement.spectacle.titre }}</a>)
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Aucun événement à venir pour le moment.</p>
+  {% endif %}
+{% endblock %}
