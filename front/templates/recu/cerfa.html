@@ -80,11 +80,19 @@
     </p>
 
     <div class="signature">
-      <p>
-        Fait à {{ asso.ville }}, le {{ recu.date_emission|date:"j F Y" }}.<br />
-        {% if asso.signataire_nom %}{{ asso.signataire_nom }}
-        {% if asso.signataire_qualite %}, {{ asso.signataire_qualite }}{% endif %}{% endif %}
-      </p>
+      <p>Fait à {{ asso.ville }}, le {{ recu.date_emission|date:"j F Y" }}.</p>
+      {% if recu.signataire %}
+        <p>
+          {{ recu.signataire.qualite }}
+          {% if recu.signataire.mention_delegation %} — {{ recu.signataire.mention_delegation }}{% endif %}
+        </p>
+        {% with img=recu.signataire.image_base64 %}
+          {% if img %}<img src="{{ img }}" alt="Signature" style="max-height: 60px;" />{% endif %}
+        {% endwith %}
+        <p>{{ recu.signataire.nom }}</p>
+      {% elif asso.signataire_nom %}
+        <p>{{ asso.signataire_nom }}{% if asso.signataire_qualite %}, {{ asso.signataire_qualite }}{% endif %}</p>
+      {% endif %}
     </div>
   </body>
 </html>

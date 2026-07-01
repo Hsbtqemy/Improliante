@@ -38,6 +38,7 @@ def emettre_recu(
     adhesion=None,
     transaction_source=None,
     emis_par=None,
+    signataire=None,
     date_emission: date | None = None,
 ) -> RecuFiscal:
     """Émet un reçu fiscal : numéro annuel continu + snapshot des données.
@@ -68,6 +69,7 @@ def emettre_recu(
         adhesion=adhesion,
         transaction=transaction_source,
         emis_par=emis_par,
+        signataire=signataire,
     )
 
 

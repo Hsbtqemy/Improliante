@@ -109,6 +109,14 @@ class Devis(AvecTotaux, Horodatage):
     date_validite = models.DateField("valable jusqu'au", null=True, blank=True)
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.BROUILLON)
     conditions = models.TextField("conditions / mentions", blank=True)
+    signataire = models.ForeignKey(
+        "coeur.Signataire",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="signataire",
+    )
 
     class Meta:
         verbose_name = "devis"
@@ -171,6 +179,16 @@ class Facture(AvecTotaux, Horodatage):
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.BROUILLON)
     date_validation = models.DateTimeField("validée le", null=True, blank=True)
     mentions_legales = models.TextField("mentions légales", blank=True)
+
+    # Signature optionnelle (apposée sur le PDF si renseignée).
+    signataire = models.ForeignKey(
+        "coeur.Signataire",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="signataire",
+    )
 
     # PDF rendu paresseusement au 1er téléchargement d'une facture validée, puis
     # mis en cache (stockage privé, hors racine web — document légal immuable).

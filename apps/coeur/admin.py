@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Lieu, Membre, ParametresAssociation, Utilisateur
+from .models import Lieu, Membre, ParametresAssociation, Signataire, Utilisateur
 
 
 @admin.register(Utilisateur)
@@ -31,6 +31,14 @@ class MembreAdmin(admin.ModelAdmin):
 class LieuAdmin(admin.ModelAdmin):
     list_display = ("nom", "ville", "code_postal")
     search_fields = ("nom", "ville")
+
+
+@admin.register(Signataire)
+class SignataireAdmin(admin.ModelAdmin):
+    list_display = ("nom", "qualite", "actif")
+    list_filter = ("actif",)
+    search_fields = ("nom", "qualite")
+    autocomplete_fields = ("membre",)
 
 
 @admin.register(ParametresAssociation)

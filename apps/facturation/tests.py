@@ -13,6 +13,7 @@ from decimal import Decimal
 import pytest
 from django.core.management import call_command
 
+from apps.coeur.models import Signataire
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.facturation.services import (
     DevisDejaFacture,
@@ -20,6 +21,7 @@ from apps.facturation.services import (
     FactureNonAvoirable,
     creer_avoir,
     numeroter_devis,
+    pdf_de_facture,
     transformer_en_facture,
     valider_facture,
 )
@@ -183,3 +185,30 @@ def test_creer_avoir_sur_avoir_refuse(client_facture):
     valider_facture(avoir, date_emission=date(2026, 3, 1))
     with pytest.raises(FactureNonAvoirable):
         creer_avoir(avoir)
+
+
+# --- Signature ------------------------------------------------------------
+
+
+def test_pdf_facture_rend_le_bloc_signataire(client_facture, monkeypatch):
+    # Le moteur PDF renvoie le HTML : on vérifie que le bloc signature est rendu.
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    sig = Signataire.objects.create(
+        nom="Alice Martin", qualite="Présidente", mention_delegation="délégation du bureau"
+    )
+    facture = Facture.objects.create(client=client_facture, signataire=sig)
+    html = pdf_de_facture(facture).decode()
+    assert "Alice Martin" in html
+    assert "Présidente" in html
+    assert "délégation du bureau" in html
+
+
+def test_pdf_facture_sans_signataire_pas_de_bloc(client_facture, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    facture = Facture.objects.create(client=client_facture)
+    html = pdf_de_facture(facture).decode()
+    assert 'class="signature"' not in html

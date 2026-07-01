@@ -1,10 +1,11 @@
-"""Tests du module de rôles (`apps.coeur.roles`)."""
+"""Tests du module de rôles (`apps.coeur.roles`) et des signataires."""
 
 from __future__ import annotations
 
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 
-from apps.coeur.models import Utilisateur
+from apps.coeur.models import Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, est_bureau
 
 
@@ -30,3 +31,18 @@ def test_compte_inactif_n_est_pas_bureau(db):
         username="ancien", password="x", is_staff=True, is_active=False
     )
     assert est_bureau(user) is False
+
+
+def test_signataire_image_base64_renvoie_un_data_uri(db):
+    sig = Signataire.objects.create(
+        nom="Alice",
+        qualite="Présidente",
+        signature_image=SimpleUploadedFile("sig.png", b"\x89PNG-faux", content_type="image/png"),
+    )
+    uri = sig.image_base64()
+    assert uri.startswith("data:image/png;base64,")
+
+
+def test_signataire_sans_image_renvoie_chaine_vide(db):
+    sig = Signataire.objects.create(nom="Bob", qualite="Trésorier")
+    assert sig.image_base64() == ""

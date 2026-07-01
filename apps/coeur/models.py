@@ -10,9 +10,14 @@
 
 from __future__ import annotations
 
+import base64
+import mimetypes
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
+from apps.common.stockage import StockagePrive
 
 
 class Utilisateur(AbstractUser):
@@ -132,6 +137,63 @@ class ParametresAssociation(models.Model):
         """Retourne l'unique instance, en la créant au besoin."""
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class Signataire(models.Model):
+    """Personne habilitée à signer des documents (facture, devis, reçu).
+
+    Peut être un membre du bureau (représentation de droit) ou un·e délégataire
+    (délégation de signature actée par le bureau/CA — d'où `mention_delegation`).
+    La signature est optionnelle sur les documents : un signataire n'est apposé
+    que si on le choisit. L'image de signature est stockée en privé et embarquée
+    dans le PDF au rendu (jamais exposée par une URL publique)."""
+
+    nom = models.CharField(max_length=200)
+    qualite = models.CharField(
+        "qualité", max_length=120, help_text="Ex. président·e, trésorier·e, délégué·e."
+    )
+    mention_delegation = models.CharField(
+        "mention de délégation",
+        max_length=255,
+        blank=True,
+        help_text="Ex. « en vertu de la délégation du bureau du 12/03/2026 ».",
+    )
+    signature_image = models.ImageField(
+        "image de signature",
+        upload_to="signatures/",
+        storage=StockagePrive,
+        blank=True,
+        help_text="Signature scannée (PNG/JPG). Optionnelle : à défaut, seuls le nom et la qualité s'affichent.",
+    )
+    membre = models.ForeignKey(
+        "coeur.Membre",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="signatures",
+        verbose_name="membre associé",
+    )
+    actif = models.BooleanField("actif", default=True)
+
+    class Meta:
+        verbose_name = "signataire"
+        verbose_name_plural = "signataires"
+        ordering = ["nom"]
+
+    def __str__(self) -> str:
+        return f"{self.nom} ({self.qualite})"
+
+    def image_base64(self) -> str:
+        """Renvoie l'image de signature en data URI base64 (ou "" si absente).
+
+        Permet d'embarquer la signature directement dans le HTML rendu en PDF,
+        sans exposer le fichier privé ni dépendre d'un accès disque au rendu."""
+        if not self.signature_image:
+            return ""
+        with self.signature_image.open("rb") as fichier:
+            donnees = base64.b64encode(fichier.read()).decode("ascii")
+        mime = mimetypes.guess_type(self.signature_image.name)[0] or "image/png"
+        return f"data:{mime};base64,{donnees}"
 
 
 class Lieu(models.Model):

@@ -234,6 +234,16 @@ class RecuFiscal(Horodatage):
         related_name="recus_emis",
         verbose_name="émis par",
     )
+    # Signature optionnelle ; à défaut, le Cerfa retombe sur le signataire texte
+    # des paramètres de l'association.
+    signataire = models.ForeignKey(
+        "coeur.Signataire",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="signataire",
+    )
 
     class Meta:
         verbose_name = "reçu fiscal"

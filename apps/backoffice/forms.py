@@ -7,7 +7,15 @@ from decimal import Decimal
 from django import forms
 
 from apps.budget.models import RecuFiscal
+from apps.coeur.models import Signataire
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
+
+
+def _restreindre_signataires_actifs(form):
+    """Limite le champ `signataire` aux signataires actifs (optionnel)."""
+    champ = form.fields["signataire"]
+    champ.queryset = Signataire.objects.filter(actif=True)
+    champ.required = False
 
 
 class RecuFiscalForm(forms.ModelForm):
@@ -31,6 +39,7 @@ class RecuFiscalForm(forms.ModelForm):
             "donateur_adresse",
             "donateur_code_postal",
             "donateur_ville",
+            "signataire",
         ]
         widgets = {
             "date_versement": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
@@ -39,6 +48,7 @@ class RecuFiscalForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date_versement"].input_formats = ["%Y-%m-%d"]
+        _restreindre_signataires_actifs(self)
 
     def clean_montant(self) -> Decimal:
         montant = self.cleaned_data["montant"]
@@ -71,7 +81,7 @@ class FactureForm(forms.ModelForm):
 
     class Meta:
         model = Facture
-        fields = ["client", "objet", "date_echeance", "mentions_legales"]
+        fields = ["client", "objet", "date_echeance", "mentions_legales", "signataire"]
         widgets = {
             "date_echeance": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "mentions_legales": forms.Textarea(attrs={"rows": 3}),
@@ -80,6 +90,7 @@ class FactureForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date_echeance"].input_formats = ["%Y-%m-%d"]
+        _restreindre_signataires_actifs(self)
 
 
 # Lignes d'une facture éditées en bloc avec l'en-tête (formset inline).
@@ -97,7 +108,7 @@ class DevisForm(forms.ModelForm):
 
     class Meta:
         model = Devis
-        fields = ["client", "objet", "date", "date_validite", "conditions"]
+        fields = ["client", "objet", "date", "date_validite", "conditions", "signataire"]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "date_validite": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
@@ -108,6 +119,7 @@ class DevisForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for champ in ("date", "date_validite"):
             self.fields[champ].input_formats = ["%Y-%m-%d"]
+        _restreindre_signataires_actifs(self)
 
 
 LigneDevisFormSet = forms.inlineformset_factory(

@@ -19,6 +19,8 @@
       .totaux td { padding: 4px 8px; }
       .totaux .ttc { font-weight: bold; font-size: 14px; border-top: 2px solid #333; }
       .conditions { margin-top: 24px; font-size: 11px; color: #333; }
+      .signature { margin-top: 30px; }
+      .signature img { max-height: 60px; }
     </style>
   </head>
   <body>
@@ -87,6 +89,19 @@
 
     {% if devis.conditions %}
       <p class="conditions">{{ devis.conditions|linebreaksbr }}</p>
+    {% endif %}
+
+    {% if devis.signataire %}
+      <div class="signature">
+        <p>
+          {{ devis.signataire.qualite }}
+          {% if devis.signataire.mention_delegation %} — {{ devis.signataire.mention_delegation }}{% endif %}
+        </p>
+        {% with img=devis.signataire.image_base64 %}
+          {% if img %}<img src="{{ img }}" alt="Signature" />{% endif %}
+        {% endwith %}
+        <p>{{ devis.signataire.nom }}</p>
+      </div>
     {% endif %}
   </body>
 </html>

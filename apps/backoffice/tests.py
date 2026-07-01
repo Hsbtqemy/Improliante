@@ -11,7 +11,7 @@ from django.utils.timezone import make_aware
 from apps.agenda.models import Evenement
 from apps.budget.models import Adhesion, RecuFiscal, Saison
 from apps.budget.services import emettre_recu
-from apps.coeur.models import Membre, Utilisateur
+from apps.coeur.models import Membre, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
@@ -273,6 +273,15 @@ def test_creer_facture_avec_lignes(client, db):
     assert facture.numero is None
     assert facture.lignes.count() == 1
     assert facture.total_ttc == Decimal("240.00")  # 2 × 100 HT + 20 % TVA
+
+
+def test_creer_facture_avec_signataire(client, db):
+    sig = Signataire.objects.create(nom="Alice", qualite="Présidente")
+    client_facture = Client.objects.create(nom="Théâtre municipal")
+    client.force_login(_staff())
+    client.post("/bureau/factures/nouvelle/", _donnees_facture(client_facture, signataire=sig.pk))
+    facture = Facture.objects.get()
+    assert facture.signataire == sig
 
 
 def test_valider_facture_attribue_le_numero(client, db):

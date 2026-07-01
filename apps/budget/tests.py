@@ -11,8 +11,13 @@ from datetime import date
 from decimal import Decimal
 
 from apps.budget.models import Adhesion, RecuFiscal, Saison
-from apps.budget.services import assurer_pdf_recu, donnees_depuis_adhesion, emettre_recu
-from apps.coeur.models import Membre, Utilisateur
+from apps.budget.services import (
+    assurer_pdf_recu,
+    donnees_depuis_adhesion,
+    emettre_recu,
+    pdf_de_recu,
+)
+from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 
 
 def _membre(username="alice"):
@@ -84,3 +89,26 @@ def test_assurer_pdf_rend_une_seule_fois(db, monkeypatch):
     assurer_pdf_recu(recu)  # 2e appel : le fichier existe déjà, pas de re-rendu
     assert len(appels) == 1
     assert recu.fichier.open("rb").read().startswith(b"%PDF")
+
+
+def test_cerfa_utilise_le_signataire_choisi(db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    sig = Signataire.objects.create(nom="Alice Martin", qualite="Présidente")
+    recu = _emettre(signataire=sig)
+    html = pdf_de_recu(recu).decode()
+    assert "Alice Martin" in html
+
+
+def test_cerfa_retombe_sur_le_signataire_des_parametres(db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    params = ParametresAssociation.load()
+    params.signataire_nom = "Bureau Test"
+    params.signataire_qualite = "Trésorier"
+    params.save()
+    recu = _emettre()  # sans signataire choisi
+    html = pdf_de_recu(recu).decode()
+    assert "Bureau Test" in html
