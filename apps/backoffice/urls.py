@@ -29,4 +29,10 @@ urlpatterns = [
         name="telecharger_facture",
     ),
     path("bureau/clients/", views.liste_clients, name="liste_clients"),
+    path("bureau/devis/", views.liste_devis, name="liste_devis"),
+    path("bureau/devis/nouveau/", views.creer_devis, name="creer_devis"),
+    path("bureau/devis/<int:pk>/", views.editer_devis, name="editer_devis"),
+    path("bureau/devis/<int:pk>/statut/", views.changer_statut_devis, name="changer_statut_devis"),
+    path("bureau/devis/<int:pk>/transformer/", views.transformer_devis, name="transformer_devis"),
+    path("bureau/devis/<int:pk>/telecharger/", views.telecharger_devis, name="telecharger_devis"),
 ]

@@ -28,6 +28,7 @@
             {% if request.user.is_authenticated %}
               {% if est_bureau %}
                 <li><a href="{% url 'backoffice:file_moderation' %}">Modération</a></li>
+                <li><a href="{% url 'backoffice:liste_devis' %}">Devis</a></li>
                 <li><a href="{% url 'backoffice:liste_factures' %}">Factures</a></li>
                 <li><a href="{% url 'backoffice:liste_recus' %}">Reçus</a></li>
               {% endif %}

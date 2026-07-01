@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Devis {{ devis.numero }} — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Devis {{ devis.numero }}</h1>
+
+  <p class="carte-projet__meta">
+    <span class="badge">{{ devis.get_statut_display }}</span> · {{ devis.client }}
+    {% if devis.date %}· {{ devis.date|date:"j F Y" }}{% endif %}
+  </p>
+  <p class="carte-projet__meta">Ce devis a été transformé en facture : il n'est plus modifiable.</p>
+
+  <table class="tableau">
+    <thead>
+      <tr>
+        <th scope="col">Désignation</th>
+        <th scope="col">Qté</th>
+        <th scope="col">PU HT</th>
+        <th scope="col">TVA %</th>
+        <th scope="col">Total HT</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ligne in devis.lignes.all %}
+        <tr>
+          <td>{{ ligne.designation }}</td>
+          <td>{{ ligne.quantite|floatformat:2 }}</td>
+          <td>{{ ligne.prix_unitaire_ht|floatformat:2 }} €</td>
+          <td>{{ ligne.taux_tva|floatformat:2 }} %</td>
+          <td>{{ ligne.total_ht|floatformat:2 }} €</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><strong>Total TTC : {{ devis.total_ttc|floatformat:2 }} €</strong></p>
+
+  <p class="formulaire__actions">
+    <a class="lien-bouton" href="{% url 'backoffice:telecharger_devis' pk=devis.pk %}">Télécharger le PDF</a>
+    {% for facture in devis.factures.all %}
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:editer_facture' pk=facture.pk %}">
+        Voir la facture {{ facture }}
+      </a>
+    {% endfor %}
+    <a class="lien-bouton" href="{% url 'backoffice:liste_devis' %}">Retour à la liste</a>
+  </p>
+{% endblock %}

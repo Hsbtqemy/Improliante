@@ -8,12 +8,19 @@ validation), pas la sûreté concurrentielle — celle-ci repose sur PostgreSQL.
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from django.core.management import call_command
 
-from apps.facturation.models import Client, Facture
-from apps.facturation.services import FactureDejaValidee, valider_facture
+from apps.facturation.models import Client, Devis, Facture, LigneDevis
+from apps.facturation.services import (
+    DevisDejaFacture,
+    FactureDejaValidee,
+    numeroter_devis,
+    transformer_en_facture,
+    valider_facture,
+)
 
 
 @pytest.fixture
@@ -83,3 +90,45 @@ def test_reinit_factures_remet_la_numerotation_a_zero(client_facture, settings):
     valider_facture(f2, date_emission=date(2026, 3, 1))
     f2.refresh_from_db()
     assert f2.numero == "F2026-0001"
+
+
+# --- Devis : numérotation souple + transformation en facture ---------------
+
+
+def test_numeroter_devis_attribue_un_numero(client_facture):
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    numeroter_devis(devis)
+    assert devis.numero == "D2026-0001"
+
+
+def test_numeroter_devis_ne_reecrit_pas_un_numero_existant(client_facture):
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1), numero="D2026-0042")
+    numeroter_devis(devis)
+    assert devis.numero == "D2026-0042"
+
+
+def test_transformer_en_facture_copie_client_et_lignes(client_facture):
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1), objet="Spectacle")
+    LigneDevis.objects.create(
+        devis=devis,
+        designation="Représentation",
+        quantite=2,
+        prix_unitaire_ht=Decimal("100"),
+        taux_tva=Decimal("20"),
+    )
+    facture = transformer_en_facture(devis)
+    devis.refresh_from_db()
+    assert devis.statut == Devis.Statut.FACTURE
+    assert facture.client == client_facture
+    assert facture.devis_origine == devis
+    assert facture.objet == "Spectacle"
+    assert facture.lignes.count() == 1
+    assert facture.total_ttc == Decimal("240.00")  # 2 × 100 + 20 %
+
+
+def test_transformer_un_devis_deja_facture_leve(client_facture):
+    devis = Devis.objects.create(
+        client=client_facture, date=date(2026, 3, 1), statut=Devis.Statut.FACTURE
+    )
+    with pytest.raises(DevisDejaFacture):
+        transformer_en_facture(devis)

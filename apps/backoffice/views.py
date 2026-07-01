@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from django.contrib import messages
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -25,11 +25,26 @@ from apps.common.moderation import (
     refuser,
     valider,
 )
-from apps.facturation.models import Client, Facture
-from apps.facturation.services import FactureDejaValidee, assurer_pdf_facture, valider_facture
+from apps.facturation.models import Client, Devis, Facture
+from apps.facturation.services import (
+    DevisDejaFacture,
+    FactureDejaValidee,
+    assurer_pdf_facture,
+    numeroter_devis,
+    pdf_de_devis,
+    transformer_en_facture,
+    valider_facture,
+)
 from apps.spectacles.models import Spectacle
 
-from .forms import ClientForm, FactureForm, LigneFactureFormSet, RecuFiscalForm
+from .forms import (
+    ClientForm,
+    DevisForm,
+    FactureForm,
+    LigneDevisFormSet,
+    LigneFactureFormSet,
+    RecuFiscalForm,
+)
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
 
@@ -255,3 +270,94 @@ def liste_clients(request):
         "backoffice/clients.html",
         {"form": form, "clients": Client.objects.all()},
     )
+
+
+# --- Devis ------------------------------------------------------------------
+
+# Statut -> action de changement de statut autorisée depuis le back-office.
+_ACTIONS_STATUT_DEVIS = {
+    "envoyer": Devis.Statut.ENVOYE,
+    "accepter": Devis.Statut.ACCEPTE,
+    "refuser": Devis.Statut.REFUSE,
+}
+
+
+@bureau_requis
+def liste_devis(request):
+    """Liste des devis."""
+    devis = Devis.objects.select_related("client").all()
+    return render(request, "backoffice/devis_liste.html", {"devis": devis})
+
+
+@bureau_requis
+def creer_devis(request):
+    """Crée un devis (brouillon) avec ses lignes ; numéro attribué à la création."""
+    return _editer_devis(request, devis=Devis())
+
+
+@bureau_requis
+def editer_devis(request, pk):
+    """Édite un devis tant qu'il n'est pas transformé en facture."""
+    devis = get_object_or_404(Devis, pk=pk)
+    if devis.statut == Devis.Statut.FACTURE:
+        return render(request, "backoffice/devis_detail.html", {"devis": devis})
+    return _editer_devis(request, devis=devis)
+
+
+def _editer_devis(request, *, devis: Devis):
+    if request.method == "POST":
+        form = DevisForm(request.POST, instance=devis)
+        formset = LigneDevisFormSet(request.POST, instance=devis, prefix="lignes")
+        if form.is_valid() and formset.is_valid():
+            devis = form.save()
+            formset.instance = devis
+            formset.save()
+            numeroter_devis(devis)  # attribue un numéro s'il n'en a pas
+            messages.success(request, "Devis enregistré.")
+            return redirect("backoffice:editer_devis", pk=devis.pk)
+    else:
+        form = DevisForm(instance=devis)
+        formset = LigneDevisFormSet(instance=devis, prefix="lignes")
+    return render(
+        request,
+        "backoffice/devis_form.html",
+        {"form": form, "formset": formset, "devis": devis if devis.pk else None},
+    )
+
+
+@bureau_requis
+@require_POST
+def changer_statut_devis(request, pk):
+    """Fait évoluer le statut d'un devis (envoyé / accepté / refusé)."""
+    devis = get_object_or_404(Devis, pk=pk)
+    nouveau = _ACTIONS_STATUT_DEVIS.get(request.POST.get("action"))
+    if nouveau is None or devis.statut == Devis.Statut.FACTURE:
+        messages.error(request, "Changement de statut impossible.")
+    else:
+        devis.statut = nouveau
+        devis.save(update_fields=["statut"])
+        messages.success(request, f"Devis marqué « {devis.get_statut_display()} ».")
+    return redirect("backoffice:editer_devis", pk=devis.pk)
+
+
+@bureau_requis
+@require_POST
+def transformer_devis(request, pk):
+    """Transforme un devis en facture brouillon (client + lignes copiés)."""
+    devis = get_object_or_404(Devis, pk=pk)
+    try:
+        facture = transformer_en_facture(devis)
+    except DevisDejaFacture as exc:
+        messages.error(request, str(exc))
+        return redirect("backoffice:editer_devis", pk=devis.pk)
+    messages.success(request, "Devis transformé en facture (brouillon). Complétez puis validez.")
+    return redirect("backoffice:editer_facture", pk=facture.pk)
+
+
+@bureau_requis
+def telecharger_devis(request, pk):
+    """Sert le PDF d'un devis, rendu à la volée."""
+    devis = get_object_or_404(Devis, pk=pk)
+    reponse = HttpResponse(pdf_de_devis(devis), content_type="application/pdf")
+    reponse["Content-Disposition"] = f'attachment; filename="devis-{devis.numero or devis.pk}.pdf"'
+    return reponse

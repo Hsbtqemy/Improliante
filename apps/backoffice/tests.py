@@ -14,7 +14,7 @@ from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
-from apps.facturation.models import Client, Facture, LigneFacture
+from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
@@ -344,3 +344,79 @@ def test_creer_client(client, db):
     reponse = client.post("/bureau/clients/", {"nom": "Nouvelle scène", "ville": "Lyon"})
     assert reponse.status_code == 302
     assert Client.objects.filter(nom="Nouvelle scène").exists()
+
+
+# --- Devis ------------------------------------------------------------------
+
+
+def _donnees_devis(client_facture, **extra):
+    donnees = {
+        "client": client_facture.pk,
+        "objet": "Prestation",
+        "date": "2026-03-01",
+        "date_validite": "",
+        "conditions": "",
+        "lignes-TOTAL_FORMS": "1",
+        "lignes-INITIAL_FORMS": "0",
+        "lignes-MIN_NUM_FORMS": "0",
+        "lignes-MAX_NUM_FORMS": "1000",
+        "lignes-0-designation": "Représentation",
+        "lignes-0-quantite": "1",
+        "lignes-0-prix_unitaire_ht": "200.00",
+        "lignes-0-taux_tva": "0",
+        "lignes-0-ordre": "0",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_devis_reserve_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/devis/").status_code == 403
+
+
+def test_creer_devis_attribue_un_numero(client, db):
+    client_facture = Client.objects.create(nom="Théâtre municipal")
+    client.force_login(_staff())
+    reponse = client.post("/bureau/devis/nouveau/", _donnees_devis(client_facture))
+    assert reponse.status_code == 302
+    devis = Devis.objects.get()
+    assert devis.numero == "D2026-0001"
+    assert devis.lignes.count() == 1
+
+
+def test_changer_statut_devis(client, db):
+    client_facture = Client.objects.create(nom="Théâtre")
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    client.force_login(_staff())
+    client.post(f"/bureau/devis/{devis.pk}/statut/", {"action": "accepter"})
+    devis.refresh_from_db()
+    assert devis.statut == Devis.Statut.ACCEPTE
+
+
+def test_transformer_devis_cree_une_facture(client, db):
+    client_facture = Client.objects.create(nom="Théâtre")
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    LigneDevis.objects.create(
+        devis=devis, designation="X", quantite=1, prix_unitaire_ht=Decimal("50")
+    )
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/devis/{devis.pk}/transformer/")
+    assert reponse.status_code == 302
+    devis.refresh_from_db()
+    assert devis.statut == Devis.Statut.FACTURE
+    facture = Facture.objects.get()
+    assert facture.devis_origine == devis
+    assert f"/bureau/factures/{facture.pk}/" in reponse.url
+
+
+def test_telecharger_devis_pdf(client, db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 d"
+    )
+    client_facture = Client.objects.create(nom="Théâtre")
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/devis/{devis.pk}/telecharger/")
+    assert reponse.status_code == 200
+    assert reponse.content.startswith(b"%PDF")

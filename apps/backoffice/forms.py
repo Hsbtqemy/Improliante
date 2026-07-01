@@ -7,7 +7,7 @@ from decimal import Decimal
 from django import forms
 
 from apps.budget.models import RecuFiscal
-from apps.facturation.models import Client, Facture, LigneFacture
+from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 
 
 class RecuFiscalForm(forms.ModelForm):
@@ -86,6 +86,33 @@ class FactureForm(forms.ModelForm):
 LigneFactureFormSet = forms.inlineformset_factory(
     Facture,
     LigneFacture,
+    fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
+    extra=1,
+    can_delete=True,
+)
+
+
+class DevisForm(forms.ModelForm):
+    """En-tête d'un devis. Le numéro est attribué par le service (non saisi)."""
+
+    class Meta:
+        model = Devis
+        fields = ["client", "objet", "date", "date_validite", "conditions"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "date_validite": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "conditions": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for champ in ("date", "date_validite"):
+            self.fields[champ].input_formats = ["%Y-%m-%d"]
+
+
+LigneDevisFormSet = forms.inlineformset_factory(
+    Devis,
+    LigneDevis,
     fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
     extra=1,
     can_delete=True,

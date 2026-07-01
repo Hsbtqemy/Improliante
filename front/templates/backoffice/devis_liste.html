@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Devis — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Devis</h1>
+
+  <p>
+    <a class="lien-bouton" href="{% url 'backoffice:creer_devis' %}">Nouveau devis</a>
+    <a class="lien-bouton" href="{% url 'backoffice:liste_clients' %}">Clients</a>
+  </p>
+
+  {% if devis %}
+    <table class="tableau">
+      <thead>
+        <tr>
+          <th scope="col">Devis</th>
+          <th scope="col">Client</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Total TTC</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in devis %}
+          <tr>
+            <td>{{ d }}</td>
+            <td>{{ d.client }}</td>
+            <td><span class="badge">{{ d.get_statut_display }}</span></td>
+            <td>{{ d.total_ttc|floatformat:2 }} €</td>
+            <td>
+              <a href="{% url 'backoffice:editer_devis' pk=d.pk %}">
+                {% if d.statut == "facture" %}Voir{% else %}Éditer{% endif %}
+              </a>
+              · <a href="{% url 'backoffice:telecharger_devis' pk=d.pk %}">PDF</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Aucun devis pour l'instant.</p>
+  {% endif %}
+{% endblock %}

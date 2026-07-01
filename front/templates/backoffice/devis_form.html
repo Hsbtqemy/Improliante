@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if devis %}Devis {{ devis.numero }}{% else %}Nouveau devis{% endif %} — Back-office
+{% endblock %}
+
+{% block contenu %}
+  <h1>
+    {% if devis %}Modifier le devis {{ devis.numero }}{% else %}Nouveau devis{% endif %}
+  </h1>
+  {% if devis %}
+    <p class="carte-projet__meta">Statut : <span class="badge">{{ devis.get_statut_display }}</span></p>
+  {% endif %}
+
+  <form method="post" class="formulaire">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+
+    <h2>Lignes</h2>
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}<div class="erreurs" role="alert">{{ formset.non_form_errors }}</div>{% endif %}
+    <table class="tableau">
+      <thead>
+        <tr>
+          <th scope="col">Désignation</th>
+          <th scope="col">Qté</th>
+          <th scope="col">PU HT</th>
+          <th scope="col">TVA %</th>
+          <th scope="col">Ordre</th>
+          <th scope="col">Suppr.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in formset %}
+          <tr>
+            {{ ligne.id }}
+            <td>{{ ligne.designation }}{% for e in ligne.designation.errors %}<span class="champ__erreur">{{ e }}</span>{% endfor %}</td>
+            <td>{{ ligne.quantite }}</td>
+            <td>{{ ligne.prix_unitaire_ht }}</td>
+            <td>{{ ligne.taux_tva }}</td>
+            <td>{{ ligne.ordre }}</td>
+            <td>{{ ligne.DELETE }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer le devis</button>
+      <a class="lien-bouton" href="{% url 'backoffice:liste_devis' %}">Retour à la liste</a>
+    </div>
+  </form>
+
+  {% if devis %}
+    <section aria-labelledby="titre-suivi">
+      <h2 id="titre-suivi">Suivi</h2>
+      <p class="formulaire__actions">
+        <a class="lien-bouton" href="{% url 'backoffice:telecharger_devis' pk=devis.pk %}">Télécharger le PDF</a>
+      </p>
+      <form method="post" action="{% url 'backoffice:changer_statut_devis' pk=devis.pk %}">
+        {% csrf_token %}
+        <div class="formulaire__actions">
+          <button type="submit" name="action" value="envoyer" class="lien-bouton">Marquer envoyé</button>
+          <button type="submit" name="action" value="accepter" class="lien-bouton">Marquer accepté</button>
+          <button type="submit" name="action" value="refuser" class="lien-bouton">Marquer refusé</button>
+        </div>
+      </form>
+      <form method="post" action="{% url 'backoffice:transformer_devis' pk=devis.pk %}" style="margin-top: 1rem;">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Transformer en facture</button>
+      </form>
+    </section>
+  {% endif %}
+{% endblock %}

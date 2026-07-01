@@ -18,11 +18,15 @@ from django.utils import timezone
 from apps.coeur.models import ParametresAssociation
 from apps.common import pdf
 
-from .models import CompteurFacture, Facture
+from .models import CompteurFacture, Devis, Facture, LigneFacture
 
 
 class FactureDejaValidee(Exception):
     """Levée quand on tente de (re)valider une facture qui n'est pas en brouillon."""
+
+
+class DevisDejaFacture(Exception):
+    """Levée quand on tente de transformer un devis déjà transformé en facture."""
 
 
 @transaction.atomic
@@ -67,3 +71,59 @@ def assurer_pdf_facture(facture: Facture) -> None:
     )
     octets = pdf.html_vers_pdf(html)
     facture.fichier.save(f"facture-{facture.numero}.pdf", ContentFile(octets), save=True)
+
+
+# --- Devis ------------------------------------------------------------------
+
+
+def numeroter_devis(devis: Devis) -> None:
+    """Attribue un numéro au devis s'il n'en a pas encore.
+
+    Série annuelle « D{annee}-{seq:04d} ». Contrairement aux factures, le devis
+    n'a PAS de contrainte légale de continuité : un trou (devis supprimé) est
+    sans conséquence, on ne verrouille donc pas l'attribution."""
+    if devis.numero:
+        return
+    annee = (devis.date or timezone.localdate()).year
+    seq = Devis.objects.filter(date__year=annee).exclude(pk=devis.pk).count() + 1
+    devis.numero = f"D{annee}-{seq:04d}"
+    devis.save(update_fields=["numero"])
+
+
+def pdf_de_devis(devis: Devis) -> bytes:
+    """Rend le PDF d'un devis à la volée (pas de cache : le devis évolue tant
+    qu'il n'est pas accepté / transformé)."""
+    html = render_to_string(
+        "devis/devis.html",
+        {"devis": devis, "asso": ParametresAssociation.load()},
+    )
+    return pdf.html_vers_pdf(html)
+
+
+@transaction.atomic
+def transformer_en_facture(devis: Devis) -> Facture:
+    """Crée une facture brouillon à partir d'un devis (client + lignes copiés).
+
+    Marque le devis comme « Facturé » et relie la facture à son devis d'origine.
+    Lève `DevisDejaFacture` si le devis a déjà été transformé."""
+    if devis.statut == Devis.Statut.FACTURE:
+        raise DevisDejaFacture(
+            f"Le devis {devis.numero or devis.pk} a déjà été transformé en facture."
+        )
+    facture = Facture.objects.create(
+        client=devis.client,
+        devis_origine=devis,
+        objet=devis.objet,
+    )
+    for ligne in devis.lignes.all():
+        LigneFacture.objects.create(
+            facture=facture,
+            designation=ligne.designation,
+            quantite=ligne.quantite,
+            prix_unitaire_ht=ligne.prix_unitaire_ht,
+            taux_tva=ligne.taux_tva,
+            ordre=ligne.ordre,
+        )
+    devis.statut = Devis.Statut.FACTURE
+    devis.save(update_fields=["statut"])
+    return facture
