@@ -67,7 +67,14 @@ class SujetAdmin(admin.ModelAdmin):
 
 @admin.register(Resolution)
 class ResolutionAdmin(admin.ModelAdmin):
-    list_display = ("intitule", "reunion", "type_majorite", "nombre_pour", "nombre_contre", "nombre_abstention")
+    list_display = (
+        "intitule",
+        "reunion",
+        "type_majorite",
+        "nombre_pour",
+        "nombre_contre",
+        "nombre_abstention",
+    )
     list_filter = ("type_majorite",)
     search_fields = ("intitule",)
     autocomplete_fields = ("reunion", "sujet")

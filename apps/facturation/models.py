@@ -69,9 +69,7 @@ class LigneCommerciale(models.Model):
     prix_unitaire_ht = models.DecimalField(
         "prix unitaire HT", max_digits=10, decimal_places=2, default=0
     )
-    taux_tva = models.DecimalField(
-        "taux de TVA (%)", max_digits=5, decimal_places=2, default=0
-    )
+    taux_tva = models.DecimalField("taux de TVA (%)", max_digits=5, decimal_places=2, default=0)
     ordre = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -150,7 +148,8 @@ class Facture(AvecTotaux, Horodatage):
         verbose_name="devis d'origine",
     )
     objet = models.CharField(max_length=200, blank=True)
-    date = models.DateField("date d'émission")
+    # Émise à la validation (comme le numéro) : nulle tant que la facture est brouillon.
+    date = models.DateField("date d'émission", null=True, blank=True)
     date_echeance = models.DateField("échéance", null=True, blank=True)
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.BROUILLON)
     date_validation = models.DateTimeField("validée le", null=True, blank=True)

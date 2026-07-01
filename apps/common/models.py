@@ -60,9 +60,7 @@ class Moderation(models.Model):
         related_name="%(app_label)s_%(class)s_valides",
         verbose_name="validé par",
     )
-    date_publication = models.DateTimeField(
-        "date de publication", null=True, blank=True
-    )
+    date_publication = models.DateTimeField("date de publication", null=True, blank=True)
 
     class Meta:
         abstract = True

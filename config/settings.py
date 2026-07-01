@@ -57,9 +57,7 @@ if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = "django-insecure-dev-key-a-remplacer-en-production"  # noqa: S105
     else:
-        raise ImproperlyConfigured(
-            "DJANGO_SECRET_KEY est obligatoire lorsque DEBUG est désactivé."
-        )
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY est obligatoire lorsque DEBUG est désactivé.")
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
@@ -81,7 +79,7 @@ DJANGO_APPS = [
 # pour que le squelette tourne avec Django seul.
 THIRD_PARTY_APPS: list[str] = [
     # "rest_framework",                 # API (DRF)
-    "treebeard",                      # arbres GED (Dossier auto-référent)
+    "treebeard",  # arbres GED (Dossier auto-référent)
     # "guardian",                       # permissions par objet
     # "axes",                           # anti-brute-force
     # "django_otp",                     # 2FA
@@ -190,8 +188,8 @@ USE_TZ = True
 # --- Fichiers statiques et médias ------------------------------------------
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"                # cible de collectstatic (prod)
-STATICFILES_DIRS = [BASE_DIR / "front" / "static"]    # assets du front public
+STATIC_ROOT = BASE_DIR / "staticfiles"  # cible de collectstatic (prod)
+STATICFILES_DIRS = [BASE_DIR / "front" / "static"]  # assets du front public
 
 # Médias uploadés. En production, les fichiers PRIVÉS (factures, reçus fiscaux,
 # pièces membres) doivent être servis via une vue authentifiée / X-Accel-Redirect,

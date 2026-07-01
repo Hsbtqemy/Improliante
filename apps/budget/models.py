@@ -53,21 +53,13 @@ class Adhesion(models.Model):
         EXONEREE = "exoneree", "Exonéré"
         EN_ATTENTE = "en_attente", "En attente"
 
-    membre = models.ForeignKey(
-        "coeur.Membre", on_delete=models.PROTECT, related_name="adhesions"
-    )
-    saison = models.ForeignKey(
-        Saison, on_delete=models.PROTECT, related_name="adhesions"
-    )
-    statut = models.CharField(
-        max_length=10, choices=Statut.choices, default=Statut.EN_ATTENTE
-    )
+    membre = models.ForeignKey("coeur.Membre", on_delete=models.PROTECT, related_name="adhesions")
+    saison = models.ForeignKey(Saison, on_delete=models.PROTECT, related_name="adhesions")
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.EN_ATTENTE)
     montant_attendu = models.DecimalField(
         "montant attendu", max_digits=8, decimal_places=2, default=0
     )
-    montant_verse = models.DecimalField(
-        "montant versé", max_digits=8, decimal_places=2, default=0
-    )
+    montant_verse = models.DecimalField("montant versé", max_digits=8, decimal_places=2, default=0)
     date = models.DateField(null=True, blank=True)
 
     class Meta:

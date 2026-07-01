@@ -1,0 +1,14 @@
+# Configuration ruff (lint + format) — cf. CLAUDE.md.
+target-version = "py311"
+line-length = 100
+extend-exclude = ["*/migrations/*", "venv"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # longueur de ligne : gérée par le formateur
+]
+
+[lint.per-file-ignores]
+# Les __init__.py peuvent réexporter sans les utiliser.
+"**/__init__.py" = ["F401"]

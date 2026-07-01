@@ -35,8 +35,8 @@ openpyxl>=3.1                    # exports Excel (budget, compta)
 # --- Serveur de production --------------------------------------------------
 gunicorn>=23.0                   # serveur WSGI (derrière Nginx, cf. deploiement/)
 
-# --- Outils de développement (optionnels) ----------------------------------
-# pytest>=8.0
-# pytest-django>=4.9
-# ruff>=0.6
-# pip-audit>=2.7
+# --- Outils de développement ------------------------------------------------
+pytest>=8.0
+pytest-django>=4.9
+ruff>=0.6
+pip-audit>=2.7

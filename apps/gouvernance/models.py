@@ -144,10 +144,10 @@ class Sujet(Horodatage):
         REPORTE = "reporte", "Reporté"
         REFUSE = "refuse", "Refusé"
 
-    class Priorite(models.TextChoices):
-        BASSE = "basse", "Basse"
-        NORMALE = "normale", "Normale"
-        HAUTE = "haute", "Haute"
+    class Priorite(models.IntegerChoices):
+        BASSE = 1, "Basse"
+        NORMALE = 2, "Normale"
+        HAUTE = 3, "Haute"
 
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -160,7 +160,9 @@ class Sujet(Horodatage):
         verbose_name="proposé par",
     )
     statut = models.CharField(max_length=14, choices=Statut.choices, default=Statut.PROPOSE)
-    priorite = models.CharField("priorité", max_length=8, choices=Priorite.choices, default=Priorite.NORMALE)
+    priorite = models.PositiveSmallIntegerField(
+        "priorité", choices=Priorite.choices, default=Priorite.NORMALE
+    )
     categorie = models.CharField("catégorie", max_length=120, blank=True)
     motif_refus = models.TextField("motif de refus", blank=True)
 
@@ -189,7 +191,7 @@ class Sujet(Horodatage):
     class Meta:
         verbose_name = "sujet"
         verbose_name_plural = "sujets"
-        ordering = ["-priorite", "-id"]
+        ordering = ["-priorite", "-date", "-id"]
 
     def __str__(self) -> str:
         return self.titre
@@ -235,10 +237,16 @@ class Pouvoir(models.Model):
 
     reunion = models.ForeignKey(Reunion, on_delete=models.CASCADE, related_name="pouvoirs")
     mandant = models.ForeignKey(
-        "coeur.Membre", on_delete=models.PROTECT, related_name="pouvoirs_donnes", verbose_name="mandant (absent)"
+        "coeur.Membre",
+        on_delete=models.PROTECT,
+        related_name="pouvoirs_donnes",
+        verbose_name="mandant (absent)",
     )
     mandataire = models.ForeignKey(
-        "coeur.Membre", on_delete=models.PROTECT, related_name="pouvoirs_recus", verbose_name="mandataire (présent)"
+        "coeur.Membre",
+        on_delete=models.PROTECT,
+        related_name="pouvoirs_recus",
+        verbose_name="mandataire (présent)",
     )
 
     class Meta:
@@ -281,9 +289,7 @@ class Presence(models.Model):
         verbose_name = "présence"
         verbose_name_plural = "présences"
         constraints = [
-            models.UniqueConstraint(
-                fields=["reunion", "membre"], name="presence_unique_par_membre"
-            )
+            models.UniqueConstraint(fields=["reunion", "membre"], name="presence_unique_par_membre")
         ]
 
     def __str__(self) -> str:
