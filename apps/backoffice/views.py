@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from django.contrib import messages
+from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -27,7 +28,8 @@ from apps.budget.services import (
     emettre_recu,
     pdf_de_recu,
 )
-from apps.coeur.roles import bureau_requis
+from apps.coeur.models import ParametresAssociation, Utilisateur
+from apps.coeur.roles import NOM_GROUPE_BUREAU, bureau_requis
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import (
     TransitionModerationInvalide,
@@ -62,6 +64,7 @@ from .forms import (
     LigneDevisFormSet,
     LigneFactureFormSet,
     NouvelleVersionForm,
+    ParametresAssociationForm,
     RecuFiscalForm,
     SaisonForm,
     TransactionForm,
@@ -98,6 +101,54 @@ def tableau_de_bord(request):
         ).count(),
     }
     return render(request, "backoffice/tableau_de_bord.html", contexte)
+
+
+# --- Paramètres & équipe ----------------------------------------------------
+
+
+@bureau_requis
+def parametres_association(request):
+    """Édition de l'identité légale de l'association (en-tête des documents)."""
+    params = ParametresAssociation.load()
+    form = ParametresAssociationForm(request.POST or None, instance=params)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Paramètres de l'association enregistrés.")
+        return redirect("backoffice:parametres_association")
+    return render(request, "backoffice/parametres_association.html", {"form": form})
+
+
+@bureau_requis
+def equipe_bureau(request):
+    """Gère l'appartenance au groupe « Bureau » (accès au back-office).
+
+    Ne touche que le groupe : l'accès des comptes techniques (staff /
+    superutilisateur) ne dépend pas de lui (cf. apps.coeur.roles.est_bureau)."""
+    groupe, _ = Group.objects.get_or_create(name=NOM_GROUPE_BUREAU)
+    if request.method == "POST":
+        user_pk = request.POST.get("utilisateur")
+        user = (
+            Utilisateur.objects.filter(pk=user_pk).first()
+            if user_pk and user_pk.isdigit()
+            else None
+        )
+        if user is None:
+            messages.error(request, "Utilisateur introuvable.")
+        elif request.POST.get("action") == "ajouter":
+            user.groups.add(groupe)
+            messages.success(request, f"{user} a désormais accès au bureau.")
+        elif request.POST.get("action") == "retirer":
+            user.groups.remove(groupe)
+            messages.success(request, f"Accès bureau retiré à {user}.")
+        return redirect("backoffice:equipe_bureau")
+
+    utilisateurs = Utilisateur.objects.filter(is_active=True).order_by("username")
+    membres_bureau = set(groupe.user_set.values_list("pk", flat=True))
+    return render(
+        request,
+        "backoffice/equipe_bureau.html",
+        {"utilisateurs": utilisateurs, "membres_bureau": membres_bureau},
+    )
 
 
 @bureau_requis

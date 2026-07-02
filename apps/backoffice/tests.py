@@ -46,6 +46,53 @@ def _evenement_propose(titre="Événement proposé"):
     )
 
 
+# --- Paramètres & équipe ----------------------------------------------------
+
+
+def test_parametres_reserve_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/parametres/").status_code == 403
+
+
+def test_editer_parametres_association(client, db):
+    from apps.coeur.models import ParametresAssociation
+
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/parametres/",
+        {
+            "nom": "L'Improliante",
+            "objet": "spectacle vivant",
+            "adresse": "1 rue du Théâtre",
+            "code_postal": "75001",
+            "ville": "Paris",
+            "numero_rna": "W123",
+            "numero_siret": "",
+            "article_cgi": "200",
+            "signataire_nom": "Alice",
+            "signataire_qualite": "Présidente",
+        },
+    )
+    assert reponse.status_code == 302
+    assert ParametresAssociation.load().nom == "L'Improliante"
+
+
+def test_equipe_ajouter_et_retirer_du_bureau(client, db):
+    from apps.coeur.roles import est_bureau
+
+    cible = _membre("nouveau")  # pas bureau au départ
+    assert est_bureau(cible) is False
+
+    client.force_login(_staff())
+    client.post("/bureau/equipe/", {"utilisateur": cible.pk, "action": "ajouter"})
+    cible.refresh_from_db()
+    assert est_bureau(cible) is True
+
+    client.post("/bureau/equipe/", {"utilisateur": cible.pk, "action": "retirer"})
+    cible.refresh_from_db()
+    assert est_bureau(cible) is False
+
+
 # --- Tableau de bord bureau -------------------------------------------------
 
 

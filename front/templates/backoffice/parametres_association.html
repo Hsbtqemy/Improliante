@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Paramètres de l'association — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
+  <h1>Paramètres de l'association</h1>
+  <p class="carte-projet__meta">
+    Ces informations constituent l'en-tête des documents officiels (reçus fiscaux, factures…).
+  </p>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+    <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+  </form>
+{% endblock %}

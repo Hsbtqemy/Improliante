@@ -7,7 +7,7 @@ from decimal import Decimal
 from django import forms
 
 from apps.budget.models import Categorie, RecuFiscal, Saison, Transaction
-from apps.coeur.models import Signataire
+from apps.coeur.models import ParametresAssociation, Signataire
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 
@@ -208,3 +208,26 @@ class CategorieForm(forms.ModelForm):
         model = Categorie
         fields = ["nom", "description"]
         widgets = {"description": forms.Textarea(attrs={"rows": 2})}
+
+
+# --- Paramètres de l'association --------------------------------------------
+
+
+class ParametresAssociationForm(forms.ModelForm):
+    """Identité légale de l'association (en-tête des documents officiels)."""
+
+    class Meta:
+        model = ParametresAssociation
+        fields = [
+            "nom",
+            "objet",
+            "adresse",
+            "code_postal",
+            "ville",
+            "numero_rna",
+            "numero_siret",
+            "article_cgi",
+            "signataire_nom",
+            "signataire_qualite",
+        ]
+        widgets = {"objet": forms.Textarea(attrs={"rows": 2})}
