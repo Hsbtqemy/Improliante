@@ -13,6 +13,7 @@ from pathlib import PurePosixPath
 from django.contrib import messages
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -187,22 +188,28 @@ def creer_membre(request):
     if request.method == "POST":
         form = MembreCreationForm(request.POST)
         if form.is_valid():
-            membre = creer_compte_membre(
-                first_name=form.cleaned_data["prenom"],
-                last_name=form.cleaned_data["nom"],
-                email=form.cleaned_data["email"],
-                role_public=form.cleaned_data["role_public"],
-                telephone=form.cleaned_data["telephone"],
-            )
-            uidb64, token = jeton_activation(membre.user)
-            lien_activation = request.build_absolute_uri(
-                reverse("espace_membre:activer_compte", args=[uidb64, token])
-            )
-            messages.success(
-                request,
-                f"Compte créé pour {membre}. Transmettez-lui le lien d'activation ci-dessous.",
-            )
-            form = MembreCreationForm()  # formulaire vierge pour un éventuel suivant
+            try:
+                membre = creer_compte_membre(
+                    first_name=form.cleaned_data["prenom"],
+                    last_name=form.cleaned_data["nom"],
+                    email=form.cleaned_data["email"],
+                    role_public=form.cleaned_data["role_public"],
+                    telephone=form.cleaned_data["telephone"],
+                )
+            except IntegrityError:
+                # Course : l'e-mail est passé libre à la validation mais a été
+                # pris entre-temps (contrainte d'unicité DB). Message propre.
+                form.add_error("email", "Un compte existe déjà avec cet e-mail.")
+            else:
+                uidb64, token = jeton_activation(membre.user)
+                lien_activation = request.build_absolute_uri(
+                    reverse("espace_membre:activer_compte", args=[uidb64, token])
+                )
+                messages.success(
+                    request,
+                    f"Compte créé pour {membre}. Transmettez-lui le lien d'activation ci-dessous.",
+                )
+                form = MembreCreationForm()  # formulaire vierge pour un éventuel suivant
     else:
         form = MembreCreationForm()
 

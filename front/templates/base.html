@@ -45,8 +45,8 @@
       </div>
     </header>
 
-    <div class="conteneur espace-grille{% if request.user.is_authenticated and request.resolver_match.namespace in 'espace_membre backoffice' %} espace-grille--avec-nav{% endif %}">
-      {% if request.user.is_authenticated and request.resolver_match.namespace in 'espace_membre backoffice' %}
+    <div class="conteneur espace-grille{% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %} espace-grille--avec-nav{% endif %}">
+      {% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %}
         <aside class="espace-grille__nav">
           <button
             type="button"

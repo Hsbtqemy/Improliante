@@ -337,7 +337,9 @@ class MembreCreationForm(forms.Form):
     telephone = forms.CharField(label="Téléphone", max_length=32, required=False)
 
     def clean_email(self) -> str:
-        email = self.cleaned_data["email"].strip()
+        # Normalisation en minuscules : l'e-mail sert d'identifiant, on évite
+        # les doublons ne différant que par la casse et on canonise le stockage.
+        email = self.cleaned_data["email"].strip().lower()
         # L'e-mail est aussi l'identifiant (username) : on vérifie les deux.
         existe = Utilisateur.objects.filter(username__iexact=email).exists() or (
             Utilisateur.objects.filter(email__iexact=email).exists()

@@ -721,6 +721,36 @@ def test_profil_ne_touche_que_sa_propre_fiche(client, db):
     assert bob.role_public == "Régisseur"  # inchangé
 
 
+def test_profil_reseau_d_autrui_non_modifiable_par_id_forge(client, db):
+    """ANTI-IDOR (formset) : un POST forgé avec l'id d'un LienReseau appartenant
+    à un autre membre ne doit ni le modifier, ni le voler, ni le supprimer."""
+    alice = _membre("alice")
+    bob = _membre("bob")
+    lien_bob = LienReseau.objects.create(
+        membre=bob, reseau=LienReseau.Reseau.INSTAGRAM, url="https://instagram.com/bob"
+    )
+
+    client.force_login(alice.user)
+    client.post(
+        PROFIL,
+        _donnees_profil(
+            **{
+                "liens_reseaux-INITIAL_FORMS": "1",
+                "liens_reseaux-0-id": str(lien_bob.pk),
+                "liens_reseaux-0-reseau": LienReseau.Reseau.YOUTUBE,
+                "liens_reseaux-0-url": "https://youtube.com/pirate",
+                "liens_reseaux-0-ordre": "0",
+            }
+        ),
+    )
+
+    lien_bob.refresh_from_db()
+    assert lien_bob.membre_id == bob.pk  # non réassigné à alice
+    assert lien_bob.reseau == LienReseau.Reseau.INSTAGRAM  # non modifié
+    assert lien_bob.url == "https://instagram.com/bob"
+    assert not alice.liens_reseaux.exists()  # rien créé chez alice non plus
+
+
 # --- Convocations / CR d'AG : visibilité + contenu -------------------------
 
 
