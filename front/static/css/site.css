@@ -865,6 +865,125 @@ a.tuile:hover {
   align-items: flex-start;
 }
 
+/* --- Galerie des membres : panneaux extensibles (accordéon) ------------- */
+/* 100% CSS. Mobile : cartes empilées (tout visible). Desktop : accordéon
+   horizontal — au survol / focus clavier, le panneau s'élargit et révèle la
+   fiche. Le nom reste un lien toujours focusable (déclenche :focus-within). */
+.membres-accordeon {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.panneau {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--rayon);
+  min-height: 16rem;
+  background: var(--couleur-primaire-clair);
+}
+.panneau__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.panneau__contenu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: #fff;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8),
+    rgba(0, 0, 0, 0.25) 55%,
+    rgba(0, 0, 0, 0.05)
+  );
+}
+.panneau__nom {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.panneau__nom a {
+  color: #fff;
+  text-decoration: none;
+}
+.panneau__nom a:hover {
+  text-decoration: underline;
+}
+.panneau__role {
+  margin: 0;
+  font-weight: 600;
+}
+.panneau__bio {
+  margin: 0;
+}
+.panneau__liens {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.panneau__liens a {
+  color: #fff;
+}
+
+/* Desktop : mode accordéon horizontal */
+@media (min-width: 48rem) {
+  .membres-accordeon {
+    flex-direction: row;
+    height: 24rem;
+    gap: 0.5rem;
+  }
+  .panneau {
+    flex: 1 1 0;
+    min-height: 0;
+    transition: flex-grow 0.4s ease;
+  }
+  .panneau:hover,
+  .panneau:focus-within {
+    flex-grow: 5;
+  }
+  /* Contenu à LARGEUR FIXE ancré à gauche : le texte ne se re-répartit pas
+     pendant l'animation de largeur du panneau (fini le texte qui « saute »).
+     Le panneau, en overflow:hidden, le dévoile comme un rideau en s'élargissant. */
+  .panneau__contenu {
+    right: auto;
+    width: 20rem;
+    max-width: none;
+  }
+  .panneau__nom {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Détails révélés seulement quand le panneau est actif ; masqués du parcours
+     clavier tant qu'ils sont cachés (visibility). Le nom, lui, reste visible. */
+  .panneau__details {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(0.5rem);
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
+  }
+  .panneau:hover .panneau__details,
+  .panneau:focus-within .panneau__details {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Respect de la préférence de réduction des animations */
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -12,9 +12,45 @@
   <section aria-labelledby="titre-membres">
     <h2 id="titre-membres">Nos membres</h2>
     {% if membres %}
-      <ul class="cartes">
+      {# Accordéon horizontal (100% CSS). Mobile : cartes empilées, tout visible.
+         Desktop : panneaux ; au survol/focus, le panneau s'élargit et révèle la
+         fiche. Le nom est un lien toujours focusable → déclenche `:focus-within`
+         au clavier. #}
+      <ul class="membres-accordeon">
         {% for membre in membres %}
-          {% include "vitrine/_carte_membre.html" %}
+          <li class="panneau">
+            {% if membre.photo and membre.photo.fichier %}
+              <img
+                class="panneau__photo"
+                src="{{ membre.photo.fichier.url }}"
+                alt="{{ membre.photo.alt }}"
+                loading="lazy"
+              />
+            {% endif %}
+            <div class="panneau__contenu">
+              <h3 class="panneau__nom">
+                <a href="{% url 'vitrine:membre' membre.pk %}">{{ membre }}</a>
+              </h3>
+              <div class="panneau__details">
+                {% if membre.role_public %}
+                  <p class="panneau__role">{{ membre.role_public }}</p>
+                {% endif %}
+                {% if membre.bio %}
+                  <p class="panneau__bio">{{ membre.bio|truncatewords:30 }}</p>
+                {% endif %}
+                {% if membre.site_web or membre.liens_reseaux.all %}
+                  <ul class="panneau__liens">
+                    {% if membre.site_web %}
+                      <li><a href="{{ membre.site_web }}" rel="noopener nofollow" target="_blank">Site web</a></li>
+                    {% endif %}
+                    {% for lien in membre.liens_reseaux.all %}
+                      <li><a href="{{ lien.url }}" rel="noopener nofollow" target="_blank">{{ lien.nom_affiche }}</a></li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            </div>
+          </li>
         {% endfor %}
       </ul>
     {% else %}
