@@ -23,6 +23,7 @@
         <th scope="col">E-mail</th>
         <th scope="col">Compte</th>
         <th scope="col">Actif</th>
+        <th scope="col">Site public</th>
       </tr>
     </thead>
     <tbody>
@@ -38,9 +39,22 @@
             {% endif %}
           </td>
           <td>{% if membre.actif %}Oui{% else %}Non{% endif %}</td>
+          <td>
+            {% if membre.visible_sur_site %}
+              <span class="badge badge--publie">Visible</span>
+            {% else %}
+              <span class="badge">Masqué</span>
+            {% endif %}
+            <form method="post" action="{% url 'backoffice:basculer_visibilite_membre' membre.pk %}" style="display: inline">
+              {% csrf_token %}
+              <button type="submit" class="bouton-texte">
+                {% if membre.visible_sur_site %}Masquer{% else %}Publier{% endif %}
+              </button>
+            </form>
+          </td>
         </tr>
       {% empty %}
-        <tr><td colspan="4">Aucun membre pour l'instant.</td></tr>
+        <tr><td colspan="5">Aucun membre pour l'instant.</td></tr>
       {% endfor %}
     </tbody>
   </table>

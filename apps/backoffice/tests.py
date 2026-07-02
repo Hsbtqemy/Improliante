@@ -142,6 +142,32 @@ def test_creation_membre_refuse_un_email_deja_pris(client, db):
     assert Utilisateur.objects.filter(email="camille.martin@example.org").count() == 1
 
 
+def test_bureau_bascule_la_visibilite_d_un_membre(client, db):
+    membre = _membre("visible_ou_non").membre
+    assert membre.visible_sur_site is False  # masqué par défaut
+    url = f"/bureau/membres/{membre.pk}/visibilite/"
+
+    client.force_login(_staff())
+    client.post(url)
+    membre.refresh_from_db()
+    assert membre.visible_sur_site is True  # publié
+
+    client.post(url)
+    membre.refresh_from_db()
+    assert membre.visible_sur_site is False  # remasqué
+
+
+def test_bascule_visibilite_reservee_au_bureau_et_en_post(client, db):
+    membre = _membre("cible").membre
+    url = f"/bureau/membres/{membre.pk}/visibilite/"
+    # GET interdit (require_POST) même pour un membre du bureau.
+    assert client.get(url).status_code == 302  # login_required d'abord
+    client.force_login(_membre("lambda"))
+    assert client.post(url).status_code == 403  # pas bureau
+    client.force_login(_staff())
+    assert client.get(url).status_code == 405  # méthode non autorisée
+
+
 # --- Tableau de bord bureau -------------------------------------------------
 
 

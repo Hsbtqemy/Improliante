@@ -180,6 +180,21 @@ def liste_membres(request):
 
 
 @bureau_requis
+@require_POST
+def basculer_visibilite_membre(request, pk):
+    """Publie/dépublie un membre sur le site public (bascule `visible_sur_site`).
+
+    C'est le bureau qui décide de l'affichage public : le membre ne peut pas se
+    publier lui-même (le champ n'est pas exposé dans « Mon profil »)."""
+    membre = get_object_or_404(Membre, pk=pk)
+    membre.visible_sur_site = not membre.visible_sur_site
+    membre.save(update_fields=["visible_sur_site", "date_modification"])
+    etat = "visible sur le site" if membre.visible_sur_site else "masqué du site"
+    messages.success(request, f"{membre} est désormais {etat}.")
+    return redirect("backoffice:liste_membres")
+
+
+@bureau_requis
 def creer_membre(request):
     """Crée un compte membre (Utilisateur + Membre) et produit un lien
     d'activation à transmettre au nouveau membre : il y choisit son mot de
