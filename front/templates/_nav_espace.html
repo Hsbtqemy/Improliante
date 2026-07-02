@@ -1,0 +1,57 @@
+{% comment %}
+Navigation de l'espace connecté (membre + bureau), présentée en sidebar.
+Regroupée par affinité. L'élément courant porte aria-current="page".
+Attendu dans le contexte : `est_bureau` (context processor backoffice).
+{% endcomment %}
+<nav id="nav-espace" class="nav-espace" aria-label="Navigation de l'espace connecté">
+  {% with vn=request.resolver_match.view_name %}
+  <section class="nav-espace__groupe">
+    <h2 class="nav-espace__titre">Mon espace</h2>
+    <ul class="nav-espace__liste">
+      <li><a href="{% url 'espace_membre:tableau_de_bord' %}" {% if vn == 'espace_membre:tableau_de_bord' %}aria-current="page"{% endif %}>Tableau de bord</a></li>
+      <li><a href="{% url 'espace_membre:mes_projets' %}" {% if vn == 'espace_membre:mes_projets' %}aria-current="page"{% endif %}>Mes projets</a></li>
+      <li><a href="{% url 'espace_membre:mes_evenements' %}" {% if vn == 'espace_membre:mes_evenements' %}aria-current="page"{% endif %}>Mes événements</a></li>
+      <li><a href="{% url 'espace_membre:mes_documents' %}" {% if vn == 'espace_membre:mes_documents' %}aria-current="page"{% endif %}>Mes documents</a></li>
+      <li><a href="{% url 'espace_membre:mes_convocations' %}" {% if vn == 'espace_membre:mes_convocations' %}aria-current="page"{% endif %}>Mes convocations</a></li>
+      <li><a href="{% url 'espace_membre:mes_recus' %}" {% if vn == 'espace_membre:mes_recus' %}aria-current="page"{% endif %}>Mes reçus</a></li>
+    </ul>
+  </section>
+
+  {% if est_bureau %}
+    <section class="nav-espace__groupe">
+      <h2 class="nav-espace__titre">Bureau</h2>
+      <ul class="nav-espace__liste">
+        <li><a href="{% url 'backoffice:tableau_de_bord' %}" {% if vn == 'backoffice:tableau_de_bord' %}aria-current="page"{% endif %}>Tableau de bord</a></li>
+        <li><a href="{% url 'backoffice:file_moderation' %}" {% if vn == 'backoffice:file_moderation' %}aria-current="page"{% endif %}>Modération</a></li>
+      </ul>
+    </section>
+
+    <section class="nav-espace__groupe">
+      <h2 class="nav-espace__titre">Facturation</h2>
+      <ul class="nav-espace__liste">
+        <li><a href="{% url 'backoffice:liste_devis' %}" {% if vn == 'backoffice:liste_devis' %}aria-current="page"{% endif %}>Devis</a></li>
+        <li><a href="{% url 'backoffice:liste_factures' %}" {% if vn == 'backoffice:liste_factures' %}aria-current="page"{% endif %}>Factures</a></li>
+        <li><a href="{% url 'backoffice:liste_recus' %}" {% if vn == 'backoffice:liste_recus' %}aria-current="page"{% endif %}>Reçus fiscaux</a></li>
+        <li><a href="{% url 'backoffice:liste_clients' %}" {% if vn == 'backoffice:liste_clients' %}aria-current="page"{% endif %}>Clients</a></li>
+      </ul>
+    </section>
+
+    <section class="nav-espace__groupe">
+      <h2 class="nav-espace__titre">Gestion</h2>
+      <ul class="nav-espace__liste">
+        <li><a href="{% url 'backoffice:ged_racine' %}" {% if vn == 'backoffice:ged_racine' %}aria-current="page"{% endif %}>Documents (GED)</a></li>
+        <li><a href="{% url 'backoffice:budget_transactions' %}" {% if vn == 'backoffice:budget_transactions' %}aria-current="page"{% endif %}>Budget</a></li>
+        <li><a href="{% url 'backoffice:gouvernance_reunions' %}" {% if vn == 'backoffice:gouvernance_reunions' %}aria-current="page"{% endif %}>Gouvernance</a></li>
+      </ul>
+    </section>
+
+    <section class="nav-espace__groupe">
+      <h2 class="nav-espace__titre">Réglages</h2>
+      <ul class="nav-espace__liste">
+        <li><a href="{% url 'backoffice:parametres_association' %}" {% if vn == 'backoffice:parametres_association' %}aria-current="page"{% endif %}>Paramètres de l'association</a></li>
+        <li><a href="{% url 'backoffice:equipe_bureau' %}" {% if vn == 'backoffice:equipe_bureau' %}aria-current="page"{% endif %}>Équipe du bureau</a></li>
+      </ul>
+    </section>
+  {% endif %}
+  {% endwith %}
+</nav>

@@ -119,6 +119,87 @@ main {
   padding-block: 2rem;
 }
 
+/* Mise en page de l'espace connecté : sidebar de navigation + contenu.
+   Mobile-first : une seule colonne (nav repliable au-dessus du contenu) ;
+   à partir de 48rem, deux colonnes (sidebar à gauche). */
+.espace-grille__nav {
+  padding-block: 1rem;
+}
+.espace-grille--avec-nav {
+  display: block;
+}
+@media (min-width: 48rem) {
+  .espace-grille--avec-nav {
+    display: grid;
+    grid-template-columns: 15rem 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .espace-grille__nav {
+    position: sticky;
+    top: 1rem;
+    padding-block: 2rem 1rem;
+  }
+}
+
+/* Bouton de repli de la nav (visible sur mobile uniquement, via JS) */
+.nav-espace__bascule {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-texte);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nav-espace__bascule[aria-expanded="true"]::before {
+  content: "▾ ";
+}
+.nav-espace__bascule[aria-expanded="false"]::before {
+  content: "▸ ";
+}
+
+/* Navigation groupée de l'espace connecté */
+.nav-espace__groupe {
+  margin-bottom: 1.25rem;
+}
+.nav-espace__titre {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--couleur-muet);
+  margin: 0 0 0.35rem;
+}
+.nav-espace__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.nav-espace__liste a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--rayon);
+  color: var(--couleur-texte);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+.nav-espace__liste a:hover {
+  background: var(--couleur-primaire-clair);
+}
+.nav-espace__liste a[aria-current="page"] {
+  background: var(--couleur-primaire-clair);
+  border-left-color: var(--couleur-primaire);
+  font-weight: 600;
+}
+
 h1 {
   font-size: 1.75rem;
   line-height: 1.2;

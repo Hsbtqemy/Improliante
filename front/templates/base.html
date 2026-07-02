@@ -26,16 +26,6 @@
             <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
             <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
             {% if request.user.is_authenticated %}
-              {% if est_bureau %}
-                <li><a href="{% url 'backoffice:tableau_de_bord' %}">Bureau</a></li>
-                <li><a href="{% url 'backoffice:file_moderation' %}">Modération</a></li>
-                <li><a href="{% url 'backoffice:liste_devis' %}">Devis</a></li>
-                <li><a href="{% url 'backoffice:liste_factures' %}">Factures</a></li>
-                <li><a href="{% url 'backoffice:liste_recus' %}">Reçus</a></li>
-                <li><a href="{% url 'backoffice:ged_racine' %}">Documents</a></li>
-                <li><a href="{% url 'backoffice:budget_transactions' %}">Budget</a></li>
-                <li><a href="{% url 'backoffice:gouvernance_reunions' %}">Gouvernance</a></li>
-              {% endif %}
               <li><a href="{% url 'espace_membre:tableau_de_bord' %}">Mon espace</a></li>
               <li>
                 <form
@@ -55,16 +45,33 @@
       </div>
     </header>
 
-    <main id="contenu" class="conteneur" tabindex="-1">
-      {% if messages %}
-        <div class="messages" role="status" aria-live="polite">
-          {% for message in messages %}
-            <p class="message message--{{ message.tags }}">{{ message }}</p>
-          {% endfor %}
-        </div>
+    <div class="conteneur espace-grille{% if request.user.is_authenticated and request.resolver_match.namespace in 'espace_membre backoffice' %} espace-grille--avec-nav{% endif %}">
+      {% if request.user.is_authenticated and request.resolver_match.namespace in 'espace_membre backoffice' %}
+        <aside class="espace-grille__nav">
+          <button
+            type="button"
+            class="nav-espace__bascule"
+            data-bascule-nav
+            aria-controls="nav-espace"
+            aria-expanded="true"
+            hidden
+          >
+            Menu de l'espace
+          </button>
+          {% include "_nav_espace.html" %}
+        </aside>
       {% endif %}
-      {% block contenu %}{% endblock %}
-    </main>
+      <main id="contenu" class="espace-grille__contenu" tabindex="-1">
+        {% if messages %}
+          <div class="messages" role="status" aria-live="polite">
+            {% for message in messages %}
+              <p class="message message--{{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% block contenu %}{% endblock %}
+      </main>
+    </div>
 
     <footer class="site-pied">
       <div class="conteneur">
@@ -118,5 +125,6 @@
     </div>
 
     <script src="{% static 'js/accessibilite.js' %}"></script>
+    <script src="{% static 'js/navigation.js' %}"></script>
   </body>
 </html>
