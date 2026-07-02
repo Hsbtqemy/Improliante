@@ -15,20 +15,16 @@ _FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
 TAILLE_MAX_IMAGE = 5 * 1024 * 1024
 
 
-class ProjetMembreForm(forms.ModelForm):
-    """Édition par un membre de la fiche de SON projet (perso ou collectif).
+class ImagesFicheFormMixin(forms.Form):
+    """Champs et validations communs pour gérer l'affiche + la galerie d'une
+    fiche (projet ou événement).
 
-    Champs descriptifs + gestion des images (affiche et galerie). La modération,
-    la traçabilité (`cree_par`, `valide_par`) et le rattachement aux `porteurs`
-    sont pilotés par la vue, jamais par l'utilisateur. Le `type_portage` est
-    restreint à « personnel » / « collectif » : un membre ne peut pas estampiller
-    son projet comme une production de l'association.
-
-    Les images ne sont pas des champs du modèle `Spectacle` : elles créent des
-    `Media` (avec `alt` obligatoire) traités par la vue via le service
-    `apps.spectacles.services`. L'affiche peut être remplacée ou retirée ; on
-    n'ajoute qu'une image de galerie à la fois (une par soumission), ce qui
-    garantit un `alt` par image.
+    Les images ne sont pas des champs du modèle : elles créent des `Media`
+    (avec `alt` OBLIGATOIRE, accessibilité) traités par la vue via le service
+    du domaine. L'affiche peut être remplacée ou retirée ; on n'ajoute qu'une
+    image de galerie à la fois (une par soumission), ce qui garantit un `alt`
+    par image. La suppression d'images existantes se fait par cases à cocher
+    lues directement dans la vue (liste dynamique), bornées à la fiche éditée.
     """
 
     affiche_fichier = forms.ImageField(
@@ -54,36 +50,6 @@ class ProjetMembreForm(forms.ModelForm):
         max_length=255,
         help_text="Obligatoire si vous ajoutez une image.",
     )
-
-    class Meta:
-        model = Spectacle
-        fields = [
-            "titre",
-            "type_portage",
-            "synopsis",
-            "note_intention",
-            "statut_projet",
-            "genre",
-            "public_vise",
-            "duree_minutes",
-        ]
-        widgets = {
-            "synopsis": forms.Textarea(attrs={"rows": 4}),
-            "note_intention": forms.Textarea(attrs={"rows": 4}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        portages_autorises = {
-            Spectacle.TypePortage.PERSONNEL,
-            Spectacle.TypePortage.COLLECTIF,
-        }
-        self.fields["type_portage"].choices = [
-            (valeur, libelle)
-            for valeur, libelle in Spectacle.TypePortage.choices
-            if valeur in portages_autorises
-        ]
-        self.fields["type_portage"].initial = Spectacle.TypePortage.PERSONNEL
 
     def champs_descriptifs(self):
         """Champs textuels du modèle, pour un rendu séparé des champs image."""
@@ -122,9 +88,51 @@ class ProjetMembreForm(forms.ModelForm):
         return cleaned
 
 
-class EvenementMembreForm(forms.ModelForm):
+class ProjetMembreForm(ImagesFicheFormMixin, forms.ModelForm):
+    """Édition par un membre de la fiche de SON projet (perso ou collectif).
+
+    Champs descriptifs + gestion des images (affiche et galerie, via le mixin).
+    La modération, la traçabilité (`cree_par`, `valide_par`) et le rattachement
+    aux `porteurs` sont pilotés par la vue, jamais par l'utilisateur. Le
+    `type_portage` est restreint à « personnel » / « collectif » : un membre ne
+    peut pas estampiller son projet comme une production de l'association.
+    """
+
+    class Meta:
+        model = Spectacle
+        fields = [
+            "titre",
+            "type_portage",
+            "synopsis",
+            "note_intention",
+            "statut_projet",
+            "genre",
+            "public_vise",
+            "duree_minutes",
+        ]
+        widgets = {
+            "synopsis": forms.Textarea(attrs={"rows": 4}),
+            "note_intention": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        portages_autorises = {
+            Spectacle.TypePortage.PERSONNEL,
+            Spectacle.TypePortage.COLLECTIF,
+        }
+        self.fields["type_portage"].choices = [
+            (valeur, libelle)
+            for valeur, libelle in Spectacle.TypePortage.choices
+            if valeur in portages_autorises
+        ]
+        self.fields["type_portage"].initial = Spectacle.TypePortage.PERSONNEL
+
+
+class EvenementMembreForm(ImagesFicheFormMixin, forms.ModelForm):
     """Proposition / édition par un membre d'un événement d'agenda.
 
+    Champs descriptifs + gestion des images (affiche et galerie, via le mixin).
     La `visibilite` n'est PAS exposée : le bureau la fixe à la validation
     (cf. modèle `Evenement`). Le champ `spectacle` est restreint aux projets
     portés par le membre — anti-IDOR au niveau du champ : on ne peut pas

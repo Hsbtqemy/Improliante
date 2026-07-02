@@ -28,13 +28,13 @@
   </p>
 
   {% if editable %}
-    <form method="post" class="formulaire" novalidate>
+    <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
       {% csrf_token %}
       {% if form.non_field_errors %}
         <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      {% for field in form %}
+      {% for field in form.champs_descriptifs %}
         <p class="champ">
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
           {{ field }}
@@ -46,6 +46,53 @@
           {% endfor %}
         </p>
       {% endfor %}
+
+      <fieldset class="formulaire__images">
+        <legend>Images</legend>
+
+        <h3>Affiche</h3>
+        {% if evenement and evenement.affiche and evenement.affiche.fichier %}
+          <figure class="apercu-image">
+            <img src="{{ evenement.affiche.fichier.url }}" alt="{{ evenement.affiche.alt }}" width="160">
+          </figure>
+          <p class="champ champ--case">
+            <label>{{ form.retirer_affiche }} {{ form.retirer_affiche.label }}</label>
+          </p>
+        {% endif %}
+        {% for champ in form.champ_affiche %}
+          <p class="champ">
+            <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+            {{ champ }}
+            {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+            {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+          </p>
+        {% endfor %}
+
+        <h3>Galerie</h3>
+        {% if evenement and evenement.images.all %}
+          <ul class="galerie-edition">
+            {% for image in evenement.images.all %}
+              <li class="galerie-edition__item">
+                <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120">
+                <label class="champ--case">
+                  <input type="checkbox" name="supprimer_image" value="{{ image.pk }}">
+                  Retirer
+                </label>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="champ__aide">Aucune image dans la galerie pour l'instant.</p>
+        {% endif %}
+        {% for champ in form.champ_galerie %}
+          <p class="champ">
+            <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+            {{ champ }}
+            {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+            {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+          </p>
+        {% endfor %}
+      </fieldset>
 
       <div class="formulaire__actions">
         <button type="submit" name="action" value="enregistrer" class="lien-bouton">

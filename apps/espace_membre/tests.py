@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
-from apps.agenda.models import Evenement
+from apps.agenda.models import Evenement, ImageEvenement
 from apps.budget.models import Adhesion, RecuFiscal, Saison
 from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Utilisateur
@@ -414,6 +414,88 @@ def test_mes_evenements_ne_liste_que_les_siens(client, db):
     corps = client.get("/espace/evenements/").content.decode()
     assert "Le mien" in corps
     assert "Le sien" not in corps
+
+
+# --- Événements : images (affiche + galerie) -------------------------------
+
+
+def _evenement_de(membre, titre="Mon événement"):
+    return Evenement.objects.create(
+        titre=titre,
+        date_debut=make_aware(datetime(2026, 9, 1, 20, 30)),
+        cree_par=membre.user,
+    )
+
+
+def test_membre_ajoute_une_affiche_a_son_evenement(client, db):
+    membre = _membre("alice")
+    evenement = _evenement_de(membre)
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/evenements/{evenement.pk}/",
+        _donnees_evenement(
+            titre=evenement.titre,
+            action="enregistrer",
+            affiche_fichier=_image_png("affiche.png"),
+            affiche_alt="Affiche de l'événement",
+        ),
+    )
+    evenement.refresh_from_db()
+    assert evenement.affiche is not None
+    assert evenement.affiche.alt == "Affiche de l'événement"
+    assert evenement.affiche.cree_par == membre.user
+
+
+def test_affiche_evenement_sans_alt_est_refusee(client, db):
+    membre = _membre("alice")
+    evenement = _evenement_de(membre)
+    client.force_login(membre.user)
+    reponse = client.post(
+        f"/espace/evenements/{evenement.pk}/",
+        _donnees_evenement(
+            titre=evenement.titre, action="enregistrer", affiche_fichier=_image_png("a.png")
+        ),
+    )
+    assert reponse.status_code == 200  # formulaire réaffiché avec l'erreur
+    evenement.refresh_from_db()
+    assert evenement.affiche is None
+
+
+def test_membre_ajoute_une_image_a_la_galerie_evenement(client, db):
+    membre = _membre("alice")
+    evenement = _evenement_de(membre)
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/evenements/{evenement.pk}/",
+        _donnees_evenement(
+            titre=evenement.titre,
+            action="enregistrer",
+            galerie_fichier=_image_png("g1.png"),
+            galerie_alt="Photo sur scène",
+        ),
+    )
+    assert evenement.images.count() == 1
+    assert evenement.images.get().media.alt == "Photo sur scène"
+
+
+def test_membre_ne_peut_pas_retirer_l_image_d_un_autre_evenement(client, db):
+    """ANTI-IDOR : le retrait est borné à l'événement édité."""
+    membre = _membre("alice")
+    mien = _evenement_de(membre, titre="Le mien")
+
+    autre_membre = _membre("bob")
+    autre = _evenement_de(autre_membre, titre="Le sien")
+    media = Media.objects.create(alt="x", fichier=_image_png("x.png"))
+    image_autre = ImageEvenement.objects.create(evenement=autre, media=media, ordre=1)
+
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/evenements/{mien.pk}/",
+        _donnees_evenement(
+            titre=mien.titre, action="enregistrer", supprimer_image=str(image_autre.pk)
+        ),
+    )
+    assert ImageEvenement.objects.filter(pk=image_autre.pk).exists()  # non supprimée
 
 
 # --- Fichiers privés : stockage isolé + téléchargement contrôlé ------------

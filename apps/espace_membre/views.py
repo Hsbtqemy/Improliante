@@ -16,6 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
@@ -68,28 +69,32 @@ def mes_projets(request):
     )
 
 
-def _appliquer_images(projet, form, request):
-    """Applique au projet les opérations d'images issues du formulaire.
+def _appliquer_images(fiche, form, request, service):
+    """Applique à la fiche (projet ou événement) les opérations d'images.
+
+    `service` est le module du domaine (`spectacles.services` ou
+    `agenda.services`) exposant `definir_affiche`, `retirer_affiche`,
+    `ajouter_image_galerie` et `retirer_images_galerie`.
 
     Affiche : remplacée si un fichier est fourni, sinon retirée si la case est
     cochée. Galerie : ajout d'une image (si fournie) puis retrait des images
-    cochées. Le retrait est borné au projet côté service (anti-IDOR)."""
+    cochées. Le retrait est borné à la fiche côté service (anti-IDOR)."""
     donnees = form.cleaned_data
     if donnees.get("affiche_fichier"):
-        spectacles_services.definir_affiche(
-            projet, donnees["affiche_fichier"], donnees["affiche_alt"], cree_par=request.user
+        service.definir_affiche(
+            fiche, donnees["affiche_fichier"], donnees["affiche_alt"], cree_par=request.user
         )
     elif donnees.get("retirer_affiche"):
-        spectacles_services.retirer_affiche(projet)
+        service.retirer_affiche(fiche)
 
     if donnees.get("galerie_fichier"):
-        spectacles_services.ajouter_image_galerie(
-            projet, donnees["galerie_fichier"], donnees["galerie_alt"], cree_par=request.user
+        service.ajouter_image_galerie(
+            fiche, donnees["galerie_fichier"], donnees["galerie_alt"], cree_par=request.user
         )
 
     a_retirer = [i for i in request.POST.getlist("supprimer_image") if i.isdigit()]
     if a_retirer:
-        spectacles_services.retirer_images_galerie(projet, a_retirer)
+        service.retirer_images_galerie(fiche, a_retirer)
 
 
 @login_required
@@ -110,7 +115,7 @@ def creer_projet(request):
             projet.cree_par = request.user
             projet.save()  # pk nécessaire avant d'ajouter le M2M porteurs
             projet.porteurs.add(membre)
-            _appliquer_images(projet, form, request)
+            _appliquer_images(projet, form, request, spectacles_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet créé et soumis à validation du bureau.")
@@ -150,7 +155,7 @@ def editer_projet(request, pk):
         form = ProjetMembreForm(request.POST, request.FILES, instance=projet)
         if form.is_valid():
             form.save()
-            _appliquer_images(projet, form, request)
+            _appliquer_images(projet, form, request, spectacles_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet soumis à validation du bureau.")
@@ -195,11 +200,12 @@ def creer_evenement(request):
         return redirect("espace_membre:tableau_de_bord")
 
     if request.method == "POST":
-        form = EvenementMembreForm(request.POST, membre=membre)
+        form = EvenementMembreForm(request.POST, request.FILES, membre=membre)
         if form.is_valid():
             evenement = form.save(commit=False)
             evenement.cree_par = request.user
             evenement.save()
+            _appliquer_images(evenement, form, request, agenda_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(evenement)
                 messages.success(request, "Événement créé et soumis à validation du bureau.")
@@ -231,9 +237,10 @@ def editer_evenement(request, pk):
                 "Cet événement est en cours de validation ou publié : il n'est plus modifiable ici.",
             )
             return redirect("espace_membre:editer_evenement", pk=evenement.pk)
-        form = EvenementMembreForm(request.POST, instance=evenement, membre=membre)
+        form = EvenementMembreForm(request.POST, request.FILES, instance=evenement, membre=membre)
         if form.is_valid():
             form.save()
+            _appliquer_images(evenement, form, request, agenda_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(evenement)
                 messages.success(request, "Événement soumis à validation du bureau.")
