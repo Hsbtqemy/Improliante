@@ -21,6 +21,19 @@
 
     {% if membre.bio %}{{ membre.bio|linebreaks }}{% endif %}
 
+    {% if membre.site_web or membre.liens_reseaux.all %}
+      <nav class="fiche__liens" aria-label="Liens de {{ membre }}">
+        <ul>
+          {% if membre.site_web %}
+            <li><a href="{{ membre.site_web }}" rel="noopener nofollow" target="_blank">Site web</a></li>
+          {% endif %}
+          {% for lien in membre.liens_reseaux.all %}
+            <li><a href="{{ lien.url }}" rel="noopener nofollow" target="_blank">{{ lien.nom_affiche }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+    {% endif %}
+
     {% if projets %}
       <h2>Ses projets</h2>
       <ul class="cartes">

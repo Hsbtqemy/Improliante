@@ -12,7 +12,7 @@ from django.utils.timezone import make_aware
 from apps.agenda.models import Evenement, ImageEvenement
 from apps.budget.models import Adhesion, RecuFiscal, Saison
 from apps.budget.services import emettre_recu
-from apps.coeur.models import Membre, Utilisateur
+from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.common.models import Moderation
 from apps.documents.models import Document
 from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
@@ -629,6 +629,96 @@ def test_activation_token_a_usage_unique(client, db):
     _, url = _compte_a_activer()
     client.post(url, {"new_password1": _MDP_FORT, "new_password2": _MDP_FORT})
     assert client.get(url).context["lien_valide"] is False
+
+
+# --- Mon profil : bio, site web, réseaux, photo (anti-IDOR) -----------------
+
+PROFIL = "/espace/profil/"
+
+
+def _donnees_profil(**extra):
+    donnees = {
+        "role_public": "",
+        "bio": "",
+        "telephone": "",
+        "site_web": "",
+        # Formset des réseaux (préfixe = related_name « liens_reseaux »), vide.
+        "liens_reseaux-TOTAL_FORMS": "1",
+        "liens_reseaux-INITIAL_FORMS": "0",
+        "liens_reseaux-MIN_NUM_FORMS": "0",
+        "liens_reseaux-MAX_NUM_FORMS": "1000",
+        "liens_reseaux-0-reseau": "",
+        "liens_reseaux-0-url": "",
+        "liens_reseaux-0-libelle": "",
+        "liens_reseaux-0-ordre": "0",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_profil_exige_la_connexion(client, db):
+    reponse = client.get(PROFIL)
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url
+
+
+def test_membre_met_a_jour_son_profil(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    reponse = client.post(
+        PROFIL,
+        _donnees_profil(role_public="Comédienne", bio="Une bio", site_web="https://alice.example"),
+    )
+    assert reponse.status_code == 302
+    membre.refresh_from_db()
+    assert membre.role_public == "Comédienne"
+    assert membre.site_web == "https://alice.example"
+
+
+def test_membre_ajoute_un_reseau(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post(
+        PROFIL,
+        _donnees_profil(
+            **{
+                "liens_reseaux-0-reseau": LienReseau.Reseau.INSTAGRAM,
+                "liens_reseaux-0-url": "https://instagram.com/alice",
+            }
+        ),
+    )
+    lien = membre.liens_reseaux.get()
+    assert lien.reseau == LienReseau.Reseau.INSTAGRAM
+    assert lien.url == "https://instagram.com/alice"
+
+
+def test_membre_ajoute_une_photo_de_profil(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post(
+        PROFIL,
+        _donnees_profil(photo_fichier=_image_png("portrait.png"), photo_alt="Portrait d'Alice"),
+    )
+    membre.refresh_from_db()
+    assert membre.photo is not None
+    assert membre.photo.alt == "Portrait d'Alice"
+
+
+def test_profil_ne_touche_que_sa_propre_fiche(client, db):
+    """ANTI-IDOR : l'édition passe par request.user.membre (aucun id d'URL) —
+    la fiche d'un autre membre n'est jamais affectée."""
+    alice = _membre("alice")
+    bob = _membre("bob")
+    bob.role_public = "Régisseur"
+    bob.save()
+
+    client.force_login(alice.user)
+    client.post(PROFIL, _donnees_profil(role_public="Metteuse en scène"))
+
+    alice.refresh_from_db()
+    bob.refresh_from_db()
+    assert alice.role_public == "Metteuse en scène"
+    assert bob.role_public == "Régisseur"  # inchangé
 
 
 # --- Convocations / CR d'AG : visibilité + contenu -------------------------

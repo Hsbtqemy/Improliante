@@ -23,7 +23,11 @@ from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
 from apps.coeur.roles import est_bureau
-from apps.coeur.services import utilisateur_depuis_uidb64
+from apps.coeur.services import (
+    definir_photo_membre,
+    retirer_photo_membre,
+    utilisateur_depuis_uidb64,
+)
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.documents.models import Document
@@ -31,7 +35,12 @@ from apps.gouvernance.models import Reunion
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 
-from .forms import EvenementMembreForm, ProjetMembreForm
+from .forms import (
+    EvenementMembreForm,
+    LienReseauFormSet,
+    ProfilMembreForm,
+    ProjetMembreForm,
+)
 
 
 def _membre_connecte(request):
@@ -54,6 +63,43 @@ def tableau_de_bord(request):
         request,
         "espace_membre/tableau_de_bord.html",
         {"membre": membre, "adhesions": adhesions},
+    )
+
+
+@login_required
+def mon_profil(request):
+    """Édition par le membre de SA propre fiche (bio, rôle, site, réseaux, photo).
+
+    Anti-IDOR par construction : on agit sur `request.user.membre`, jamais sur
+    un identifiant d'URL — un membre ne peut éditer que sa fiche."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+
+    if request.method == "POST":
+        form = ProfilMembreForm(request.POST, request.FILES, instance=membre)
+        formset = LienReseauFormSet(request.POST, instance=membre)
+        if form.is_valid() and formset.is_valid():
+            form.save()
+            donnees = form.cleaned_data
+            if donnees.get("photo_fichier"):
+                definir_photo_membre(
+                    membre, donnees["photo_fichier"], donnees["photo_alt"], cree_par=request.user
+                )
+            elif donnees.get("retirer_photo"):
+                retirer_photo_membre(membre)
+            formset.save()
+            messages.success(request, "Profil mis à jour.")
+            return redirect("espace_membre:mon_profil")
+    else:
+        form = ProfilMembreForm(instance=membre)
+        formset = LienReseauFormSet(instance=membre)
+
+    return render(
+        request,
+        "espace_membre/profil_form.html",
+        {"form": form, "formset": formset, "membre": membre},
     )
 
 

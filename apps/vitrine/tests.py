@@ -8,7 +8,7 @@ import pytest
 from django.utils import timezone
 
 from apps.agenda.models import Evenement
-from apps.coeur.models import Membre, Utilisateur
+from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
 from apps.vitrine.models import MessageContact
@@ -142,6 +142,19 @@ def test_membre_detail_liste_ses_projets(client, db):
     spectacle.porteurs.add(membre)
     corps = client.get(f"/membres/{membre.pk}/").content.decode()
     assert "ProjetDuMembre" in corps
+
+
+def test_membre_detail_affiche_site_et_reseaux(client, db):
+    membre = _membre("Reliee", visible=True)
+    membre.site_web = "https://reliee.example"
+    membre.save()
+    LienReseau.objects.create(
+        membre=membre, reseau=LienReseau.Reseau.INSTAGRAM, url="https://instagram.com/reliee"
+    )
+    corps = client.get(f"/membres/{membre.pk}/").content.decode()
+    assert "https://reliee.example" in corps
+    assert "https://instagram.com/reliee" in corps
+    assert "Instagram" in corps
 
 
 # --- Galerie --------------------------------------------------------------

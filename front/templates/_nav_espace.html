@@ -9,6 +9,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
     <h2 class="nav-espace__titre">Mon espace</h2>
     <ul class="nav-espace__liste">
       <li><a href="{% url 'espace_membre:tableau_de_bord' %}" {% if vn == 'espace_membre:tableau_de_bord' %}aria-current="page"{% endif %}>Tableau de bord</a></li>
+      <li><a href="{% url 'espace_membre:mon_profil' %}" {% if vn == 'espace_membre:mon_profil' %}aria-current="page"{% endif %}>Mon profil</a></li>
       <li><a href="{% url 'espace_membre:mes_projets' %}" {% if vn == 'espace_membre:mes_projets' %}aria-current="page"{% endif %}>Mes projets</a></li>
       <li><a href="{% url 'espace_membre:mes_evenements' %}" {% if vn == 'espace_membre:mes_evenements' %}aria-current="page"{% endif %}>Mes événements</a></li>
       <li><a href="{% url 'espace_membre:mes_documents' %}" {% if vn == 'espace_membre:mes_documents' %}aria-current="page"{% endif %}>Mes documents</a></li>

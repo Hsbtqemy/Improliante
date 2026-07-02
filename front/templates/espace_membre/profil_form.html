@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Mon profil — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mon profil</h1>
+  <p class="carte-projet__meta">
+    Ces informations apparaissent sur votre fiche publique si celle-ci est visible
+    (la visibilité est réglée par le bureau).
+  </p>
+
+  <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% for field in form.champs_profil %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+
+    <fieldset class="formulaire__images">
+      <legend>Photo</legend>
+      {% if membre.photo and membre.photo.fichier %}
+        <figure class="apercu-image">
+          <img src="{{ membre.photo.fichier.url }}" alt="{{ membre.photo.alt }}" width="160">
+        </figure>
+        <p class="champ champ--case">
+          <label>{{ form.retirer_photo }} {{ form.retirer_photo.label }}</label>
+        </p>
+      {% endif %}
+      {% for champ in form.champ_photo %}
+        <p class="champ">
+          <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+          {{ champ }}
+          {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+          {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+    </fieldset>
+
+    <fieldset class="formulaire__images">
+      <legend>Réseaux sociaux</legend>
+      {{ formset.management_form }}
+      {% if formset.non_form_errors %}
+        <div class="erreurs" role="alert">{{ formset.non_form_errors }}</div>
+      {% endif %}
+      <ul class="reseaux-edition">
+        {% for lien in formset %}
+          <li class="reseaux-edition__item">
+            {{ lien.id }}
+            <span class="champ">
+              <label for="{{ lien.reseau.id_for_label }}">Réseau</label>
+              {{ lien.reseau }}
+            </span>
+            <span class="champ">
+              <label for="{{ lien.url.id_for_label }}">Adresse</label>
+              {{ lien.url }}
+            </span>
+            <span class="champ">
+              <label for="{{ lien.libelle.id_for_label }}">Libellé (si « Autre »)</label>
+              {{ lien.libelle }}
+            </span>
+            <span class="champ champ--etroit">
+              <label for="{{ lien.ordre.id_for_label }}">Ordre</label>
+              {{ lien.ordre }}
+            </span>
+            {% if lien.instance.pk %}
+              <label class="champ--case">{{ lien.DELETE }} Retirer</label>
+            {% endif %}
+            {% for erreur in lien.non_field_errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+            {% for champ in lien.visible_fields %}
+              {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+            {% endfor %}
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="champ__aide">Laissez une ligne vide pour ne rien ajouter ; cochez « Retirer » pour supprimer un lien.</p>
+    </fieldset>
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+    </div>
+  </form>
+
+  <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
+{% endblock %}

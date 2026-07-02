@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from django import forms
+from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
+from apps.coeur.models import LienReseau, Membre
 from apps.spectacles.models import Spectacle
 
 # Format des <input type="datetime-local"> (sans fuseau ni secondes).
@@ -169,3 +171,57 @@ class EvenementMembreForm(ImagesFicheFormMixin, forms.ModelForm):
             projets = (projets | Spectacle.objects.filter(pk=self.instance.spectacle_id)).distinct()
         self.fields["spectacle"].queryset = projets
         self.fields["spectacle"].required = False
+
+
+class ProfilMembreForm(forms.ModelForm):
+    """Édition par un membre de SA propre fiche (bio, rôle public, coordonnées,
+    site web, photo). Les réseaux sociaux sont gérés à part via un formset
+    (`LienReseauFormSet`). La photo crée un `Media` (alt obligatoire) traité par
+    la vue via `apps.coeur.services`."""
+
+    photo_fichier = forms.ImageField(
+        label="Photo (portrait)",
+        required=False,
+        help_text="Affichée sur votre fiche publique (JPG/PNG).",
+    )
+    photo_alt = forms.CharField(
+        label="Description de la photo",
+        required=False,
+        max_length=255,
+        help_text="Obligatoire si vous ajoutez une photo (accessibilité).",
+    )
+    retirer_photo = forms.BooleanField(label="Retirer la photo actuelle", required=False)
+
+    class Meta:
+        model = Membre
+        fields = ["role_public", "bio", "telephone", "site_web"]
+        widgets = {"bio": forms.Textarea(attrs={"rows": 5})}
+
+    def clean_photo_fichier(self):
+        fichier = self.cleaned_data.get("photo_fichier")
+        if fichier and fichier.size > TAILLE_MAX_IMAGE:
+            raise forms.ValidationError("Image trop volumineuse (5 Mio maximum).")
+        return fichier
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("photo_fichier") and not (cleaned.get("photo_alt") or "").strip():
+            self.add_error("photo_alt", "La description de la photo est obligatoire.")
+        return cleaned
+
+    def champs_profil(self):
+        """Champs texte du modèle, pour un rendu séparé des champs photo."""
+        return [self[nom] for nom in self.Meta.fields]
+
+    def champ_photo(self):
+        return [self["photo_fichier"], self["photo_alt"]]
+
+
+# Réseaux sociaux : liste flexible éditable en une fois (ajout / suppression).
+LienReseauFormSet = inlineformset_factory(
+    Membre,
+    LienReseau,
+    fields=["reseau", "url", "libelle", "ordre"],
+    extra=1,
+    can_delete=True,
+)

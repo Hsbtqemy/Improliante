@@ -56,6 +56,7 @@ class Membre(models.Model):
         help_text="Ex. « Comédienne, mise en scène » — affiché sur la fiche publique.",
     )
     bio = models.TextField("biographie", blank=True)
+    site_web = models.URLField("site web", blank=True)
     visible_sur_site = models.BooleanField(
         "visible sur le site public",
         default=False,
@@ -87,6 +88,53 @@ class Membre(models.Model):
 
     def __str__(self) -> str:
         return self.user.get_full_name() or self.user.get_username()
+
+
+class LienReseau(models.Model):
+    """Lien vers un réseau social (ou autre) rattaché à un `Membre`.
+
+    Liste flexible (0..n) plutôt que des champs fixes : on peut ajouter
+    n'importe quel réseau, dans l'ordre voulu. Le `libelle` sert à nommer un
+    lien « Autre » (sinon on affiche le libellé du réseau)."""
+
+    class Reseau(models.TextChoices):
+        INSTAGRAM = "instagram", "Instagram"
+        FACEBOOK = "facebook", "Facebook"
+        YOUTUBE = "youtube", "YouTube"
+        TIKTOK = "tiktok", "TikTok"
+        LINKEDIN = "linkedin", "LinkedIn"
+        BLUESKY = "bluesky", "Bluesky"
+        MASTODON = "mastodon", "Mastodon"
+        AUTRE = "autre", "Autre"
+
+    membre = models.ForeignKey(
+        "coeur.Membre",
+        on_delete=models.CASCADE,
+        related_name="liens_reseaux",
+        verbose_name="membre",
+    )
+    reseau = models.CharField("réseau", max_length=20, choices=Reseau.choices)
+    url = models.URLField("adresse")
+    libelle = models.CharField(
+        "libellé",
+        max_length=80,
+        blank=True,
+        help_text="Nom affiché si « Autre » (sinon le nom du réseau est utilisé).",
+    )
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "lien réseau social"
+        verbose_name_plural = "liens réseaux sociaux"
+        ordering = ["ordre", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.libelle or self.get_reseau_display()} — {self.url}"
+
+    @property
+    def nom_affiche(self) -> str:
+        """Libellé à afficher : le libellé libre s'il existe, sinon le réseau."""
+        return self.libelle or self.get_reseau_display()
 
 
 class ParametresAssociation(models.Model):

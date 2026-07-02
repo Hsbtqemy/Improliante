@@ -5,12 +5,18 @@ from __future__ import annotations
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Lieu, Membre, ParametresAssociation, Signataire, Utilisateur
+from .models import LienReseau, Lieu, Membre, ParametresAssociation, Signataire, Utilisateur
 
 
 @admin.register(Utilisateur)
 class UtilisateurAdmin(UserAdmin):
     """Admin de l'utilisateur custom (réutilise l'admin standard de Django)."""
+
+
+class LienReseauInline(admin.TabularInline):
+    model = LienReseau
+    extra = 1
+    ordering = ("ordre",)
 
 
 @admin.register(Membre)
@@ -25,6 +31,7 @@ class MembreAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("user", "photo")
     readonly_fields = ("date_creation", "date_modification")
+    inlines = (LienReseauInline,)
 
 
 @admin.register(Lieu)

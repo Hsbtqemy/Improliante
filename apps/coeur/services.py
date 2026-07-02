@@ -54,6 +54,29 @@ def jeton_activation(user: Utilisateur) -> tuple[str, str]:
     return uidb64, default_token_generator.make_token(user)
 
 
+def definir_photo_membre(membre: Membre, fichier, alt: str, *, cree_par=None):
+    """Crée un `Media` image et le pose comme photo (portrait) du membre."""
+    from apps.medias.models import Media
+
+    media = Media.objects.create(
+        type_media=Media.TypeMedia.IMAGE,
+        fichier=fichier,
+        alt=alt,
+        cree_par=cree_par,
+    )
+    membre.photo = media
+    membre.save(update_fields=["photo", "date_modification"])
+    return media
+
+
+def retirer_photo_membre(membre: Membre) -> None:
+    """Détache la photo du membre (le `Media` reste dans le socle)."""
+    if membre.photo_id is None:
+        return
+    membre.photo = None
+    membre.save(update_fields=["photo", "date_modification"])
+
+
 def utilisateur_depuis_uidb64(uidb64: str) -> Utilisateur | None:
     """Décode un uidb64 en `Utilisateur`, ou None si invalide/introuvable."""
     try:
