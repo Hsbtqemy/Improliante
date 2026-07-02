@@ -150,3 +150,35 @@ def bilan_par_categorie(saison) -> dict:
     _completer_soldes(totaux)
 
     return {"lignes": resultat, "totaux": totaux}
+
+
+_ENTETES_BILAN = [
+    "Catégorie",
+    "Recettes prévues",
+    "Recettes réalisées",
+    "Dépenses prévues",
+    "Dépenses réalisées",
+    "Solde prévu",
+    "Solde réalisé",
+]
+
+
+def classeur_bilan(saison) -> bytes:
+    """Exporte le bilan par catégorie d'une saison au format Excel (.xlsx)."""
+    from io import BytesIO
+
+    from openpyxl import Workbook  # import paresseux (dépendance optionnelle)
+
+    bilan = bilan_par_categorie(saison)
+    classeur = Workbook()
+    feuille = classeur.active
+    feuille.title = "Bilan"
+    feuille.append(_ENTETES_BILAN)
+
+    cles = _CLES_MONTANT + ("solde_prevu", "solde_realise")
+    for ligne in [*bilan["lignes"], bilan["totaux"]]:
+        feuille.append([ligne["categorie"], *[float(ligne[cle]) for cle in cles]])
+
+    flux = BytesIO()
+    classeur.save(flux)
+    return flux.getvalue()

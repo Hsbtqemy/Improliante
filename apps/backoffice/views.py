@@ -21,6 +21,7 @@ from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transact
 from apps.budget.services import (
     assurer_pdf_recu,
     bilan_par_categorie,
+    classeur_bilan,
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
@@ -586,6 +587,21 @@ def budget_bilan(request):
         "backoffice/budget_bilan.html",
         {"saisons": Saison.objects.all(), "saison_courante": saison, "bilan": bilan},
     )
+
+
+@bureau_requis
+def budget_bilan_excel(request):
+    """Exporte le bilan de la saison sélectionnée au format Excel (.xlsx)."""
+    saison = _saison_demandee(request, defaut_premiere=True)
+    if saison is None:
+        messages.error(request, "Aucune saison à exporter.")
+        return redirect("backoffice:budget_bilan")
+    reponse = HttpResponse(
+        classeur_bilan(saison),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    reponse["Content-Disposition"] = f'attachment; filename="bilan-{saison.pk}.xlsx"'
+    return reponse
 
 
 @bureau_requis

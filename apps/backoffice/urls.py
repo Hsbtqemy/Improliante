@@ -61,6 +61,7 @@ urlpatterns = [
         name="budget_supprimer_transaction",
     ),
     path("bureau/budget/bilan/", views.budget_bilan, name="budget_bilan"),
+    path("bureau/budget/bilan/excel/", views.budget_bilan_excel, name="budget_bilan_excel"),
     path("bureau/budget/saisons/", views.budget_saisons, name="budget_saisons"),
     path("bureau/budget/categories/", views.budget_categories, name="budget_categories"),
 ]

@@ -644,3 +644,25 @@ def test_bilan_tolere_un_parametre_saison_non_numerique(client, db):
 def test_creer_recu_tolere_un_parametre_adhesion_non_numerique(client, db):
     client.force_login(_staff())
     assert client.get("/bureau/recus/nouveau/?adhesion=abc").status_code == 200
+
+
+def test_export_excel_du_bilan(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    Transaction.objects.create(
+        saison=saison,
+        type_flux=Transaction.TypeFlux.RECETTE,
+        statut=Transaction.Statut.REALISE,
+        libelle="Don",
+        montant=Decimal("800"),
+        date=date(2026, 3, 1),
+    )
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/budget/bilan/excel/?saison={saison.pk}")
+    assert reponse.status_code == 200
+    assert "spreadsheetml" in reponse["Content-Type"]
+    assert reponse.content[:2] == b"PK"  # xlsx = archive ZIP
+
+
+def test_export_excel_reserve_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/budget/bilan/excel/").status_code == 403

@@ -14,6 +14,7 @@ from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transact
 from apps.budget.services import (
     assurer_pdf_recu,
     bilan_par_categorie,
+    classeur_bilan,
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
@@ -174,3 +175,25 @@ def test_bilan_ignore_les_autres_saisons(db):
     bilan = bilan_par_categorie(saison)
     assert bilan["lignes"] == []
     assert bilan["totaux"]["recette_realise"] == Decimal("0.00")
+
+
+def test_classeur_bilan_produit_un_xlsx_avec_les_donnees(db):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    saison = Saison.objects.create(nom="2025-2026")
+    subventions = Categorie.objects.create(nom="Subventions")
+    _transaction(
+        saison, subventions, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "800"
+    )
+
+    contenu = classeur_bilan(saison)
+    assert contenu[:2] == b"PK"  # un .xlsx est une archive ZIP
+
+    feuille = load_workbook(BytesIO(contenu)).active
+    lignes = list(feuille.iter_rows(values_only=True))
+    assert lignes[0][0] == "Catégorie"  # en-tête
+    assert lignes[1][0] == "Subventions"
+    assert lignes[1][2] == 800.0  # recettes réalisées
+    assert lignes[-1][0] == "Total"  # ligne de totaux en dernier

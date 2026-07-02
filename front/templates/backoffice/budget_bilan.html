@@ -22,6 +22,11 @@
 
   {% if bilan %}
     <p class="carte-projet__meta">Saison : <strong>{{ saison_courante }}</strong> — montants en euros.</p>
+    <p>
+      <a class="lien-bouton" href="{% url 'backoffice:budget_bilan_excel' %}?saison={{ saison_courante.pk }}">
+        Exporter en Excel
+      </a>
+    </p>
     <table class="tableau">
       <thead>
         <tr>
