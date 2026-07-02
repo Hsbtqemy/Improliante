@@ -239,9 +239,16 @@ def servir_recu(recu: RecuFiscal):
 
 @bureau_requis
 def liste_factures(request):
-    """Liste des factures (brouillons et validées)."""
+    """Liste des factures (brouillons et validées), filtrable par statut."""
     factures = Facture.objects.select_related("client").all()
-    return render(request, "backoffice/factures_liste.html", {"factures": factures})
+    statut = request.GET.get("statut")
+    if statut in Facture.Statut.values:
+        factures = factures.filter(statut=statut)
+    return render(
+        request,
+        "backoffice/factures_liste.html",
+        {"factures": factures, "statuts": Facture.Statut.choices, "statut_courant": statut},
+    )
 
 
 @bureau_requis
@@ -555,17 +562,38 @@ def _saison_demandee(request, defaut_premiere=False):
 
 @bureau_requis
 def budget_transactions(request):
-    """Liste des mouvements, filtrable par saison."""
+    """Liste des mouvements, filtrable par saison, type, statut et catégorie."""
     saison = _saison_demandee(request)
     transactions = Transaction.objects.select_related("categorie", "saison").order_by(
         "-date", "-id"
     )
     if saison is not None:
         transactions = transactions.filter(saison=saison)
+
+    type_flux = request.GET.get("type_flux")
+    if type_flux in Transaction.TypeFlux.values:
+        transactions = transactions.filter(type_flux=type_flux)
+    statut = request.GET.get("statut")
+    if statut in Transaction.Statut.values:
+        transactions = transactions.filter(statut=statut)
+    categorie_pk = request.GET.get("categorie")
+    if categorie_pk and categorie_pk.isdigit():
+        transactions = transactions.filter(categorie_id=categorie_pk)
+
     return render(
         request,
         "backoffice/budget_transactions.html",
-        {"saisons": Saison.objects.all(), "saison_courante": saison, "transactions": transactions},
+        {
+            "saisons": Saison.objects.all(),
+            "saison_courante": saison,
+            "transactions": transactions,
+            "categories": Categorie.objects.all(),
+            "types": Transaction.TypeFlux.choices,
+            "statuts": Transaction.Statut.choices,
+            "type_courant": type_flux,
+            "statut_courant": statut,
+            "categorie_courante": categorie_pk,
+        },
     )
 
 

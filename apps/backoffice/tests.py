@@ -687,3 +687,43 @@ def test_export_excel_du_bilan(client, db):
 def test_export_excel_reserve_au_bureau(client, db):
     client.force_login(_membre("lambda"))
     assert client.get("/bureau/budget/bilan/excel/").status_code == 403
+
+
+# --- Filtres avancés --------------------------------------------------------
+
+
+def test_filtre_factures_par_statut(client, db):
+    c = Client.objects.create(nom="X")
+    brouillon = Facture.objects.create(client=c)
+    validee = _facture_validee_bo("Théâtre")
+    client.force_login(_staff())
+    factures = list(client.get("/bureau/factures/?statut=brouillon").context["factures"])
+    assert brouillon in factures
+    assert validee not in factures
+
+
+def test_filtre_transactions_par_type(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    recette = Transaction.objects.create(
+        saison=saison,
+        type_flux=Transaction.TypeFlux.RECETTE,
+        libelle="r",
+        montant=Decimal("10"),
+        date=date(2026, 3, 1),
+    )
+    depense = Transaction.objects.create(
+        saison=saison,
+        type_flux=Transaction.TypeFlux.DEPENSE,
+        libelle="d",
+        montant=Decimal("5"),
+        date=date(2026, 3, 1),
+    )
+    client.force_login(_staff())
+    txs = list(client.get("/bureau/budget/?type_flux=recette").context["transactions"])
+    assert recette in txs
+    assert depense not in txs
+
+
+def test_filtre_transactions_categorie_non_numerique_toleree(client, db):
+    client.force_login(_staff())
+    assert client.get("/bureau/budget/?categorie=abc").status_code == 200

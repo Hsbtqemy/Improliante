@@ -9,11 +9,32 @@
   <form method="get" class="formulaire-inline">
     <label for="saison">Saison</label>
     <select id="saison" name="saison">
-      <option value="">Toutes les saisons</option>
+      <option value="">Toutes</option>
       {% for s in saisons %}
         <option value="{{ s.pk }}" {% if saison_courante and saison_courante.pk == s.pk %}selected{% endif %}>
           {{ s.nom }}
         </option>
+      {% endfor %}
+    </select>
+    <label for="type_flux">Type</label>
+    <select id="type_flux" name="type_flux">
+      <option value="">Tous</option>
+      {% for valeur, libelle in types %}
+        <option value="{{ valeur }}" {% if type_courant == valeur %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+    <label for="statut">Statut</label>
+    <select id="statut" name="statut">
+      <option value="">Tous</option>
+      {% for valeur, libelle in statuts %}
+        <option value="{{ valeur }}" {% if statut_courant == valeur %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+    <label for="categorie">Catégorie</label>
+    <select id="categorie" name="categorie">
+      <option value="">Toutes</option>
+      {% for c in categories %}
+        <option value="{{ c.pk }}" {% if categorie_courante == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nom }}</option>
       {% endfor %}
     </select>
     <button type="submit" class="lien-bouton">Filtrer</button>
