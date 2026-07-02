@@ -16,6 +16,7 @@ urlpatterns = [
         name="connexion",
     ),
     path("deconnexion/", auth_views.LogoutView.as_view(), name="deconnexion"),
+    path("activation/<uidb64>/<token>/", views.activer_compte, name="activer_compte"),
     path("espace/", views.tableau_de_bord, name="tableau_de_bord"),
     path("espace/projets/", views.mes_projets, name="mes_projets"),
     path("espace/projets/nouveau/", views.creer_projet, name="creer_projet"),

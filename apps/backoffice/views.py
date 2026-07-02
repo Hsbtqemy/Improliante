@@ -15,6 +15,7 @@ from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -28,8 +29,9 @@ from apps.budget.services import (
     emettre_recu,
     pdf_de_recu,
 )
-from apps.coeur.models import ParametresAssociation, Utilisateur
+from apps.coeur.models import Membre, ParametresAssociation, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, bureau_requis
+from apps.coeur.services import creer_compte_membre, jeton_activation
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import (
     TransitionModerationInvalide,
@@ -69,6 +71,7 @@ from .forms import (
     FactureForm,
     LigneDevisFormSet,
     LigneFactureFormSet,
+    MembreCreationForm,
     NouvelleVersionForm,
     ParametresAssociationForm,
     PouvoirForm,
@@ -159,6 +162,54 @@ def equipe_bureau(request):
         request,
         "backoffice/equipe_bureau.html",
         {"utilisateurs": utilisateurs, "membres_bureau": membres_bureau},
+    )
+
+
+# --- Membres (création de comptes par le bureau) ---------------------------
+
+
+@bureau_requis
+def liste_membres(request):
+    """Liste des membres (comptes) + accès à la création."""
+    membres = Membre.objects.select_related("user").order_by(
+        "user__last_name", "user__first_name", "user__username"
+    )
+    page = paginer(request, membres)
+    return render(request, "backoffice/membres_liste.html", {"membres": page, "page": page})
+
+
+@bureau_requis
+def creer_membre(request):
+    """Crée un compte membre (Utilisateur + Membre) et produit un lien
+    d'activation à transmettre au nouveau membre : il y choisit son mot de
+    passe. Aucun mot de passe n'est manipulé par le bureau."""
+    lien_activation = None
+    if request.method == "POST":
+        form = MembreCreationForm(request.POST)
+        if form.is_valid():
+            membre = creer_compte_membre(
+                first_name=form.cleaned_data["prenom"],
+                last_name=form.cleaned_data["nom"],
+                email=form.cleaned_data["email"],
+                role_public=form.cleaned_data["role_public"],
+                telephone=form.cleaned_data["telephone"],
+            )
+            uidb64, token = jeton_activation(membre.user)
+            lien_activation = request.build_absolute_uri(
+                reverse("espace_membre:activer_compte", args=[uidb64, token])
+            )
+            messages.success(
+                request,
+                f"Compte créé pour {membre}. Transmettez-lui le lien d'activation ci-dessous.",
+            )
+            form = MembreCreationForm()  # formulaire vierge pour un éventuel suivant
+    else:
+        form = MembreCreationForm()
+
+    return render(
+        request,
+        "backoffice/membre_form.html",
+        {"form": form, "lien_activation": lien_activation},
     )
 
 

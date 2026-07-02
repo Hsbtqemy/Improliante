@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Activation du compte — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Activation de votre compte</h1>
+
+  {% if lien_valide %}
+    <p>Choisissez votre mot de passe pour activer votre accès à l'espace membre.</p>
+    <form method="post" class="formulaire" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      {% for field in form %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}
+            <span class="champ__aide">{{ field.help_text }}</span>
+          {% endif %}
+          {% for erreur in field.errors %}
+            <span class="champ__erreur" role="alert">{{ erreur }}</span>
+          {% endfor %}
+        </p>
+      {% endfor %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton lien-bouton--primaire">
+          Définir le mot de passe
+        </button>
+      </div>
+    </form>
+  {% else %}
+    <div class="message message--error" role="alert">
+      <p>
+        Ce lien d'activation est invalide ou a expiré (il est à usage unique).
+        Contactez le bureau pour en obtenir un nouveau.
+      </p>
+    </div>
+    <p><a href="{% url 'espace_membre:connexion' %}">← Aller à la connexion</a></p>
+  {% endif %}
+{% endblock %}

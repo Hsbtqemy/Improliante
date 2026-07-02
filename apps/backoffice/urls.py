@@ -12,6 +12,8 @@ urlpatterns = [
     path("bureau/", views.tableau_de_bord, name="tableau_de_bord"),
     path("bureau/parametres/", views.parametres_association, name="parametres_association"),
     path("bureau/equipe/", views.equipe_bureau, name="equipe_bureau"),
+    path("bureau/membres/", views.liste_membres, name="liste_membres"),
+    path("bureau/membres/nouveau/", views.creer_membre, name="creer_membre"),
     path("bureau/moderation/", views.file_moderation, name="file_moderation"),
     path("bureau/moderation/projet/<int:pk>/", views.moderer_projet, name="moderer_projet"),
     path(

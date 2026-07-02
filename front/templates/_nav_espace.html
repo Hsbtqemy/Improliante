@@ -49,6 +49,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
       <h2 class="nav-espace__titre">Réglages</h2>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:parametres_association' %}" {% if vn == 'backoffice:parametres_association' %}aria-current="page"{% endif %}>Paramètres de l'association</a></li>
+        <li><a href="{% url 'backoffice:liste_membres' %}" {% if vn == 'backoffice:liste_membres' or vn == 'backoffice:creer_membre' %}aria-current="page"{% endif %}>Membres</a></li>
         <li><a href="{% url 'backoffice:equipe_bureau' %}" {% if vn == 'backoffice:equipe_bureau' %}aria-current="page"{% endif %}>Équipe du bureau</a></li>
       </ul>
     </section>

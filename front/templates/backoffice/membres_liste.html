@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Membres — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
+  <h1>Membres</h1>
+  <p class="carte-projet__meta">
+    Comptes des membres de l'association. La création génère un lien d'activation
+    à transmettre au membre (il y choisit son mot de passe).
+  </p>
+
+  <p>
+    <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_membre' %}">
+      + Nouveau membre
+    </a>
+  </p>
+
+  <table class="tableau">
+    <thead>
+      <tr>
+        <th scope="col">Nom</th>
+        <th scope="col">E-mail</th>
+        <th scope="col">Compte</th>
+        <th scope="col">Actif</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for membre in membres %}
+        <tr>
+          <td>{{ membre }}</td>
+          <td>{{ membre.user.email|default:"—" }}</td>
+          <td>
+            {% if membre.user.has_usable_password %}
+              <span class="badge badge--publie">Activé</span>
+            {% else %}
+              <span class="badge">En attente d'activation</span>
+            {% endif %}
+          </td>
+          <td>{% if membre.actif %}Oui{% else %}Non{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Aucun membre pour l'instant.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% include "backoffice/_pagination.html" %}
+{% endblock %}

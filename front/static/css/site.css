@@ -790,6 +790,16 @@ a.tuile:hover {
   outline-offset: 2px;
 }
 
+/* Champ affichant un lien à copier (ex. lien d'activation d'un compte) */
+.champ-lien {
+  width: 100%;
+  padding: 0.5rem;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.9rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
 /* Section images du formulaire de projet (affiche + galerie) */
 .formulaire__images {
   margin-top: 1.5rem;

@@ -587,6 +587,50 @@ def test_mes_documents_ne_liste_que_les_accessibles(client, db):
     assert "ContratConfidentiel" not in corps  # privé d'autrui : masqué
 
 
+# --- Activation de compte (lien signé transmis par le bureau) --------------
+
+_MDP_FORT = "Improliante!2026"
+
+
+def _compte_a_activer(email="lea@example.org"):
+    from apps.coeur.services import creer_compte_membre, jeton_activation
+
+    membre = creer_compte_membre(first_name="Léa", last_name="Roy", email=email)
+    uidb64, token = jeton_activation(membre.user)
+    return membre, f"/activation/{uidb64}/{token}/"
+
+
+def test_activation_lien_valide_definit_le_mot_de_passe(client, db):
+    membre, url = _compte_a_activer()
+    assert client.get(url).status_code == 200  # page d'activation affichée
+    reponse = client.post(url, {"new_password1": _MDP_FORT, "new_password2": _MDP_FORT})
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url
+    membre.user.refresh_from_db()
+    assert membre.user.has_usable_password() is True
+    # Connexion possible avec le nouveau mot de passe (identifiant = e-mail).
+    assert client.login(username="lea@example.org", password=_MDP_FORT) is True
+
+
+def test_activation_lien_invalide_est_rejete(client, db):
+    from django.utils.encoding import force_bytes
+    from django.utils.http import urlsafe_base64_encode
+
+    membre, _ = _compte_a_activer()
+    uidb64 = urlsafe_base64_encode(force_bytes(membre.user.pk))
+    reponse = client.get(f"/activation/{uidb64}/mauvais-token/")
+    assert reponse.status_code == 200
+    assert reponse.context["lien_valide"] is False
+
+
+def test_activation_token_a_usage_unique(client, db):
+    """Le token inclut le hash du mot de passe : il devient caduc une fois le
+    mot de passe défini (pas de réutilisation du lien)."""
+    _, url = _compte_a_activer()
+    client.post(url, {"new_password1": _MDP_FORT, "new_password2": _MDP_FORT})
+    assert client.get(url).context["lien_valide"] is False
+
+
 # --- Convocations / CR d'AG : visibilité + contenu -------------------------
 
 

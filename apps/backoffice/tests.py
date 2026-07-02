@@ -94,6 +94,54 @@ def test_equipe_ajouter_et_retirer_du_bureau(client, db):
     assert est_bureau(cible) is False
 
 
+# --- Création de compte membre (par le bureau) -----------------------------
+
+
+def _donnees_nouveau_membre(**extra):
+    donnees = {
+        "prenom": "Camille",
+        "nom": "Martin",
+        "email": "camille.martin@example.org",
+        "role_public": "",
+        "telephone": "",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_creation_membre_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/membres/nouveau/").status_code == 403
+
+
+def test_bureau_cree_un_compte_membre(client, db):
+    from apps.coeur.roles import est_bureau
+
+    client.force_login(_staff())
+    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre())
+    assert reponse.status_code == 200  # page réaffichée avec le lien d'activation
+
+    user = Utilisateur.objects.get(email="camille.martin@example.org")
+    assert user.username == "camille.martin@example.org"  # e-mail = identifiant
+    assert user.has_usable_password() is False  # activation requise avant connexion
+    assert hasattr(user, "membre")
+    assert reponse.context["lien_activation"]  # lien affiché au bureau
+    assert est_bureau(user) is False  # un nouveau membre n'a PAS l'accès bureau
+
+
+def test_creation_membre_refuse_un_email_deja_pris(client, db):
+    Utilisateur.objects.create_user(
+        username="camille.martin@example.org",
+        email="camille.martin@example.org",
+        password="x",
+    )
+    client.force_login(_staff())
+    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre())
+    assert reponse.status_code == 200
+    assert reponse.context["lien_activation"] is None  # rien de créé
+    assert Utilisateur.objects.filter(email="camille.martin@example.org").count() == 1
+
+
 # --- Tableau de bord bureau -------------------------------------------------
 
 

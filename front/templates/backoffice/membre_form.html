@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Nouveau membre — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:liste_membres' %}">← Membres</a></p>
+  <h1>Nouveau membre</h1>
+
+  {% if lien_activation %}
+    <div class="message message--success" role="status">
+      <p><strong>Compte créé.</strong> Transmettez ce lien d'activation au membre —
+        il y choisira son mot de passe. Le lien est à usage unique et expire.</p>
+      <p>
+        <label for="lien-activation" class="champ__aide">Lien d'activation</label>
+        <input
+          id="lien-activation"
+          class="champ-lien"
+          type="text"
+          value="{{ lien_activation }}"
+          readonly
+          onclick="this.select()"
+          aria-describedby="lien-aide"
+        />
+      </p>
+      <p id="lien-aide" class="champ__aide">
+        L'envoi automatique par e-mail n'est pas encore activé : copiez ce lien et
+        transmettez-le au membre (message, e-mail manuel…).
+      </p>
+    </div>
+  {% endif %}
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+          <span class="champ__aide">{{ field.help_text }}</span>
+        {% endif %}
+        {% for erreur in field.errors %}
+          <span class="champ__erreur" role="alert">{{ erreur }}</span>
+        {% endfor %}
+      </p>
+    {% endfor %}
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Créer le compte</button>
+    </div>
+  </form>
+{% endblock %}

@@ -13,6 +13,8 @@ from pathlib import PurePosixPath
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.tokens import default_token_generator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -21,6 +23,7 @@ from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
 from apps.coeur.roles import est_bureau
+from apps.coeur.services import utilisateur_depuis_uidb64
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.documents.models import Document
@@ -255,6 +258,34 @@ def editer_evenement(request, pk):
         "espace_membre/evenement_form.html",
         {"form": form, "evenement": evenement, "editable": editable},
     )
+
+
+# --- Activation de compte (lien envoyé/transmis par le bureau) --------------
+
+
+def activer_compte(request, uidb64, token):
+    """Le membre définit son mot de passe via un lien d'activation signé.
+
+    Vue PUBLIQUE (le membre n'est pas encore connecté) mais protégée par un
+    token à usage unique : il devient caduc dès que le mot de passe est défini,
+    et expire selon `PASSWORD_RESET_TIMEOUT`. Un lien invalide n'en dit pas plus
+    (pas de distinction utilisateur inconnu / token périmé)."""
+    user = utilisateur_depuis_uidb64(uidb64)
+    if user is None or not default_token_generator.check_token(user, token):
+        return render(request, "espace_membre/activation.html", {"lien_valide": False})
+
+    if request.method == "POST":
+        form = SetPasswordForm(user, request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request, "Mot de passe défini : vous pouvez maintenant vous connecter."
+            )
+            return redirect("espace_membre:connexion")
+    else:
+        form = SetPasswordForm(user)
+
+    return render(request, "espace_membre/activation.html", {"lien_valide": True, "form": form})
 
 
 # --- Documents privés : consultation + téléchargement contrôlé -------------

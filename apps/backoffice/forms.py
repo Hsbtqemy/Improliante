@@ -7,7 +7,7 @@ from decimal import Decimal
 from django import forms
 
 from apps.budget.models import Categorie, RecuFiscal, Saison, Transaction
-from apps.coeur.models import Membre, ParametresAssociation, Signataire
+from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
@@ -312,3 +312,36 @@ class ResolutionForm(forms.ModelForm):
         if reunion is not None:
             self.fields["sujet"].queryset = reunion.sujets.all()
         self.fields["sujet"].required = False
+
+
+class MembreCreationForm(forms.Form):
+    """Création d'un compte membre par le bureau (Utilisateur + Membre).
+
+    L'e-mail sert d'identifiant de connexion : il doit être unique. Le mot de
+    passe n'est PAS saisi ici — le membre le définit via un lien d'activation
+    (cf. `apps.coeur.services`). Formulaire volontairement `forms.Form` (et non
+    ModelForm) car il couvre deux modèles."""
+
+    prenom = forms.CharField(label="Prénom", max_length=150)
+    nom = forms.CharField(label="Nom", max_length=150)
+    email = forms.EmailField(
+        label="E-mail",
+        help_text="Sert d'identifiant de connexion. Doit être unique.",
+    )
+    role_public = forms.CharField(
+        label="Rôle public",
+        max_length=200,
+        required=False,
+        help_text="Ex. « Comédienne, mise en scène » — affiché sur la fiche publique si visible.",
+    )
+    telephone = forms.CharField(label="Téléphone", max_length=32, required=False)
+
+    def clean_email(self) -> str:
+        email = self.cleaned_data["email"].strip()
+        # L'e-mail est aussi l'identifiant (username) : on vérifie les deux.
+        existe = Utilisateur.objects.filter(username__iexact=email).exists() or (
+            Utilisateur.objects.filter(email__iexact=email).exists()
+        )
+        if existe:
+            raise forms.ValidationError("Un compte existe déjà avec cet e-mail.")
+        return email
