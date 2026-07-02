@@ -283,6 +283,40 @@ def test_emission_depuis_adhesion_rattache_le_membre(client, db):
     assert recu.adhesion == adhesion
 
 
+def test_pas_de_second_recu_pour_une_meme_adhesion(client, db):
+    """Un versement = un seul reçu Cerfa : une adhésion déjà pourvue d'un reçu
+    ne doit pas pouvoir en générer un second (garde-fou légal contre les
+    doublons), et ne figure plus dans les adhésions éligibles proposées."""
+    bureau = _staff()
+    membre = _membre("donateur")
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre.membre,
+        saison=saison,
+        statut=Adhesion.Statut.PAYEE,
+        montant_verse=Decimal("40.00"),
+    )
+    donnees = _donnees_recu(
+        adhesion=adhesion.pk,
+        type_versement=RecuFiscal.TypeVersement.COTISATION,
+        montant="40.00",
+        donateur_nom=str(membre.membre),
+    )
+    client.force_login(bureau)
+
+    # 1er reçu : émis normalement.
+    assert client.post("/bureau/recus/nouveau/", donnees).status_code == 302
+    assert RecuFiscal.objects.filter(adhesion=adhesion).count() == 1
+
+    # 2e tentative sur la même adhésion : refusée, aucun reçu supplémentaire.
+    assert client.post("/bureau/recus/nouveau/", donnees).status_code == 302
+    assert RecuFiscal.objects.filter(adhesion=adhesion).count() == 1
+
+    # L'adhésion n'est plus proposée comme éligible.
+    page = client.get(RECUS)
+    assert adhesion not in list(page.context["adhesions"])
+
+
 def test_montant_negatif_est_refuse(client, db):
     client.force_login(_staff())
     reponse = client.post("/bureau/recus/nouveau/", _donnees_recu(montant="-10"))

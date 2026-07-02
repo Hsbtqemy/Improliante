@@ -237,6 +237,9 @@ def liste_recus(request):
             statut__in=[Adhesion.Statut.PAYEE, Adhesion.Statut.EXONEREE],
             montant_verse__gt=0,
         )
+        # Une adhésion déjà pourvue d'un reçu n'est plus proposée (un versement
+        # = un seul reçu Cerfa) : évite d'émettre un doublon depuis la liste.
+        .filter(recus_fiscaux__isnull=True)
         .select_related("membre", "saison")
         .order_by("-saison__date_debut", "membre")
     )
@@ -274,6 +277,13 @@ def creer_recu(request):
                 )
                 reponse["Content-Disposition"] = 'inline; filename="apercu-recu.pdf"'
                 return reponse
+            # Garde-fou légal : un versement donne lieu à un seul reçu Cerfa.
+            if adhesion and adhesion.recus_fiscaux.exists():
+                messages.error(
+                    request,
+                    f"Un reçu fiscal a déjà été émis pour l'adhésion de {adhesion.membre}.",
+                )
+                return redirect("backoffice:liste_recus")
             recu = emettre_recu(
                 **form.cleaned_data,
                 membre=adhesion.membre if adhesion else None,
