@@ -608,6 +608,15 @@ html.anim-reduites * {
   color: #7a1220;
 }
 
+/* Pagination */
+.pagination {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-block: 1rem;
+}
+
 /* Tuiles du tableau de bord bureau */
 .tuiles {
   display: grid;

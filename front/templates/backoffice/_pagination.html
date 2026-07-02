@@ -1,0 +1,17 @@
+{% comment %}Pager réutilisable. Préserve les filtres : reprend tous les
+paramètres GET sauf `page`. Attend une variable `page` (objet Page Django).{% endcomment %}
+{% if page.paginator.num_pages > 1 %}
+  <nav class="pagination" aria-label="Pagination">
+    {% if page.has_previous %}
+      <a class="lien-bouton" href="?page={{ page.previous_page_number }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k|urlencode }}={{ v|urlencode }}{% endif %}{% endfor %}">
+        ← Précédent
+      </a>
+    {% endif %}
+    <span>Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+      <a class="lien-bouton" href="?page={{ page.next_page_number }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k|urlencode }}={{ v|urlencode }}{% endif %}{% endfor %}">
+        Suivant →
+      </a>
+    {% endif %}
+  </nav>
+{% endif %}

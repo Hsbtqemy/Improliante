@@ -727,3 +727,25 @@ def test_filtre_transactions_par_type(client, db):
 def test_filtre_transactions_categorie_non_numerique_toleree(client, db):
     client.force_login(_staff())
     assert client.get("/bureau/budget/?categorie=abc").status_code == 200
+
+
+# --- Pagination -------------------------------------------------------------
+
+
+def test_pagination_des_factures(client, db):
+    c = Client.objects.create(nom="X")
+    for _ in range(25):
+        Facture.objects.create(client=c)  # > 20 (une page)
+    client.force_login(_staff())
+    page1 = client.get("/bureau/factures/").context["page"]
+    assert page1.paginator.num_pages == 2
+    assert len(page1.object_list) == 20
+    page2 = client.get("/bureau/factures/?page=2").context["page"]
+    assert len(page2.object_list) == 5
+
+
+def test_pagination_page_non_numerique_toleree(client, db):
+    Client.objects.create(nom="X")
+    client.force_login(_staff())
+    # ?page=abc ne doit pas planter (get_page renvoie la 1re page).
+    assert client.get("/bureau/factures/?page=abc").status_code == 200

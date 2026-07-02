@@ -54,6 +54,7 @@
         {% endfor %}
       </tbody>
     </table>
+    {% include "backoffice/_pagination.html" %}
   {% else %}
     <p>Aucune facture pour l'instant.</p>
   {% endif %}

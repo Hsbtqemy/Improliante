@@ -36,6 +36,7 @@
           {% endfor %}
         </tbody>
       </table>
+      {% include "backoffice/_pagination.html" %}
     {% else %}
       <p>Aucun reçu émis pour l'instant.</p>
     {% endif %}

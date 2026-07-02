@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -36,7 +37,6 @@ from apps.common.moderation import (
 from apps.documents.models import Document, Dossier
 from apps.documents.services import remplacer_document
 from apps.facturation.models import Client, Devis, Facture
-from apps.gouvernance.models import Reunion
 from apps.facturation.services import (
     DevisDejaFacture,
     FactureDejaValidee,
@@ -49,6 +49,7 @@ from apps.facturation.services import (
     transformer_en_facture,
     valider_facture,
 )
+from apps.gouvernance.models import Reunion
 from apps.spectacles.models import Spectacle
 
 from .forms import (
@@ -67,6 +68,14 @@ from .forms import (
 )
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
+
+
+def paginer(request, objets, par_page=20):
+    """Retourne la page demandée (`?page=N`) d'un queryset.
+
+    `get_page` tolère un numéro absent, non numérique ou hors bornes (renvoie
+    la 1re ou la dernière page) — pas d'erreur 500 sur `?page=abc`."""
+    return Paginator(objets, par_page).get_page(request.GET.get("page"))
 
 
 @bureau_requis
@@ -169,10 +178,11 @@ def liste_recus(request):
         .select_related("membre", "saison")
         .order_by("-saison__date_debut", "membre")
     )
+    page = paginer(request, recus)
     return render(
         request,
         "backoffice/recus_liste.html",
-        {"recus": recus, "adhesions": adhesions_eligibles},
+        {"recus": page, "page": page, "adhesions": adhesions_eligibles},
     )
 
 
@@ -244,10 +254,16 @@ def liste_factures(request):
     statut = request.GET.get("statut")
     if statut in Facture.Statut.values:
         factures = factures.filter(statut=statut)
+    page = paginer(request, factures)
     return render(
         request,
         "backoffice/factures_liste.html",
-        {"factures": factures, "statuts": Facture.Statut.choices, "statut_courant": statut},
+        {
+            "factures": page,
+            "page": page,
+            "statuts": Facture.Statut.choices,
+            "statut_courant": statut,
+        },
     )
 
 
@@ -376,7 +392,8 @@ _ACTIONS_STATUT_DEVIS = {
 def liste_devis(request):
     """Liste des devis."""
     devis = Devis.objects.select_related("client").all()
-    return render(request, "backoffice/devis_liste.html", {"devis": devis})
+    page = paginer(request, devis)
+    return render(request, "backoffice/devis_liste.html", {"devis": page, "page": page})
 
 
 @bureau_requis
@@ -580,13 +597,15 @@ def budget_transactions(request):
     if categorie_pk and categorie_pk.isdigit():
         transactions = transactions.filter(categorie_id=categorie_pk)
 
+    page = paginer(request, transactions)
     return render(
         request,
         "backoffice/budget_transactions.html",
         {
             "saisons": Saison.objects.all(),
             "saison_courante": saison,
-            "transactions": transactions,
+            "transactions": page,
+            "page": page,
             "categories": Categorie.objects.all(),
             "types": Transaction.TypeFlux.choices,
             "statuts": Transaction.Statut.choices,
