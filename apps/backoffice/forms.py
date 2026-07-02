@@ -7,9 +7,10 @@ from decimal import Decimal
 from django import forms
 
 from apps.budget.models import Categorie, RecuFiscal, Saison, Transaction
-from apps.coeur.models import ParametresAssociation, Signataire
+from apps.coeur.models import Membre, ParametresAssociation, Signataire
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
+from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
 
 
 def _restreindre_signataires_actifs(form):
@@ -231,3 +232,83 @@ class ParametresAssociationForm(forms.ModelForm):
             "signataire_qualite",
         ]
         widgets = {"objet": forms.Textarea(attrs={"rows": 2})}
+
+
+# --- Gouvernance ------------------------------------------------------------
+
+
+class ReunionForm(forms.ModelForm):
+    class Meta:
+        model = Reunion
+        fields = ["titre", "type_reunion", "statut", "date", "lieu_texte", "convocation_texte"]
+        widgets = {
+            "date": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+            "convocation_texte": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date"].input_formats = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
+
+
+class SujetOrdreDuJourForm(forms.ModelForm):
+    """Ajout d'un sujet à l'ordre du jour d'une réunion (réunion posée par la vue)."""
+
+    class Meta:
+        model = Sujet
+        fields = ["titre", "description", "priorite", "ordre_du_jour"]
+        widgets = {"description": forms.Textarea(attrs={"rows": 2})}
+
+
+def _membres_actifs():
+    return Membre.objects.filter(actif=True)
+
+
+class PresenceForm(forms.ModelForm):
+    class Meta:
+        model = Presence
+        fields = ["membre", "statut", "peut_voter"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["membre"].queryset = _membres_actifs()
+
+
+class PouvoirForm(forms.ModelForm):
+    class Meta:
+        model = Pouvoir
+        fields = ["mandant", "mandataire"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["mandant"].queryset = _membres_actifs()
+        self.fields["mandataire"].queryset = _membres_actifs()
+
+    def clean(self):
+        donnees = super().clean()
+        if donnees.get("mandant") and donnees.get("mandant") == donnees.get("mandataire"):
+            raise forms.ValidationError("Le mandant et le mandataire doivent être différents.")
+        return donnees
+
+
+class ResolutionForm(forms.ModelForm):
+    class Meta:
+        model = Resolution
+        fields = [
+            "intitule",
+            "texte",
+            "type_majorite",
+            "sujet",
+            "nombre_pour",
+            "nombre_contre",
+            "nombre_abstention",
+            "ordre",
+        ]
+        widgets = {"texte": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, reunion=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ne proposer que les sujets de cette réunion comme rattachement.
+        if reunion is not None:
+            self.fields["sujet"].queryset = reunion.sujets.all()
+        self.fields["sujet"].required = False

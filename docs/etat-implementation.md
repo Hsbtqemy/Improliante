@@ -26,11 +26,20 @@ Tableau de bord (adhésions), **proposer/éditer son projet** (spectacle),
 connecté (voir *Anti-IDOR*).
 
 ### Back-office (`apps/backoffice`) — bureau
-3ᵉ app métier (sans modèle propre) : **modération** (valider/refuser projets et
-événements, fixer la visibilité), **devis** (→ transformation en facture),
-**factures** (brouillon → validation numérotée → PDF ; **aperçu** brouillon ;
-**avoir**), **reçus fiscaux** (Cerfa, aperçu avant émission), **GED** (arbre de
-dossiers, dépôt, versionnement), **budget** (mouvements + bilan par catégorie).
+3ᵉ app métier (sans modèle propre), **interface sur-mesure** (templates sur
+`base.html`, pas l'admin Django) : **tableau de bord** (compteurs + accès
+rapides), **modération** (valider/refuser projets et événements, fixer la
+visibilité), **devis** (→ transformation en facture), **factures** (brouillon →
+validation numérotée → PDF ; **aperçu** brouillon ; **avoir**), **reçus
+fiscaux** (Cerfa, aperçu avant émission), **GED** (arbre de dossiers, dépôt,
+versionnement), **budget** (mouvements + bilan par catégorie + export Excel),
+**gouvernance** (réunions/AG : quorum, ordre du jour, présences avec
+préremplissage des droits de vote, pouvoirs, résolutions avec résultat),
+**réglages** (paramètres de l'association, équipe = groupe « Bureau »). Listes
+filtrables et paginées.
+
+> L'admin Django (`/admin/`) reste disponible en parallèle pour la config rare
+> et les CRUD techniques non couverts par un écran sur-mesure.
 
 ---
 

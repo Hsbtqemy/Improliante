@@ -51,7 +51,13 @@ from apps.facturation.services import (
     transformer_en_facture,
     valider_facture,
 )
-from apps.gouvernance.models import Reunion
+from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
+from apps.gouvernance.services import (
+    calcul_quorum,
+    mandataires_en_exces,
+    preremplir_droit_de_vote,
+    resultat_resolution,
+)
 from apps.spectacles.models import Spectacle
 
 from .forms import (
@@ -65,8 +71,13 @@ from .forms import (
     LigneFactureFormSet,
     NouvelleVersionForm,
     ParametresAssociationForm,
+    PouvoirForm,
+    PresenceForm,
     RecuFiscalForm,
+    ResolutionForm,
+    ReunionForm,
     SaisonForm,
+    SujetOrdreDuJourForm,
     TransactionForm,
 )
 
@@ -751,3 +762,134 @@ def budget_categories(request):
         "backoffice/budget_categories.html",
         {"form": form, "categories": Categorie.objects.all()},
     )
+
+
+# --- Gouvernance (réunions / AG) --------------------------------------------
+
+
+@bureau_requis
+def gouvernance_reunions(request):
+    """Liste des réunions/AG + création."""
+    form = ReunionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        reunion = form.save()
+        messages.success(request, "Réunion créée.")
+        return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return render(
+        request,
+        "backoffice/gouvernance_reunions.html",
+        {"form": form, "reunions": Reunion.objects.all()},
+    )
+
+
+@bureau_requis
+def gouvernance_reunion(request, pk):
+    """Détail d'une réunion : quorum, ordre du jour, présences, pouvoirs,
+    résolutions (avec résultat calculé)."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    resolutions = [(r, resultat_resolution(r)) for r in reunion.resolutions.all()]
+    return render(
+        request,
+        "backoffice/gouvernance_reunion.html",
+        {
+            "reunion": reunion,
+            "quorum": calcul_quorum(reunion),
+            "ordre_du_jour": reunion.sujets.order_by("ordre_du_jour", "id"),
+            "presences": reunion.presences.select_related("membre").order_by("membre"),
+            "pouvoirs": reunion.pouvoirs.select_related("mandant", "mandataire"),
+            "resolutions": resolutions,
+            "mandataires_en_exces": mandataires_en_exces(reunion),
+            "saisons": Saison.objects.all(),
+            "sujet_form": SujetOrdreDuJourForm(),
+            "presence_form": PresenceForm(),
+            "pouvoir_form": PouvoirForm(),
+            "resolution_form": ResolutionForm(reunion=reunion),
+        },
+    )
+
+
+@bureau_requis
+@require_POST
+def gouvernance_ajouter_sujet(request, pk):
+    reunion = get_object_or_404(Reunion, pk=pk)
+    form = SujetOrdreDuJourForm(request.POST)
+    if form.is_valid():
+        sujet = form.save(commit=False)
+        sujet.reunion = reunion
+        sujet.statut = Sujet.Statut.ORDRE_DU_JOUR
+        sujet.save()
+        messages.success(request, "Sujet ajouté à l'ordre du jour.")
+    else:
+        messages.error(request, "Sujet invalide.")
+    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+
+
+@bureau_requis
+@require_POST
+def gouvernance_saisir_presence(request, pk):
+    reunion = get_object_or_404(Reunion, pk=pk)
+    form = PresenceForm(request.POST)
+    if form.is_valid():
+        # update_or_create : ré-enregistrer un membre met à jour sa présence
+        # (contrainte d'unicité reunion+membre).
+        Presence.objects.update_or_create(
+            reunion=reunion,
+            membre=form.cleaned_data["membre"],
+            defaults={
+                "statut": form.cleaned_data["statut"],
+                "peut_voter": form.cleaned_data["peut_voter"],
+            },
+        )
+        messages.success(request, "Présence enregistrée.")
+    else:
+        messages.error(request, "Présence invalide.")
+    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+
+
+@bureau_requis
+@require_POST
+def gouvernance_preremplir_votes(request, pk):
+    reunion = get_object_or_404(Reunion, pk=pk)
+    saison_pk = request.POST.get("saison")
+    saison = (
+        Saison.objects.filter(pk=saison_pk).first() if saison_pk and saison_pk.isdigit() else None
+    )
+    try:
+        nb = preremplir_droit_de_vote(reunion, saison=saison)
+        messages.success(request, f"Droits de vote mis à jour ({nb} présence(s)).")
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+
+
+@bureau_requis
+@require_POST
+def gouvernance_ajouter_pouvoir(request, pk):
+    reunion = get_object_or_404(Reunion, pk=pk)
+    form = PouvoirForm(request.POST)
+    if form.is_valid():
+        # update_or_create : un mandant ne donne qu'un pouvoir par réunion.
+        Pouvoir.objects.update_or_create(
+            reunion=reunion,
+            mandant=form.cleaned_data["mandant"],
+            defaults={"mandataire": form.cleaned_data["mandataire"]},
+        )
+        messages.success(request, "Pouvoir enregistré.")
+    else:
+        messages.error(request, "; ".join(form.non_field_errors()) or "Pouvoir invalide.")
+    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+
+
+@bureau_requis
+@require_POST
+def gouvernance_ajouter_resolution(request, pk):
+    reunion = get_object_or_404(Reunion, pk=pk)
+    form = ResolutionForm(request.POST, reunion=reunion)
+    if form.is_valid():
+        resolution = form.save(commit=False)
+        resolution.reunion = reunion
+        resolution.save()
+        messages.success(request, "Résolution enregistrée.")
+    else:
+        messages.error(request, "Résolution invalide.")
+    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)

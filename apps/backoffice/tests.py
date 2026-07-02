@@ -17,6 +17,7 @@ from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
+from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
 from apps.spectacles.models import Spectacle
 
 Statut = Moderation.StatutModeration
@@ -796,3 +797,138 @@ def test_pagination_page_non_numerique_toleree(client, db):
     client.force_login(_staff())
     # ?page=abc ne doit pas planter (get_page renvoie la 1re page).
     assert client.get("/bureau/factures/?page=abc").status_code == 200
+
+
+# --- Gouvernance ------------------------------------------------------------
+
+
+def _reunion(type_reunion=Reunion.TypeReunion.AG_ORDINAIRE, statut=Reunion.Statut.CONVOQUEE):
+    return Reunion.objects.create(
+        titre="AG",
+        type_reunion=type_reunion,
+        statut=statut,
+        date=make_aware(datetime(2026, 6, 1, 18, 0)),
+    )
+
+
+def test_gouvernance_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/gouvernance/").status_code == 403
+
+
+def test_creer_reunion(client, db):
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/gouvernance/",
+        {
+            "titre": "AG 2026",
+            "type_reunion": Reunion.TypeReunion.AG_ORDINAIRE,
+            "statut": Reunion.Statut.CONVOQUEE,
+            "date": "2026-06-01T18:00",
+            "lieu_texte": "",
+            "convocation_texte": "",
+        },
+    )
+    assert reponse.status_code == 302
+    assert Reunion.objects.filter(titre="AG 2026").exists()
+
+
+def test_ajouter_sujet_a_l_ordre_du_jour(client, db):
+    reunion = _reunion()
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/sujet/",
+        {
+            "titre": "Budget",
+            "description": "",
+            "priorite": Sujet.Priorite.NORMALE,
+            "ordre_du_jour": 1,
+        },
+    )
+    assert reunion.sujets.filter(titre="Budget", statut=Sujet.Statut.ORDRE_DU_JOUR).exists()
+
+
+def test_detail_reunion_calcule_le_quorum(client, db):
+    reunion = _reunion()
+    membre = _membre("alice").membre
+    Presence.objects.create(
+        reunion=reunion, membre=membre, statut=Presence.Statut.PRESENT, peut_voter=True
+    )
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/")
+    assert reponse.status_code == 200
+    assert reponse.context["quorum"].electorat == 1
+    assert reponse.context["quorum"].presents_representes == 1
+
+
+def test_saisir_presence_puis_mise_a_jour(client, db):
+    reunion = _reunion()
+    membre = _membre("alice").membre
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/presence/",
+        {"membre": membre.pk, "statut": Presence.Statut.PRESENT, "peut_voter": "on"},
+    )
+    presence = Presence.objects.get(reunion=reunion, membre=membre)
+    assert presence.statut == Presence.Statut.PRESENT
+    assert presence.peut_voter is True
+
+    # Ré-enregistrer le même membre met à jour (pas de doublon ni d'IntegrityError).
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/presence/",
+        {"membre": membre.pk, "statut": Presence.Statut.EXCUSE},
+    )
+    presence.refresh_from_db()
+    assert presence.statut == Presence.Statut.EXCUSE
+    assert presence.peut_voter is False
+    assert Presence.objects.filter(reunion=reunion, membre=membre).count() == 1
+
+
+def test_pouvoir_mandant_egal_mandataire_refuse(client, db):
+    reunion = _reunion()
+    membre = _membre("alice").membre
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/pouvoir/",
+        {"mandant": membre.pk, "mandataire": membre.pk},
+    )
+    assert Pouvoir.objects.count() == 0  # refusé : mandant == mandataire
+
+
+def test_resolution_adoptee_affichee(client, db):
+    reunion = _reunion()
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/resolution/",
+        {
+            "intitule": "Approbation des comptes",
+            "texte": "",
+            "type_majorite": Resolution.TypeMajorite.SIMPLE,
+            "sujet": "",
+            "nombre_pour": 10,
+            "nombre_contre": 2,
+            "nombre_abstention": 1,
+            "ordre": 0,
+        },
+    )
+    assert Resolution.objects.filter(intitule="Approbation des comptes").exists()
+    corps = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/").content.decode()
+    assert "Adoptée" in corps  # 10 pour / 12 exprimés > majorité simple
+
+
+def test_preremplir_droits_de_vote(client, db):
+    reunion = _reunion()
+    membre = _membre("alice").membre
+    Presence.objects.create(
+        reunion=reunion, membre=membre, statut=Presence.Statut.PRESENT, peut_voter=False
+    )
+    saison = Saison.objects.create(nom="2025-2026")
+    Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE, montant_verse=Decimal("20")
+    )
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/preremplir-votes/", {"saison": saison.pk}
+    )
+    presence = Presence.objects.get(reunion=reunion, membre=membre)
+    assert presence.peut_voter is True  # membre à jour → droit de vote

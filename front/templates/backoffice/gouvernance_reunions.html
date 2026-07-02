@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Gouvernance — Back-office{% endblock %}
+
+{% block contenu %}
+  <h1>Réunions & assemblées générales</h1>
+
+  {% if reunions %}
+    <table class="tableau">
+      <thead>
+        <tr>
+          <th scope="col">Titre</th>
+          <th scope="col">Type</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Date</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reunions %}
+          <tr>
+            <td>{{ r.titre }}</td>
+            <td>{{ r.get_type_reunion_display }}</td>
+            <td><span class="badge">{{ r.get_statut_display }}</span></td>
+            <td>{% if r.date %}{{ r.date|date:"j M Y H:i" }}{% else %}—{% endif %}</td>
+            <td><a href="{% url 'backoffice:gouvernance_reunion' pk=r.pk %}">Ouvrir</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Aucune réunion pour l'instant.</p>
+  {% endif %}
+
+  <section aria-labelledby="titre-nouvelle">
+    <h2 id="titre-nouvelle">Nouvelle réunion</h2>
+    <form method="post" class="formulaire" novalidate>
+      {% csrf_token %}
+      {% for field in form %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Créer la réunion</button>
+    </form>
+  </section>
+{% endblock %}

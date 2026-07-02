@@ -67,4 +67,35 @@ urlpatterns = [
     path("bureau/budget/bilan/excel/", views.budget_bilan_excel, name="budget_bilan_excel"),
     path("bureau/budget/saisons/", views.budget_saisons, name="budget_saisons"),
     path("bureau/budget/categories/", views.budget_categories, name="budget_categories"),
+    path("bureau/gouvernance/", views.gouvernance_reunions, name="gouvernance_reunions"),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/",
+        views.gouvernance_reunion,
+        name="gouvernance_reunion",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/sujet/",
+        views.gouvernance_ajouter_sujet,
+        name="gouvernance_ajouter_sujet",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/presence/",
+        views.gouvernance_saisir_presence,
+        name="gouvernance_saisir_presence",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/preremplir-votes/",
+        views.gouvernance_preremplir_votes,
+        name="gouvernance_preremplir_votes",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/pouvoir/",
+        views.gouvernance_ajouter_pouvoir,
+        name="gouvernance_ajouter_pouvoir",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/resolution/",
+        views.gouvernance_ajouter_resolution,
+        name="gouvernance_ajouter_resolution",
+    ),
 ]
