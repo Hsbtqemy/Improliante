@@ -608,6 +608,36 @@ html.anim-reduites * {
   color: #7a1220;
 }
 
+/* Tuiles du tableau de bord bureau */
+.tuiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+.tuile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  text-decoration: none;
+  color: var(--couleur-texte);
+  background: var(--couleur-fond);
+}
+a.tuile:hover {
+  border-color: var(--couleur-primaire);
+}
+.tuile__nombre {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--couleur-primaire);
+}
+.tuile__label {
+  color: var(--couleur-muet);
+}
+
 /* Formulaire en ligne (filtres) + bouton d'aspect lien */
 .formulaire-inline {
   display: flex;

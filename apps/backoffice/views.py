@@ -36,6 +36,7 @@ from apps.common.moderation import (
 from apps.documents.models import Document, Dossier
 from apps.documents.services import remplacer_document
 from apps.facturation.models import Client, Devis, Facture
+from apps.gouvernance.models import Reunion
 from apps.facturation.services import (
     DevisDejaFacture,
     FactureDejaValidee,
@@ -66,6 +67,28 @@ from .forms import (
 )
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
+
+
+@bureau_requis
+def tableau_de_bord(request):
+    """Accueil du back-office : compteurs des tâches en attente + accès rapides."""
+    projets_a_moderer = Spectacle.objects.filter(statut_moderation=Propose).count()
+    evenements_a_moderer = Evenement.objects.filter(statut_moderation=Propose).count()
+    contexte = {
+        "projets_a_moderer": projets_a_moderer,
+        "evenements_a_moderer": evenements_a_moderer,
+        "a_moderer": projets_a_moderer + evenements_a_moderer,
+        "factures_brouillon": Facture.objects.filter(
+            statut=Facture.Statut.BROUILLON, type_piece=Facture.TypePiece.FACTURE
+        ).count(),
+        "devis_a_suivre": Devis.objects.filter(
+            statut__in=[Devis.Statut.ENVOYE, Devis.Statut.ACCEPTE]
+        ).count(),
+        "reunions_a_venir": Reunion.objects.filter(
+            statut=Reunion.Statut.CONVOQUEE, date__gte=timezone.now()
+        ).count(),
+    }
+    return render(request, "backoffice/tableau_de_bord.html", contexte)
 
 
 @bureau_requis

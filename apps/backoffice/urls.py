@@ -9,6 +9,7 @@ from . import views
 app_name = "backoffice"
 
 urlpatterns = [
+    path("bureau/", views.tableau_de_bord, name="tableau_de_bord"),
     path("bureau/moderation/", views.file_moderation, name="file_moderation"),
     path("bureau/moderation/projet/<int:pk>/", views.moderer_projet, name="moderer_projet"),
     path(

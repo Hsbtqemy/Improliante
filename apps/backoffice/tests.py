@@ -46,6 +46,27 @@ def _evenement_propose(titre="Événement proposé"):
     )
 
 
+# --- Tableau de bord bureau -------------------------------------------------
+
+
+def test_dashboard_bureau_reserve_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/").status_code == 403
+
+
+def test_dashboard_bureau_compte_les_taches_en_attente(client, db):
+    _projet_propose()
+    _evenement_propose()
+    Facture.objects.create(client=Client.objects.create(nom="X"))  # brouillon
+    client.force_login(_staff())
+    reponse = client.get("/bureau/")
+    assert reponse.status_code == 200
+    assert reponse.context["projets_a_moderer"] == 1
+    assert reponse.context["evenements_a_moderer"] == 1
+    assert reponse.context["a_moderer"] == 2
+    assert reponse.context["factures_brouillon"] == 1
+
+
 # --- Contrôle d'accès -------------------------------------------------------
 
 

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Back-office — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Back-office</h1>
+  <p class="carte-projet__meta">Vue d'ensemble des tâches en cours.</p>
+
+  <div class="tuiles">
+    <a class="tuile" href="{% url 'backoffice:file_moderation' %}">
+      <span class="tuile__nombre">{{ a_moderer }}</span>
+      <span class="tuile__label">fiche(s) à modérer</span>
+    </a>
+    <a class="tuile" href="{% url 'backoffice:liste_factures' %}">
+      <span class="tuile__nombre">{{ factures_brouillon }}</span>
+      <span class="tuile__label">facture(s) en brouillon</span>
+    </a>
+    <a class="tuile" href="{% url 'backoffice:liste_devis' %}">
+      <span class="tuile__nombre">{{ devis_a_suivre }}</span>
+      <span class="tuile__label">devis à suivre</span>
+    </a>
+    <div class="tuile">
+      <span class="tuile__nombre">{{ reunions_a_venir }}</span>
+      <span class="tuile__label">réunion(s) à venir</span>
+    </div>
+  </div>
+
+  <nav aria-label="Modules du back-office" class="espace-actions">
+    <a class="lien-bouton" href="{% url 'backoffice:file_moderation' %}">Modération</a>
+    <a class="lien-bouton" href="{% url 'backoffice:liste_devis' %}">Devis</a>
+    <a class="lien-bouton" href="{% url 'backoffice:liste_factures' %}">Factures</a>
+    <a class="lien-bouton" href="{% url 'backoffice:liste_recus' %}">Reçus fiscaux</a>
+    <a class="lien-bouton" href="{% url 'backoffice:ged_racine' %}">Documents</a>
+    <a class="lien-bouton" href="{% url 'backoffice:budget_transactions' %}">Budget</a>
+  </nav>
+{% endblock %}
