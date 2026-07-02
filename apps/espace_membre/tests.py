@@ -16,7 +16,8 @@ from apps.coeur.models import Membre, Utilisateur
 from apps.common.models import Moderation
 from apps.documents.models import Document
 from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
-from apps.spectacles.models import Spectacle
+from apps.medias.models import Media
+from apps.spectacles.models import ImageSpectacle, Spectacle
 
 Statut = Moderation.StatutModeration
 
@@ -182,6 +183,114 @@ def test_mes_projets_ne_liste_que_les_siens(client, db):
     corps = client.get("/espace/projets/").content.decode()
     assert "Le mien" in corps
     assert "Le sien" not in corps
+
+
+# --- Projets : images (affiche + galerie) ----------------------------------
+
+
+def _image_png(nom="image.png"):
+    """Fabrique une vraie image PNG minuscule (validée par ImageField/Pillow)."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    tampon = BytesIO()
+    Image.new("RGB", (2, 2), "red").save(tampon, "PNG")
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/png")
+
+
+def _projet_de(membre, titre="Mon projet"):
+    projet = Spectacle.objects.create(titre=titre, type_portage=Spectacle.TypePortage.PERSONNEL)
+    projet.porteurs.add(membre)
+    return projet
+
+
+def test_membre_ajoute_une_affiche_a_son_projet(client, db):
+    membre = _membre("alice")
+    projet = _projet_de(membre)
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/projets/{projet.pk}/",
+        _donnees_projet(
+            titre=projet.titre,
+            action="enregistrer",
+            affiche_fichier=_image_png("affiche.png"),
+            affiche_alt="Affiche du spectacle",
+        ),
+    )
+    projet.refresh_from_db()
+    assert projet.affiche is not None
+    assert projet.affiche.alt == "Affiche du spectacle"
+    assert projet.affiche.cree_par == membre.user
+
+
+def test_affiche_sans_alt_est_refusee(client, db):
+    """`alt` obligatoire (accessibilité) : une affiche sans texte alternatif
+    est rejetée et n'est pas enregistrée."""
+    membre = _membre("alice")
+    projet = _projet_de(membre)
+    client.force_login(membre.user)
+    reponse = client.post(
+        f"/espace/projets/{projet.pk}/",
+        _donnees_projet(
+            titre=projet.titre, action="enregistrer", affiche_fichier=_image_png("affiche.png")
+        ),
+    )
+    assert reponse.status_code == 200  # formulaire réaffiché avec l'erreur
+    projet.refresh_from_db()
+    assert projet.affiche is None
+    assert Media.objects.count() == 0
+
+
+def test_membre_ajoute_une_image_a_la_galerie(client, db):
+    membre = _membre("alice")
+    projet = _projet_de(membre)
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/projets/{projet.pk}/",
+        _donnees_projet(
+            titre=projet.titre,
+            action="enregistrer",
+            galerie_fichier=_image_png("g1.png"),
+            galerie_alt="Photo de répétition",
+        ),
+    )
+    assert projet.images.count() == 1
+    assert projet.images.get().media.alt == "Photo de répétition"
+
+
+def test_membre_retire_une_image_de_sa_galerie(client, db):
+    membre = _membre("alice")
+    projet = _projet_de(membre)
+    media = Media.objects.create(alt="x", fichier=_image_png("x.png"))
+    image = ImageSpectacle.objects.create(spectacle=projet, media=media, ordre=1)
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/projets/{projet.pk}/",
+        _donnees_projet(titre=projet.titre, action="enregistrer", supprimer_image=str(image.pk)),
+    )
+    assert projet.images.count() == 0
+
+
+def test_membre_ne_peut_pas_retirer_l_image_d_un_autre_projet(client, db):
+    """ANTI-IDOR : le retrait est borné au projet édité ; l'id d'une image
+    appartenant à un autre projet est ignoré."""
+    membre = _membre("alice")
+    mien = _projet_de(membre, titre="Le mien")
+
+    autre_membre = _membre("bob")
+    autre_projet = _projet_de(autre_membre, titre="Le sien")
+    media = Media.objects.create(alt="x", fichier=_image_png("x.png"))
+    image_autre = ImageSpectacle.objects.create(spectacle=autre_projet, media=media, ordre=1)
+
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/projets/{mien.pk}/",
+        _donnees_projet(
+            titre=mien.titre, action="enregistrer", supprimer_image=str(image_autre.pk)
+        ),
+    )
+    assert ImageSpectacle.objects.filter(pk=image_autre.pk).exists()  # non supprimée
 
 
 # --- Événements du membre : création, soumission, anti-IDOR ----------------

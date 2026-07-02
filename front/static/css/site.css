@@ -709,6 +709,42 @@ a.tuile:hover {
   outline-offset: 2px;
 }
 
+/* Section images du formulaire de projet (affiche + galerie) */
+.formulaire__images {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--couleur-bordure, #ccc);
+  border-radius: 0.5rem;
+}
+.formulaire__images legend {
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+.formulaire__images h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+.apercu-image img,
+.galerie-edition__item img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+.galerie-edition {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.galerie-edition__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
 /* Respect de la préférence de réduction des animations */
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -24,6 +24,7 @@ from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.documents.models import Document
 from apps.gouvernance.models import Reunion
+from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 
 from .forms import EvenementMembreForm, ProjetMembreForm
@@ -67,6 +68,30 @@ def mes_projets(request):
     )
 
 
+def _appliquer_images(projet, form, request):
+    """Applique au projet les opérations d'images issues du formulaire.
+
+    Affiche : remplacée si un fichier est fourni, sinon retirée si la case est
+    cochée. Galerie : ajout d'une image (si fournie) puis retrait des images
+    cochées. Le retrait est borné au projet côté service (anti-IDOR)."""
+    donnees = form.cleaned_data
+    if donnees.get("affiche_fichier"):
+        spectacles_services.definir_affiche(
+            projet, donnees["affiche_fichier"], donnees["affiche_alt"], cree_par=request.user
+        )
+    elif donnees.get("retirer_affiche"):
+        spectacles_services.retirer_affiche(projet)
+
+    if donnees.get("galerie_fichier"):
+        spectacles_services.ajouter_image_galerie(
+            projet, donnees["galerie_fichier"], donnees["galerie_alt"], cree_par=request.user
+        )
+
+    a_retirer = [i for i in request.POST.getlist("supprimer_image") if i.isdigit()]
+    if a_retirer:
+        spectacles_services.retirer_images_galerie(projet, a_retirer)
+
+
 @login_required
 def creer_projet(request):
     """Création d'un projet par un membre : enregistré en brouillon, puis
@@ -79,12 +104,13 @@ def creer_projet(request):
         return redirect("espace_membre:tableau_de_bord")
 
     if request.method == "POST":
-        form = ProjetMembreForm(request.POST)
+        form = ProjetMembreForm(request.POST, request.FILES)
         if form.is_valid():
             projet = form.save(commit=False)
             projet.cree_par = request.user
             projet.save()  # pk nécessaire avant d'ajouter le M2M porteurs
             projet.porteurs.add(membre)
+            _appliquer_images(projet, form, request)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet créé et soumis à validation du bureau.")
@@ -121,9 +147,10 @@ def editer_projet(request, pk):
                 "Ce projet est en cours de validation ou publié : il n'est plus modifiable ici.",
             )
             return redirect("espace_membre:editer_projet", pk=projet.pk)
-        form = ProjetMembreForm(request.POST, instance=projet)
+        form = ProjetMembreForm(request.POST, request.FILES, instance=projet)
         if form.is_valid():
             form.save()
+            _appliquer_images(projet, form, request)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet soumis à validation du bureau.")

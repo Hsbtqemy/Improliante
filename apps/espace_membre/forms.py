@@ -10,16 +10,50 @@ from apps.spectacles.models import Spectacle
 # Format des <input type="datetime-local"> (sans fuseau ni secondes).
 _FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
 
+# Taille maximale d'une image téléversée (5 Mio). Le type « réel » est validé
+# par `ImageField` (Pillow décode le fichier) ; on borne ici le poids.
+TAILLE_MAX_IMAGE = 5 * 1024 * 1024
+
 
 class ProjetMembreForm(forms.ModelForm):
     """Édition par un membre de la fiche de SON projet (perso ou collectif).
 
-    Ne sont exposés que les champs descriptifs. La modération, la traçabilité
-    (`cree_par`, `valide_par`) et le rattachement aux `porteurs` sont pilotés
-    par la vue, jamais par l'utilisateur. Le `type_portage` est restreint à
-    « personnel » / « collectif » : un membre ne peut pas estampiller son
-    projet comme une production de l'association.
+    Champs descriptifs + gestion des images (affiche et galerie). La modération,
+    la traçabilité (`cree_par`, `valide_par`) et le rattachement aux `porteurs`
+    sont pilotés par la vue, jamais par l'utilisateur. Le `type_portage` est
+    restreint à « personnel » / « collectif » : un membre ne peut pas estampiller
+    son projet comme une production de l'association.
+
+    Les images ne sont pas des champs du modèle `Spectacle` : elles créent des
+    `Media` (avec `alt` obligatoire) traités par la vue via le service
+    `apps.spectacles.services`. L'affiche peut être remplacée ou retirée ; on
+    n'ajoute qu'une image de galerie à la fois (une par soumission), ce qui
+    garantit un `alt` par image.
     """
+
+    affiche_fichier = forms.ImageField(
+        label="Affiche (image principale)",
+        required=False,
+        help_text="Image mise en avant sur la fiche publique (JPG/PNG).",
+    )
+    affiche_alt = forms.CharField(
+        label="Texte alternatif de l'affiche",
+        required=False,
+        max_length=255,
+        help_text="Décrit l'affiche pour les lecteurs d'écran (obligatoire si vous ajoutez une affiche).",
+    )
+    retirer_affiche = forms.BooleanField(label="Retirer l'affiche actuelle", required=False)
+
+    galerie_fichier = forms.ImageField(
+        label="Ajouter une image à la galerie",
+        required=False,
+    )
+    galerie_alt = forms.CharField(
+        label="Texte alternatif de cette image",
+        required=False,
+        max_length=255,
+        help_text="Obligatoire si vous ajoutez une image.",
+    )
 
     class Meta:
         model = Spectacle
@@ -50,6 +84,42 @@ class ProjetMembreForm(forms.ModelForm):
             if valeur in portages_autorises
         ]
         self.fields["type_portage"].initial = Spectacle.TypePortage.PERSONNEL
+
+    def champs_descriptifs(self):
+        """Champs textuels du modèle, pour un rendu séparé des champs image."""
+        return [self[nom] for nom in self.Meta.fields]
+
+    def champ_affiche(self):
+        """Champs de saisie de l'affiche (fichier + alt) pour le template."""
+        return [self["affiche_fichier"], self["affiche_alt"]]
+
+    def champ_galerie(self):
+        """Champs d'ajout d'une image de galerie (fichier + alt)."""
+        return [self["galerie_fichier"], self["galerie_alt"]]
+
+    @staticmethod
+    def _valider_taille(fichier) -> None:
+        if fichier and fichier.size > TAILLE_MAX_IMAGE:
+            raise forms.ValidationError("Image trop volumineuse (5 Mio maximum).")
+
+    def clean_affiche_fichier(self):
+        fichier = self.cleaned_data.get("affiche_fichier")
+        self._valider_taille(fichier)
+        return fichier
+
+    def clean_galerie_fichier(self):
+        fichier = self.cleaned_data.get("galerie_fichier")
+        self._valider_taille(fichier)
+        return fichier
+
+    def clean(self):
+        """`alt` obligatoire dès qu'une image est fournie (accessibilité)."""
+        cleaned = super().clean()
+        if cleaned.get("affiche_fichier") and not (cleaned.get("affiche_alt") or "").strip():
+            self.add_error("affiche_alt", "Le texte alternatif de l'affiche est obligatoire.")
+        if cleaned.get("galerie_fichier") and not (cleaned.get("galerie_alt") or "").strip():
+            self.add_error("galerie_alt", "Le texte alternatif de l'image est obligatoire.")
+        return cleaned
 
 
 class EvenementMembreForm(forms.ModelForm):
