@@ -112,5 +112,6 @@ pouvoirs). `coeur.Signataire` (référentiel de signataires habilités/délégat
 - **Déploiement VPS** : Nginx + Gunicorn (systemd) + PostgreSQL + Certbot +
   webhook GitHub. Installer les libs natives de WeasyPrint (`libpango`, `libcairo`,
   `libgdk-pixbuf`, `libffi`). Fichiers prêts dans `deploiement/`.
-- Pistes v2/v3 (hors périmètre sans demande) : connecteur Nakala, relances auto,
-  newsletter, billetterie, exports Excel avancés (openpyxl).
+- Pistes v2/v3 (hors périmètre sans demande, cf. cahier §15) : relances
+  automatiques, interfaces sur mesure (explorateur de fichiers, éditeur de
+  facture, dashboard budget), newsletter, billetterie, gestion des bénévoles.
