@@ -11,13 +11,15 @@
 
   <section aria-labelledby="titre-membres">
     <h2 id="titre-membres">Nos membres</h2>
-    {% if membres %}
-      {# Accordéon horizontal (100% CSS). Mobile : cartes empilées, tout visible.
-         Desktop : panneaux ; au survol/focus, le panneau s'élargit et révèle la
-         fiche. Le nom est un lien toujours focusable → déclenche `:focus-within`
-         au clavier. #}
+
+    {% if vedette %}
+      <h3>À la une</h3>
+      {# Accordéon horizontal (100% CSS) alimenté par la vedette (quelques
+         profils). Mobile : cartes empilées. Desktop : au survol/focus, le
+         panneau s'élargit et révèle la fiche. Le nom est un lien toujours
+         focusable → déclenche `:focus-within` au clavier. #}
       <ul class="membres-accordeon">
-        {% for membre in membres %}
+        {% for membre in vedette %}
           <li class="panneau">
             {% if membre.photo and membre.photo.fichier %}
               <img
@@ -28,9 +30,9 @@
               />
             {% endif %}
             <div class="panneau__contenu">
-              <h3 class="panneau__nom">
+              <h4 class="panneau__nom">
                 <a href="{% url 'vitrine:membre' membre.pk %}">{{ membre }}</a>
-              </h3>
+              </h4>
               <div class="panneau__details">
                 {% if membre.role_public %}
                   <p class="panneau__role">{{ membre.role_public }}</p>
@@ -51,6 +53,15 @@
               </div>
             </div>
           </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if membres %}
+      <h3>Tous les membres</h3>
+      <ul class="cartes">
+        {% for membre in membres %}
+          {% include "vitrine/_carte_membre.html" %}
         {% endfor %}
       </ul>
     {% else %}

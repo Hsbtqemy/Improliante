@@ -25,6 +25,55 @@ from apps.spectacles.models import Spectacle
 Statut = Moderation.StatutModeration
 
 
+# --- Flux Instagram de l'asso (rendu serveur, dégradation) -----------------
+
+
+def test_instagram_vide_sans_jeton():
+    from django.core.cache import cache
+    from django.test import override_settings
+
+    from apps.common.instagram import derniers_posts_instagram
+
+    cache.clear()
+    with override_settings(INSTAGRAM_TOKEN=""):
+        assert derniers_posts_instagram() == []
+
+
+def test_instagram_renvoie_les_posts_en_cache():
+    from unittest.mock import patch
+
+    from django.core.cache import cache
+    from django.test import override_settings
+
+    from apps.common.instagram import derniers_posts_instagram
+
+    cache.clear()
+    faux = [{"id": "1", "image": "https://cdn/x.jpg", "permalink": "https://insta/p/1"}]
+    with override_settings(INSTAGRAM_TOKEN="jeton-factice"):
+        with patch("apps.common.instagram._recuperer", return_value=faux) as mock:
+            assert derniers_posts_instagram(8) == faux
+            derniers_posts_instagram(8)  # 2e appel : servi par le cache
+    assert mock.call_count == 1  # une seule requête réseau
+
+
+def test_instagram_normalise_video_utilise_thumbnail():
+    from apps.common.instagram import _normaliser
+
+    n = _normaliser(
+        {
+            "id": "2",
+            "media_type": "VIDEO",
+            "media_url": "video.mp4",
+            "thumbnail_url": "miniature.jpg",
+            "permalink": "https://insta/p/2",
+            "caption": "Vidéo de répétition",
+        }
+    )
+    assert n["image"] == "miniature.jpg"
+    assert n["permalink"] == "https://insta/p/2"
+    assert n["legende"] == "Vidéo de répétition"
+
+
 def test_soumettre_un_brouillon_le_passe_en_propose(db):
     projet = Spectacle.objects.create(titre="Nouveau", statut_moderation=Statut.BROUILLON)
     soumettre_a_moderation(projet)

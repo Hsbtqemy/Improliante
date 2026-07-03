@@ -238,6 +238,18 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@improliante.
 CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
 
 
+# --- Instagram (flux du compte de l'association) ----------------------------
+# Optionnel : affiche les derniers posts du compte Instagram de l'ASSO (pas des
+# membres) sur l'accueil. Rendu CÔTÉ SERVEUR — le jeton est un SECRET et ne part
+# JAMAIS au navigateur. Si INSTAGRAM_TOKEN est vide, aucun flux (dégradation).
+# Obtention du jeton et des identifiants : cf. docs/instagram.md.
+INSTAGRAM_TOKEN = os.environ.get("INSTAGRAM_TOKEN", "")
+INSTAGRAM_USER_ID = os.environ.get("INSTAGRAM_USER_ID", "me")
+INSTAGRAM_API_BASE = os.environ.get("INSTAGRAM_API_BASE", "https://graph.instagram.com")
+INSTAGRAM_CACHE_TTL = int(os.environ.get("INSTAGRAM_CACHE_TTL", "1800"))  # secondes
+INSTAGRAM_TIMEOUT = int(os.environ.get("INSTAGRAM_TIMEOUT", "5"))  # secondes
+
+
 # --- Durcissement en production --------------------------------------------
 # Actif uniquement hors debug. `manage.py check --deploy` doit passer en prod.
 

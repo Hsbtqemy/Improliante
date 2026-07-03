@@ -40,4 +40,31 @@
       Voir tous les spectacles
     </a>
   </p>
+
+  {% if instagram %}
+    {# Flux du compte Instagram de l'ASSO, récupéré côté serveur (le jeton reste
+       secret). Ne s'affiche que si un jeton est configuré. #}
+    <section aria-labelledby="titre-instagram">
+      <h2 id="titre-instagram">Suivez-nous sur Instagram</h2>
+      <ul class="insta-grille">
+        {% for post in instagram %}
+          <li class="insta-grille__item">
+            <a href="{{ post.permalink }}" target="_blank" rel="noopener nofollow"
+               title="{{ post.legende|default:'Publication Instagram' }}">
+              {% if post.image %}
+                <img
+                  src="{{ post.image }}"
+                  alt="{{ post.legende|default:'Publication Instagram' }}"
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                />
+              {% else %}
+                <span>Voir la publication</span>
+              {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 {% endblock %}

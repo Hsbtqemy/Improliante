@@ -15,7 +15,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.agenda.models import Evenement, ImageEvenement
-from apps.coeur.models import Membre
+from apps.coeur.models import LienReseau, Membre
+from apps.coeur.services import membres_en_vedette
+from apps.common.instagram import derniers_posts_instagram
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
 
@@ -40,6 +42,7 @@ def accueil(request):
                 Spectacle.StatutProjet.EN_REPETITION,
             ]
         )[:6],
+        "instagram": derniers_posts_instagram(8),
     }
     return render(request, "vitrine/accueil.html", contexte)
 
@@ -142,27 +145,59 @@ def agenda_ical(request):
 
 
 def association(request):
-    """Présentation de l'association et de ses membres publics."""
+    """Présentation de l'association et de ses membres publics.
+
+    Deux niveaux : une vedette (accordéon) de quelques membres — « à la une »
+    puis complétée au hasard — et la grille exhaustive de tous les visibles."""
     membres = (
         Membre.objects.filter(visible_sur_site=True)
         .select_related("user", "photo")
         .order_by("user__last_name", "user__first_name")
     )
-    return render(request, "vitrine/association.html", {"membres": membres})
+    return render(
+        request,
+        "vitrine/association.html",
+        {"membres": membres, "vedette": membres_en_vedette()},
+    )
+
+
+def handle_bluesky(url: str) -> str:
+    """Extrait le handle Bluesky d'une URL de profil.
+
+    `https://bsky.app/profile/alice.bsky.social` → `alice.bsky.social`. Tolère
+    une entrée déjà réduite au handle (avec ou sans « @ »). Le handle sert de
+    paramètre `actor` à l'API publique Bluesky (côté navigateur, au clic)."""
+    url = (url or "").strip().rstrip("/")
+    if "/profile/" in url:
+        return url.rsplit("/profile/", 1)[-1]
+    return url.lstrip("@")
 
 
 def detail_membre(request, pk: int):
-    """Fiche publique d'un membre (404 s'il n'est pas visible sur le site)."""
+    """Fiche publique d'un membre (404 s'il n'est pas visible sur le site).
+
+    Deux listes distinctes de spectacles publiés : ceux que le membre **porte**
+    et ses **collaborations** (mise en scène ou distribution sans être porteur).
+    Si le membre a un lien Bluesky, on passe son handle : la fiche propose alors
+    de charger ses derniers posts (au clic, côté navigateur — cf. RGPD)."""
     membre = get_object_or_404(
         Membre.objects.select_related("user", "photo"), pk=pk, visible_sur_site=True
     )
-    projets = (
-        Spectacle.objects.filter(statut_moderation=_PUBLIE)
-        .filter(Q(porteurs=membre) | Q(metteur_en_scene=membre) | Q(distribution__membre=membre))
+    publies = Spectacle.objects.filter(statut_moderation=_PUBLIE)
+    spectacles_portes = publies.filter(porteurs=membre).distinct().order_by("titre")
+    collaborations = (
+        publies.filter(Q(metteur_en_scene=membre) | Q(distribution__membre=membre))
+        .exclude(porteurs=membre)
         .distinct()
         .order_by("titre")
     )
-    contexte = {"membre": membre, "projets": projets}
+    lien_bsky = membre.liens_reseaux.filter(reseau=LienReseau.Reseau.BLUESKY).first()
+    contexte = {
+        "membre": membre,
+        "spectacles_portes": spectacles_portes,
+        "collaborations": collaborations,
+        "bluesky_handle": handle_bluesky(lien_bsky.url) if lien_bsky else "",
+    }
     return render(request, "vitrine/membre_detail.html", contexte)
 
 

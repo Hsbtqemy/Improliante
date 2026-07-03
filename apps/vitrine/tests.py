@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -12,6 +13,7 @@ from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
 from apps.vitrine.models import MessageContact
+from apps.vitrine.views import handle_bluesky
 
 
 @pytest.fixture
@@ -129,6 +131,16 @@ def test_association_montre_uniquement_les_membres_visibles(client, db):
     assert "MembreCache" not in corps
 
 
+def test_association_affiche_vedette_et_grille(client, db):
+    _membre("MembreA", visible=True)
+    reponse = client.get("/association/")
+    corps = reponse.content.decode()
+    assert "À la une" in corps  # section vedette (accordéon)
+    assert "Tous les membres" in corps  # grille exhaustive
+    assert "MembreA" in corps
+    assert all(m.visible_sur_site for m in reponse.context["vedette"])
+
+
 def test_membre_detail_404_si_non_visible(client, db):
     membre = _membre("Secret", visible=False)
     assert client.get(f"/membres/{membre.pk}/").status_code == 404
@@ -142,6 +154,78 @@ def test_membre_detail_liste_ses_projets(client, db):
     spectacle.porteurs.add(membre)
     corps = client.get(f"/membres/{membre.pk}/").content.decode()
     assert "ProjetDuMembre" in corps
+
+
+def test_membre_detail_separe_spectacles_et_collaborations(client, db):
+    """Un spectacle porté va dans « Spectacles » ; une mise en scène / distribution
+    sans être porteur va dans « Collaborations »."""
+    membre = _membre("Artiste", visible=True)
+    porte = Spectacle.objects.create(
+        titre="SpectaclePorte", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    porte.porteurs.add(membre)
+    collab = Spectacle.objects.create(
+        titre="SpectacleCollab",
+        statut_moderation=Spectacle.StatutModeration.PUBLIE,
+        metteur_en_scene=membre,
+    )
+
+    reponse = client.get(f"/membres/{membre.pk}/")
+    corps = reponse.content.decode()
+    assert "Spectacles" in corps and "Collaborations" in corps
+    assert list(reponse.context["spectacles_portes"]) == [porte]
+    assert list(reponse.context["collaborations"]) == [collab]
+
+
+def test_handle_bluesky_extrait_le_handle():
+    assert handle_bluesky("https://bsky.app/profile/alice.bsky.social") == "alice.bsky.social"
+    assert handle_bluesky("https://bsky.app/profile/alice.bsky.social/") == "alice.bsky.social"
+    assert handle_bluesky("@alice.bsky.social") == "alice.bsky.social"
+    assert handle_bluesky("") == ""
+
+
+def test_fiche_membre_propose_bluesky_au_clic(client, db):
+    membre = _membre("AvecBsky", visible=True)
+    LienReseau.objects.create(
+        membre=membre,
+        reseau=LienReseau.Reseau.BLUESKY,
+        url="https://bsky.app/profile/artiste.bsky.social",
+    )
+    reponse = client.get(f"/membres/{membre.pk}/")
+    corps = reponse.content.decode()
+    assert reponse.context["bluesky_handle"] == "artiste.bsky.social"
+    assert 'data-bluesky-handle="artiste.bsky.social"' in corps
+    assert "Voir les derniers posts" in corps  # bouton click-to-load
+    # RGPD : aucune requête vers Bluesky dans le HTML initial (chargement au clic).
+    assert "public.api.bsky.app" not in corps
+
+
+def test_fiche_membre_sans_bluesky_pas_d_encart(client, db):
+    membre = _membre("SansBsky", visible=True)
+    reponse = client.get(f"/membres/{membre.pk}/")
+    assert reponse.context["bluesky_handle"] == ""
+    assert "bluesky-feed" not in reponse.content.decode()
+
+
+def test_accueil_affiche_instagram_si_configure(client, db):
+    faux = [
+        {
+            "id": "1",
+            "image": "https://cdn/x.jpg",
+            "permalink": "https://insta/p/1",
+            "legende": "Salut",
+        }
+    ]
+    with patch("apps.vitrine.views.derniers_posts_instagram", return_value=faux):
+        corps = client.get("/").content.decode()
+    assert "Suivez-nous sur Instagram" in corps
+    assert "https://insta/p/1" in corps
+
+
+def test_accueil_sans_instagram_pas_de_section(client, db):
+    with patch("apps.vitrine.views.derniers_posts_instagram", return_value=[]):
+        corps = client.get("/").content.decode()
+    assert "Suivez-nous sur Instagram" not in corps
 
 
 def test_membre_detail_affiche_site_et_reseaux(client, db):

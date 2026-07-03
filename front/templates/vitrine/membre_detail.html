@@ -1,46 +1,90 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ membre }} — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <article class="fiche">
+  <article class="fiche fiche-membre">
     <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>
 
     <h1>{{ membre }}</h1>
     {% if membre.role_public %}
-      <p class="fiche__meta">{{ membre.role_public }}</p>
+      <p class="fiche-membre__role">{{ membre.role_public }}</p>
     {% endif %}
 
-    {% if membre.photo and membre.photo.fichier %}
-      <img
-        class="fiche__affiche"
-        src="{{ membre.photo.fichier.url }}"
-        alt="{{ membre.photo.alt }}"
-      />
-    {% endif %}
+    <div class="fiche-membre__corps">
+      <div class="fiche-membre__col-photo">
+        {% if membre.photo and membre.photo.fichier %}
+          <img
+            class="fiche-membre__photo"
+            src="{{ membre.photo.fichier.url }}"
+            alt="{{ membre.photo.alt }}"
+          />
+        {% endif %}
+        {% if membre.site_web or membre.liens_reseaux.all %}
+          <nav class="fiche__liens" aria-label="Liens de {{ membre }}">
+            <ul>
+              {% if membre.site_web %}
+                <li><a href="{{ membre.site_web }}" rel="noopener nofollow" target="_blank">Site web</a></li>
+              {% endif %}
+              {% for lien in membre.liens_reseaux.all %}
+                <li><a href="{{ lien.url }}" rel="noopener nofollow" target="_blank">{{ lien.nom_affiche }}</a></li>
+              {% endfor %}
+            </ul>
+          </nav>
+        {% endif %}
+      </div>
 
-    {% if membre.bio %}{{ membre.bio|linebreaks }}{% endif %}
+      <div class="fiche-membre__col-parcours">
+        {% if membre.bio %}
+          <div class="fiche-membre__bio">{{ membre.bio|linebreaks }}</div>
+        {% endif %}
 
-    {% if membre.site_web or membre.liens_reseaux.all %}
-      <nav class="fiche__liens" aria-label="Liens de {{ membre }}">
-        <ul>
-          {% if membre.site_web %}
-            <li><a href="{{ membre.site_web }}" rel="noopener nofollow" target="_blank">Site web</a></li>
-          {% endif %}
-          {% for lien in membre.liens_reseaux.all %}
-            <li><a href="{{ lien.url }}" rel="noopener nofollow" target="_blank">{{ lien.nom_affiche }}</a></li>
-          {% endfor %}
-        </ul>
-      </nav>
-    {% endif %}
+        {% if spectacles_portes %}
+          <section aria-labelledby="titre-spectacles">
+            <h2 id="titre-spectacles">Spectacles</h2>
+            <ul class="cartes">
+              {% for spectacle in spectacles_portes %}
+                {% include "vitrine/_carte_spectacle.html" %}
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
 
-    {% if projets %}
-      <h2>Ses projets</h2>
-      <ul class="cartes">
-        {% for spectacle in projets %}
-          {% include "vitrine/_carte_spectacle.html" %}
-        {% endfor %}
-      </ul>
-    {% endif %}
+        {% if collaborations %}
+          <section aria-labelledby="titre-collaborations">
+            <h2 id="titre-collaborations">Collaborations</h2>
+            <ul class="cartes">
+              {% for spectacle in collaborations %}
+                {% include "vitrine/_carte_spectacle.html" %}
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+
+        {% if not spectacles_portes and not collaborations %}
+          <p>Aucun spectacle publié pour l'instant.</p>
+        {% endif %}
+
+        {% if bluesky_handle %}
+          {# Chargement au clic uniquement : aucune requête vers Bluesky tant que
+             l'internaute n'a pas cliqué (RGPD — pas de tiers non consenti). #}
+          <section class="bluesky-feed" aria-labelledby="titre-bluesky" data-bluesky-handle="{{ bluesky_handle }}">
+            <h2 id="titre-bluesky">Bluesky</h2>
+            <p class="bluesky-feed__compte">@{{ bluesky_handle }}</p>
+            <button type="button" class="lien-bouton" data-bluesky-charger>
+              Voir les derniers posts
+            </button>
+            <div class="bluesky-feed__posts" aria-live="polite"></div>
+          </section>
+        {% endif %}
+      </div>
+    </div>
   </article>
+{% endblock %}
+
+{% block scripts %}
+  {% if bluesky_handle %}
+    <script src="{% static 'js/bluesky.js' %}"></script>
+  {% endif %}
 {% endblock %}

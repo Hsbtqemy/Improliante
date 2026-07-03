@@ -8,9 +8,9 @@
       loading="lazy"
     />
   {% endif %}
-  <h3 class="carte__titre">
+  <h4 class="carte__titre">
     <a href="{% url 'vitrine:membre' membre.pk %}">{{ membre }}</a>
-  </h3>
+  </h4>
   {% if membre.role_public %}
     <p class="carte__meta">{{ membre.role_public }}</p>
   {% endif %}

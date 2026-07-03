@@ -309,6 +309,103 @@ h2 {
   color: var(--couleur-muet);
 }
 
+/* Fiche membre : portrait à gauche, parcours (spectacles / collaborations) à
+   droite. Mobile : empilé. Desktop (≥48rem) : deux colonnes, photo sticky. */
+.fiche-membre__role {
+  color: var(--couleur-muet);
+  font-size: 1.1rem;
+  margin-top: 0;
+}
+.fiche-membre__corps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.fiche-membre__photo {
+  width: 100%;
+  height: auto;
+  border-radius: var(--rayon);
+}
+.fiche-membre__col-photo .fiche__liens {
+  margin-top: 1rem;
+}
+@media (min-width: 48rem) {
+  .fiche-membre__corps {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .fiche-membre__col-photo {
+    flex: 0 0 16rem;
+    position: sticky;
+    top: 1rem;
+  }
+  .fiche-membre__col-parcours {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Encart Bluesky (fiche membre) — posts chargés au clic */
+.bluesky-feed {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bordure);
+}
+.bluesky-feed__compte {
+  color: var(--couleur-muet);
+  margin-top: 0;
+}
+.bluesky-feed__liste {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.bluesky-feed__post {
+  padding: 0.75rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.bluesky-feed__texte {
+  margin: 0 0 0.5rem;
+  white-space: pre-wrap; /* préserve les retours à la ligne des posts */
+}
+
+/* Grille Instagram (accueil) — flux du compte de l'asso */
+.insta-grille {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 40rem) {
+  .insta-grille {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.insta-grille__item {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+}
+.insta-grille__item a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.insta-grille__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* Pied de page */
 .site-pied {
   margin-top: 3rem;
