@@ -195,6 +195,18 @@ def basculer_visibilite_membre(request, pk):
 
 
 @bureau_requis
+@require_POST
+def basculer_mise_en_avant_membre(request, pk):
+    """Met/retire un membre « à la une » (vedette accordéon de la page asso)."""
+    membre = get_object_or_404(Membre, pk=pk)
+    membre.mis_en_avant = not membre.mis_en_avant
+    membre.save(update_fields=["mis_en_avant", "date_modification"])
+    etat = "à la une" if membre.mis_en_avant else "retiré de la une"
+    messages.success(request, f"{membre} est désormais {etat}.")
+    return redirect("backoffice:liste_membres")
+
+
+@bureau_requis
 def creer_membre(request):
     """Crée un compte membre (Utilisateur + Membre) et produit un lien
     d'activation à transmettre au nouveau membre : il y choisit son mot de

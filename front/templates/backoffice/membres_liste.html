@@ -24,6 +24,7 @@
         <th scope="col">Compte</th>
         <th scope="col">Actif</th>
         <th scope="col">Site public</th>
+        <th scope="col">À la une</th>
       </tr>
     </thead>
     <tbody>
@@ -52,9 +53,22 @@
               </button>
             </form>
           </td>
+          <td>
+            {% if membre.mis_en_avant %}
+              <span class="badge badge--publie">À la une</span>
+            {% else %}
+              <span class="badge">Non</span>
+            {% endif %}
+            <form method="post" action="{% url 'backoffice:basculer_mise_en_avant_membre' membre.pk %}" style="display: inline">
+              {% csrf_token %}
+              <button type="submit" class="bouton-texte">
+                {% if membre.mis_en_avant %}Retirer{% else %}Mettre{% endif %}
+              </button>
+            </form>
+          </td>
         </tr>
       {% empty %}
-        <tr><td colspan="5">Aucun membre pour l'instant.</td></tr>
+        <tr><td colspan="6">Aucun membre pour l'instant.</td></tr>
       {% endfor %}
     </tbody>
   </table>

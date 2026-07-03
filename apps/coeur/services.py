@@ -17,6 +17,28 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from .models import Membre, Utilisateur
 
+# Taille de la vedette (accordéon) sur la page association. L'accordéon ne scale
+# pas au-delà de ~6-8 panneaux : on borne volontairement.
+NB_VEDETTE = 6
+
+
+def membres_en_vedette(nombre: int = NB_VEDETTE) -> list[Membre]:
+    """Membres à afficher en vedette (accordéon) sur la page association.
+
+    Les membres « à la une » visibles d'abord, complétés au hasard par d'autres
+    membres visibles jusqu'à `nombre`, pour garder la vedette pleine et
+    changeante même si peu de membres sont explicitement mis en avant. Bornée à
+    `nombre` (l'accordéon ne scale pas au-delà de ~6-8)."""
+    visibles = Membre.objects.filter(visible_sur_site=True).select_related("user", "photo")
+    vedette = list(visibles.filter(mis_en_avant=True).order_by("?")[:nombre])
+    manque = nombre - len(vedette)
+    if manque > 0:
+        deja = [m.pk for m in vedette]
+        vedette += list(
+            visibles.filter(mis_en_avant=False).exclude(pk__in=deja).order_by("?")[:manque]
+        )
+    return vedette
+
 
 @transaction.atomic
 def creer_compte_membre(

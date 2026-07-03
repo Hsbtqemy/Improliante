@@ -62,6 +62,11 @@ class Membre(models.Model):
         default=False,
         help_text="La fiche n'apparaît sur le site public que si cette case est cochée.",
     )
+    mis_en_avant = models.BooleanField(
+        "à la une",
+        default=False,
+        help_text="Membre mis en avant dans la vedette (accordéon) de la page association.",
+    )
     actif = models.BooleanField("membre actif", default=True)
     date_adhesion = models.DateField(
         "date d'entrée dans l'association",

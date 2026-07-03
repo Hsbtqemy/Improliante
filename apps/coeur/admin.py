@@ -21,8 +21,8 @@ class LienReseauInline(admin.TabularInline):
 
 @admin.register(Membre)
 class MembreAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "actif", "visible_sur_site", "date_adhesion")
-    list_filter = ("actif", "visible_sur_site")
+    list_display = ("__str__", "actif", "visible_sur_site", "mis_en_avant", "date_adhesion")
+    list_filter = ("actif", "visible_sur_site", "mis_en_avant")
     search_fields = (
         "user__first_name",
         "user__last_name",

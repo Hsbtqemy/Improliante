@@ -19,6 +19,11 @@ urlpatterns = [
         views.basculer_visibilite_membre,
         name="basculer_visibilite_membre",
     ),
+    path(
+        "bureau/membres/<int:pk>/a-la-une/",
+        views.basculer_mise_en_avant_membre,
+        name="basculer_mise_en_avant_membre",
+    ),
     path("bureau/moderation/", views.file_moderation, name="file_moderation"),
     path("bureau/moderation/projet/<int:pk>/", views.moderer_projet, name="moderer_projet"),
     path(

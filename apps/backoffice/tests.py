@@ -168,6 +168,21 @@ def test_bascule_visibilite_reservee_au_bureau_et_en_post(client, db):
     assert client.get(url).status_code == 405  # méthode non autorisée
 
 
+def test_bureau_bascule_la_mise_en_avant(client, db):
+    membre = _membre("vedette_ou_non").membre
+    assert membre.mis_en_avant is False
+    url = f"/bureau/membres/{membre.pk}/a-la-une/"
+
+    client.force_login(_staff())
+    client.post(url)
+    membre.refresh_from_db()
+    assert membre.mis_en_avant is True
+
+    client.post(url)
+    membre.refresh_from_db()
+    assert membre.mis_en_avant is False
+
+
 # --- Tableau de bord bureau -------------------------------------------------
 
 
