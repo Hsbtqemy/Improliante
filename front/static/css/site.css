@@ -406,6 +406,37 @@ h2 {
   object-fit: cover;
 }
 
+/* Lignes de facture / devis (formset dynamique + totaux en direct) */
+.totaux__label {
+  text-align: right;
+}
+.totaux td {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ligne-facturation--supprimee {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.ligne-facturation td input,
+.ligne-facturation td select {
+  width: 100%;
+  min-width: 4rem;
+}
+
+/* Création d'un client à la volée (devis / facture) */
+.nouveau-client {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+}
+.nouveau-client legend {
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+
 /* Pied de page */
 .site-pied {
   margin-top: 3rem;

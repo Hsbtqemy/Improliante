@@ -1,0 +1,22 @@
+{% comment %}
+Fieldset « Nouveau client » révélé quand le <select> client vaut « __nouveau__ ».
+Rendu `hidden disabled` par défaut : sans JS il n'est ni visible ni soumis (les
+champs `disabled` ne partent pas dans le POST) — donc pas de blocage de
+validation. JS l'active/le révèle quand l'option est choisie (client-inline.js).
+Attend `client_form` (préfixe « nouveau_client ») et `client_nouveau` (bool).
+{% endcomment %}
+<fieldset
+  id="nouveau-client"
+  class="nouveau-client"
+  data-ouvert="{% if client_nouveau %}1{% else %}0{% endif %}"
+  {% if not client_nouveau %}hidden disabled{% endif %}
+>
+  <legend>Nouveau client</legend>
+  {% for field in client_form %}
+    <p class="champ">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% for e in field.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
+    </p>
+  {% endfor %}
+</fieldset>

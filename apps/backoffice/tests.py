@@ -478,6 +478,91 @@ def test_creer_facture_avec_signataire(client, db):
     assert facture.signataire == sig
 
 
+def _lignes_post(donnees, lignes):
+    """Remplace les lignes du POST par `lignes` = [(désignation, qté, PU, TVA)]."""
+    for cle in list(donnees):
+        if cle.startswith("lignes-") and cle[len("lignes-")].isdigit():
+            del donnees[cle]
+    donnees["lignes-TOTAL_FORMS"] = str(len(lignes))
+    for i, (des, q, pu, tva) in enumerate(lignes):
+        donnees[f"lignes-{i}-designation"] = des
+        donnees[f"lignes-{i}-quantite"] = q
+        donnees[f"lignes-{i}-prix_unitaire_ht"] = pu
+        donnees[f"lignes-{i}-taux_tva"] = tva
+        donnees[f"lignes-{i}-ordre"] = str(i)
+    return donnees
+
+
+def test_creer_facture_avec_plusieurs_lignes(client, db):
+    client_facture = Client.objects.create(nom="Théâtre municipal")
+    client.force_login(_staff())
+    donnees = _lignes_post(
+        _donnees_facture(client_facture),
+        [
+            ("Atelier", "2", "100.00", "20.00"),  # 200 HT, 40 TVA
+            ("Représentation", "1", "500.00", "20.00"),  # 500 HT, 100 TVA
+            ("Défraiement", "3", "50.00", "0.00"),  # 150 HT, 0 TVA
+        ],
+    )
+    reponse = client.post("/bureau/factures/nouvelle/", donnees)
+    assert reponse.status_code == 302
+    facture = Facture.objects.get()
+    assert facture.lignes.count() == 3
+    assert facture.total_ht == Decimal("850.00")
+    assert facture.total_ttc == Decimal("990.00")  # 850 + 140 de TVA
+
+
+def _champs_nouveau_client(nom):
+    """Champs préfixés du fieldset « Nouveau client » (seul `nom` est requis)."""
+    base = {
+        "nom": nom,
+        "adresse": "",
+        "code_postal": "",
+        "ville": "",
+        "email": "",
+        "telephone": "",
+        "siret": "",
+        "numero_tva": "",
+    }
+    return {f"nouveau_client-{cle}": valeur for cle, valeur in base.items()}
+
+
+def test_creer_facture_cree_le_client_a_la_volee(client, db):
+    client.force_login(_staff())
+    donnees = _donnees_facture(Client.objects.create(nom="Ignoré"))
+    donnees["client"] = "__nouveau__"
+    donnees.update(_champs_nouveau_client("Compagnie du Ru"))
+    reponse = client.post("/bureau/factures/nouvelle/", donnees)
+    assert reponse.status_code == 302
+    nouveau = Client.objects.get(nom="Compagnie du Ru")
+    assert Facture.objects.get().client == nouveau
+
+
+def test_client_inline_annule_si_facture_invalide(client, db):
+    """Si le reste du formulaire est invalide, le client créé à la volée est
+    annulé (transaction) — pas de client orphelin."""
+    client.force_login(_staff())
+    donnees = _donnees_facture(Client.objects.create(nom="Ignoré"))
+    donnees["client"] = "__nouveau__"
+    donnees.update(_champs_nouveau_client("Éphémère"))
+    donnees["lignes-0-prix_unitaire_ht"] = "abc"  # ligne invalide → formset KO
+    reponse = client.post("/bureau/factures/nouvelle/", donnees)
+    assert reponse.status_code == 200  # formulaire réaffiché
+    assert not Client.objects.filter(nom="Éphémère").exists()  # rollback
+    assert not Facture.objects.exists()
+
+
+def test_creer_devis_cree_le_client_a_la_volee(client, db):
+    client.force_login(_staff())
+    donnees = _donnees_devis(Client.objects.create(nom="Ignoré"))
+    donnees["client"] = "__nouveau__"
+    donnees.update(_champs_nouveau_client("Scène Nomade"))
+    reponse = client.post("/bureau/devis/nouveau/", donnees)
+    assert reponse.status_code == 302
+    nouveau = Client.objects.get(nom="Scène Nomade")
+    assert Devis.objects.get().client == nouveau
+
+
 def test_valider_facture_attribue_le_numero(client, db):
     client_facture = Client.objects.create(nom="Théâtre municipal")
     facture = Facture.objects.create(client=client_facture)
@@ -586,6 +671,24 @@ def test_creer_devis_attribue_un_numero(client, db):
     devis = Devis.objects.get()
     assert devis.numero == "D2026-0001"
     assert devis.lignes.count() == 1
+
+
+def test_creer_devis_avec_plusieurs_lignes(client, db):
+    client_facture = Client.objects.create(nom="Théâtre municipal")
+    client.force_login(_staff())
+    donnees = _lignes_post(
+        _donnees_devis(client_facture),
+        [
+            ("Conception", "1", "300.00", "0.00"),
+            ("Répétitions", "4", "80.00", "0.00"),  # 320 HT
+            ("Représentation", "2", "250.00", "0.00"),  # 500 HT
+        ],
+    )
+    reponse = client.post("/bureau/devis/nouveau/", donnees)
+    assert reponse.status_code == 302
+    devis = Devis.objects.get()
+    assert devis.lignes.count() == 3
+    assert devis.total_ht == Decimal("1120.00")  # 300 + 320 + 500
 
 
 def test_changer_statut_devis(client, db):

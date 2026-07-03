@@ -100,7 +100,7 @@ LigneFactureFormSet = forms.inlineformset_factory(
     Facture,
     LigneFacture,
     fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
-    extra=1,
+    extra=4,  # plusieurs lignes vides d'emblée (utilisable même sans JavaScript)
     can_delete=True,
 )
 
@@ -128,7 +128,7 @@ LigneDevisFormSet = forms.inlineformset_factory(
     Devis,
     LigneDevis,
     fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
-    extra=1,
+    extra=4,  # plusieurs lignes vides d'emblée (utilisable même sans JavaScript)
     can_delete=True,
 )
 

@@ -1,0 +1,19 @@
+{% comment %}
+Une ligne de facture / devis. `ligne` = un formulaire du formset (ou
+`formset.empty_form` pour le gabarit d'ajout côté JS). Structure identique dans
+les deux cas pour que le clone JS colle au rendu serveur.
+{% endcomment %}
+<tr class="ligne-facturation">
+  {{ ligne.id }}
+  <td>
+    {{ ligne.designation }}
+    {% for e in ligne.designation.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
+  </td>
+  <td>{{ ligne.quantite }}</td>
+  <td>{{ ligne.prix_unitaire_ht }}</td>
+  <td>{{ ligne.taux_tva }}</td>
+  <td>{{ ligne.ordre }}</td>
+  <td class="ligne-facturation__suppr">
+    <label>{{ ligne.DELETE }} retirer</label>
+  </td>
+</tr>

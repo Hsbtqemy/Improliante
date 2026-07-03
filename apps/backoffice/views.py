@@ -13,7 +13,7 @@ from pathlib import PurePosixPath
 from django.contrib import messages
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -440,24 +440,57 @@ def editer_facture(request, pk):
     return _editer_facture(request, facture=facture)
 
 
+CLIENT_NOUVEAU = "__nouveau__"  # valeur du <select> pour « créer un client »
+
+
+def _client_depuis_post(post):
+    """Résout le client d'un devis/facture, avec création inline optionnelle.
+
+    Si le <select> vaut « __nouveau__ », crée le client à partir des champs
+    préfixés `nouveau_client-…` et renvoie un POST pointant vers lui. À appeler
+    DANS une transaction : le client créé est annulé si la suite est invalide
+    (pas de client orphelin). Renvoie (post, client_form, ok)."""
+    if post.get("client") != CLIENT_NOUVEAU:
+        return post, ClientForm(prefix="nouveau_client"), True
+    client_form = ClientForm(post, prefix="nouveau_client")
+    if not client_form.is_valid():
+        return post, client_form, False
+    nouveau = client_form.save()
+    post = post.copy()
+    post["client"] = str(nouveau.pk)
+    return post, client_form, True
+
+
 def _editer_facture(request, *, facture: Facture):
     """En-tête + lignes (formset) d'une facture brouillon."""
+    client_form = ClientForm(prefix="nouveau_client")
+    client_nouveau = False
     if request.method == "POST":
-        form = FactureForm(request.POST, instance=facture)
-        formset = LigneFactureFormSet(request.POST, instance=facture, prefix="lignes")
-        if form.is_valid() and formset.is_valid():
-            facture = form.save()
-            formset.instance = facture
-            formset.save()
-            messages.success(request, "Facture enregistrée.")
-            return redirect("backoffice:editer_facture", pk=facture.pk)
+        client_nouveau = request.POST.get("client") == CLIENT_NOUVEAU
+        with transaction.atomic():
+            post, client_form, client_ok = _client_depuis_post(request.POST)
+            form = FactureForm(post, instance=facture)
+            formset = LigneFactureFormSet(post, instance=facture, prefix="lignes")
+            if client_ok and form.is_valid() and formset.is_valid():
+                facture = form.save()
+                formset.instance = facture
+                formset.save()
+                messages.success(request, "Facture enregistrée.")
+                return redirect("backoffice:editer_facture", pk=facture.pk)
+            transaction.set_rollback(True)  # annule un client éventuellement créé
     else:
         form = FactureForm(instance=facture)
         formset = LigneFactureFormSet(instance=facture, prefix="lignes")
     return render(
         request,
         "backoffice/facture_form.html",
-        {"form": form, "formset": formset, "facture": facture if facture.pk else None},
+        {
+            "form": form,
+            "formset": formset,
+            "client_form": client_form,
+            "client_nouveau": client_nouveau,
+            "facture": facture if facture.pk else None,
+        },
     )
 
 
@@ -569,23 +602,35 @@ def editer_devis(request, pk):
 
 
 def _editer_devis(request, *, devis: Devis):
+    client_form = ClientForm(prefix="nouveau_client")
+    client_nouveau = False
     if request.method == "POST":
-        form = DevisForm(request.POST, instance=devis)
-        formset = LigneDevisFormSet(request.POST, instance=devis, prefix="lignes")
-        if form.is_valid() and formset.is_valid():
-            devis = form.save()
-            formset.instance = devis
-            formset.save()
-            numeroter_devis(devis)  # attribue un numéro s'il n'en a pas
-            messages.success(request, "Devis enregistré.")
-            return redirect("backoffice:editer_devis", pk=devis.pk)
+        client_nouveau = request.POST.get("client") == CLIENT_NOUVEAU
+        with transaction.atomic():
+            post, client_form, client_ok = _client_depuis_post(request.POST)
+            form = DevisForm(post, instance=devis)
+            formset = LigneDevisFormSet(post, instance=devis, prefix="lignes")
+            if client_ok and form.is_valid() and formset.is_valid():
+                devis = form.save()
+                formset.instance = devis
+                formset.save()
+                numeroter_devis(devis)  # attribue un numéro s'il n'en a pas
+                messages.success(request, "Devis enregistré.")
+                return redirect("backoffice:editer_devis", pk=devis.pk)
+            transaction.set_rollback(True)  # annule un client éventuellement créé
     else:
         form = DevisForm(instance=devis)
         formset = LigneDevisFormSet(instance=devis, prefix="lignes")
     return render(
         request,
         "backoffice/devis_form.html",
-        {"form": form, "formset": formset, "devis": devis if devis.pk else None},
+        {
+            "form": form,
+            "formset": formset,
+            "client_form": client_form,
+            "client_nouveau": client_nouveau,
+            "devis": devis if devis.pk else None,
+        },
     )
 
 
