@@ -461,6 +461,21 @@ def _client_depuis_post(post):
     return post, client_form, True
 
 
+def _renumeroter_lignes(formset):
+    """Attribue `ordre` selon la position d'affichage des lignes.
+
+    « Ordre » n'est plus une colonne saisie à la main : les lignes conservent
+    simplement l'ordre dans lequel elles apparaissent (position dans le formset),
+    les lignes supprimées étant exclues. À appeler après `formset.save()`."""
+    ordre = 0
+    for form in formset.forms:
+        if form.instance.pk and form not in formset.deleted_forms:
+            if form.instance.ordre != ordre:
+                form.instance.ordre = ordre
+                form.instance.save(update_fields=["ordre"])
+            ordre += 1
+
+
 def _editer_facture(request, *, facture: Facture):
     """En-tête + lignes (formset) d'une facture brouillon."""
     client_form = ClientForm(prefix="nouveau_client")
@@ -475,6 +490,7 @@ def _editer_facture(request, *, facture: Facture):
                 facture = form.save()
                 formset.instance = facture
                 formset.save()
+                _renumeroter_lignes(formset)
                 messages.success(request, "Facture enregistrée.")
                 return redirect("backoffice:editer_facture", pk=facture.pk)
             transaction.set_rollback(True)  # annule un client éventuellement créé
@@ -614,6 +630,7 @@ def _editer_devis(request, *, devis: Devis):
                 devis = form.save()
                 formset.instance = devis
                 formset.save()
+                _renumeroter_lignes(formset)
                 numeroter_devis(devis)  # attribue un numéro s'il n'en a pas
                 messages.success(request, "Devis enregistré.")
                 return redirect("backoffice:editer_devis", pk=devis.pk)

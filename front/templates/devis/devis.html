@@ -4,58 +4,86 @@
     <meta charset="utf-8" />
     <title>Devis {{ devis.numero }}</title>
     <style>
-      @page { size: A4; margin: 2cm; }
-      body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #111; }
-      h1 { font-size: 20px; margin: 0; }
-      .entete { display: flex; justify-content: space-between; }
-      .parties { display: flex; justify-content: space-between; margin: 20px 0; }
-      .bloc { width: 48%; }
-      .bloc h2 { font-size: 12px; text-transform: uppercase; color: #555; margin-bottom: 4px; }
-      table.lignes { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      table.lignes th, table.lignes td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
-      table.lignes th { background: #f0e7e9; }
-      td.num, th.num { text-align: right; }
-      .totaux { margin-top: 14px; width: 45%; margin-left: 55%; }
+      @page { size: A4; margin: 1.6cm; }
+      * { box-sizing: border-box; }
+      body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+
+      .bandeau { display: flex; justify-content: space-between; align-items: flex-start;
+                 background: #7a1f2b; color: #fff; padding: 14px 18px; border-radius: 5px; }
+      .bandeau__asso { font-size: 15px; font-weight: bold; }
+      .bandeau__coord { font-size: 9.5px; color: #f0d6da; margin-top: 3px; }
+      .bandeau__doc { text-align: right; }
+      .bandeau__type { font-size: 18px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+      .bandeau__num { font-size: 13px; margin-top: 2px; }
+      .bandeau__date { font-size: 9.5px; color: #f0d6da; margin-top: 2px; }
+
+      .parties { display: flex; margin: 18px 0 12px; }
+      .partie { width: 48%; border: 1px solid #ddd; border-radius: 5px; padding: 10px 12px; }
+      .partie + .partie { margin-left: 4%; }
+      .partie h2 { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #7a1f2b; margin: 0 0 5px; }
+      .partie strong { font-size: 12px; }
+
+      .meta { margin: 0 0 12px; color: #333; }
+
+      table.lignes { width: 100%; border-collapse: collapse; }
+      table.lignes th { background: #f3e7e9; color: #4a1219; text-align: left; padding: 7px 9px;
+                        font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #7a1f2b; }
+      table.lignes td { padding: 6px 9px; border-bottom: 1px solid #eee; }
+      table.lignes tbody tr:nth-child(even) { background: #faf7f8; }
+      .num { text-align: right; white-space: nowrap; }
+
+      .totaux { margin-top: 14px; margin-left: 54%; width: 46%; }
+      .totaux table { width: 100%; border-collapse: collapse; }
       .totaux td { padding: 4px 8px; }
-      .totaux .ttc { font-weight: bold; font-size: 14px; border-top: 2px solid #333; }
-      .conditions { margin-top: 24px; font-size: 11px; color: #333; }
-      .signature { margin-top: 30px; }
-      .signature img { max-height: 60px; }
+      .totaux .lbl { text-align: right; color: #555; }
+      .totaux .val { text-align: right; white-space: nowrap; }
+      .totaux .net td { border: 2px solid #7a1f2b; background: #f3e7e9; font-size: 13px;
+                        font-weight: bold; color: #7a1f2b; padding: 8px; }
+
+      .conditions { margin-top: 18px; font-size: 9.5px; color: #444; border-top: 1px solid #eee; padding-top: 8px; }
+
+      .bas { display: flex; justify-content: space-between; margin-top: 24px; }
+      .accord { width: 46%; border: 1px solid #999; border-radius: 5px; padding: 10px 12px; min-height: 90px; }
+      .accord h3 { font-size: 10px; margin: 0 0 4px; }
+      .accord p { font-size: 9.5px; color: #555; margin: 0; }
+      .signature { width: 46%; }
+      .signature img { max-height: 55px; }
     </style>
   </head>
   <body>
-    <div class="entete">
+    <div class="bandeau">
       <div>
-        <h1>Devis</h1>
-        <p><strong>{{ devis.numero }}</strong></p>
+        <div class="bandeau__asso">{{ asso.nom }}</div>
+        <div class="bandeau__coord">
+          {{ asso.adresse }}{% if asso.adresse %} · {% endif %}{{ asso.code_postal }} {{ asso.ville }}
+          {% if asso.numero_siret %}<br />SIRET {{ asso.numero_siret }}{% endif %}
+        </div>
       </div>
-      <div style="text-align: right;">
-        <strong>{{ asso.nom }}</strong><br />
-        {{ asso.adresse }}<br />
-        {{ asso.code_postal }} {{ asso.ville }}<br />
-        {% if asso.numero_siret %}SIRET : {{ asso.numero_siret }}{% endif %}
+      <div class="bandeau__doc">
+        <div class="bandeau__type">Devis</div>
+        <div class="bandeau__num">{{ devis.numero }}</div>
+        {% if devis.date %}<div class="bandeau__date">Établi le {{ devis.date|date:"d/m/Y" }}</div>{% endif %}
       </div>
     </div>
 
     <div class="parties">
-      <div class="bloc">
+      <div class="partie">
         <h2>Émetteur</h2>
-        {{ asso.nom }}<br />
-        {{ asso.adresse }}<br />
-        {{ asso.code_postal }} {{ asso.ville }}
+        <strong>{{ asso.nom }}</strong><br />
+        {{ asso.adresse }}<br />{{ asso.code_postal }} {{ asso.ville }}
+        {% if asso.numero_siret %}<br />SIRET : {{ asso.numero_siret }}{% endif %}
       </div>
-      <div class="bloc">
+      <div class="partie">
         <h2>Client</h2>
         <strong>{{ devis.client.nom }}</strong><br />
-        {{ devis.client.adresse }}<br />
-        {{ devis.client.code_postal }} {{ devis.client.ville }}
+        {{ devis.client.adresse }}<br />{{ devis.client.code_postal }} {{ devis.client.ville }}
+        {% if devis.client.siret %}<br />SIRET : {{ devis.client.siret }}{% endif %}
       </div>
     </div>
 
-    <p>
-      Date : {{ devis.date|date:"j F Y" }}
-      {% if devis.date_validite %} · Valable jusqu'au : {{ devis.date_validite|date:"j F Y" }}{% endif %}
-      {% if devis.objet %}<br />Objet : {{ devis.objet }}{% endif %}
+    <p class="meta">
+      {% if devis.date_validite %}<strong>Valable jusqu'au :</strong> {{ devis.date_validite|date:"d/m/Y" }}{% endif %}
+      {% if devis.objet %}{% if devis.date_validite %} · {% endif %}<strong>Objet :</strong> {{ devis.objet }}{% endif %}
     </p>
 
     <table class="lignes">
@@ -81,27 +109,35 @@
       </tbody>
     </table>
 
-    <table class="totaux">
-      <tr><td>Total HT</td><td class="num">{{ devis.total_ht|floatformat:2 }} €</td></tr>
-      <tr><td>TVA</td><td class="num">{{ devis.total_tva|floatformat:2 }} €</td></tr>
-      <tr class="ttc"><td>Total TTC</td><td class="num">{{ devis.total_ttc|floatformat:2 }} €</td></tr>
-    </table>
+    <div class="totaux">
+      <table>
+        <tr><td class="lbl">Total HT</td><td class="val">{{ devis.total_ht|floatformat:2 }} €</td></tr>
+        <tr><td class="lbl">TVA</td><td class="val">{{ devis.total_tva|floatformat:2 }} €</td></tr>
+        <tr class="net"><td>Total TTC</td><td class="val">{{ devis.total_ttc|floatformat:2 }} €</td></tr>
+      </table>
+    </div>
 
     {% if devis.conditions %}
       <p class="conditions">{{ devis.conditions|linebreaksbr }}</p>
     {% endif %}
 
-    {% if devis.signataire %}
-      <div class="signature">
-        <p>
-          {{ devis.signataire.qualite }}
-          {% if devis.signataire.mention_delegation %} — {{ devis.signataire.mention_delegation }}{% endif %}
-        </p>
-        {% with img=devis.signataire.image_base64 %}
-          {% if img %}<img src="{{ img }}" alt="Signature" />{% endif %}
-        {% endwith %}
-        <p>{{ devis.signataire.nom }}</p>
+    <div class="bas">
+      <div class="accord">
+        <h3>Bon pour accord</h3>
+        <p>Date et signature du client (précédées de la mention « Bon pour accord ») :</p>
       </div>
-    {% endif %}
+      {% if devis.signataire %}
+        <div class="signature">
+          <p>
+            {{ devis.signataire.qualite }}
+            {% if devis.signataire.mention_delegation %} — {{ devis.signataire.mention_delegation }}{% endif %}
+          </p>
+          {% with img=devis.signataire.image_base64 %}
+            {% if img %}<img src="{{ img }}" alt="Signature" />{% endif %}
+          {% endwith %}
+          <p>{{ devis.signataire.nom }}</p>
+        </div>
+      {% endif %}
+    </div>
   </body>
 </html>

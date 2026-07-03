@@ -407,12 +407,30 @@ h2 {
 }
 
 /* Lignes de facture / devis (formset dynamique + totaux en direct) */
+.totaux td,
+.totaux th {
+  border-bottom: none;
+  padding-block: 0.3rem;
+}
 .totaux__label {
   text-align: right;
+  color: var(--couleur-muet);
+  font-weight: 600;
 }
 .totaux td {
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
   white-space: nowrap;
+}
+.totaux__ttc th,
+.totaux__ttc td {
+  font-size: 1.2rem;
+  border-top: 2px solid var(--couleur-primaire);
+  padding-top: 0.5rem;
+}
+.totaux__ttc td {
+  color: var(--couleur-primaire);
+  font-weight: 700;
 }
 .ligne-facturation--supprimee {
   opacity: 0.5;
@@ -422,6 +440,28 @@ h2 {
 .ligne-facturation td select {
   width: 100%;
   min-width: 4rem;
+}
+.ligne-facturation td input[type="number"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ligne-facturation__x {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 1;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-fond);
+  color: var(--couleur-muet);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.ligne-facturation__x:hover,
+.ligne-facturation__x[aria-pressed="true"] {
+  background: #f8d7da;
+  color: #7a1220;
+  border-color: #e6b3b8;
 }
 
 /* Création d'un client à la volée (devis / facture) */
@@ -435,6 +475,85 @@ h2 {
 .nouveau-client legend {
   font-weight: 600;
   padding: 0 0.5rem;
+}
+
+/* --- Présentation soignée : montants, tables, statuts, encadrés -------- */
+
+/* Montants : chiffres tabulaires, alignés à droite */
+.montant {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+th.montant {
+  text-align: right;
+}
+
+/* Tables de données : zébrures + survol discrets */
+.tableau tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+.tableau tbody tr:hover {
+  background: var(--couleur-primaire-clair);
+}
+
+/* En-tête de liste : titre + compteur + actions */
+.liste-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.liste-entete__compte {
+  color: var(--couleur-muet);
+  font-size: 0.95rem;
+}
+
+/* Badges de statut — palette AA (facturation, devis, reçus) */
+.badge--validee,
+.badge--accepte,
+.badge--emis {
+  background: #d8f0e0;
+  color: #14532d;
+}
+.badge--payee,
+.badge--facture {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+.badge--envoye {
+  background: #fff3cd;
+  color: #5c4400;
+}
+.badge--annulee {
+  background: #f8d7da;
+  color: #7a1220;
+}
+
+/* Encadré « total » (vue détail facture / devis) */
+.total-encadre {
+  display: inline-block;
+  border: 2px solid var(--couleur-primaire);
+  border-radius: var(--rayon);
+  padding: 0.5rem 1.1rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--couleur-primaire);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section encadrée d'un formulaire (destinataire, lignes…) */
+.bloc-form {
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 1rem 1.25rem 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.bloc-form > h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
 }
 
 /* Pied de page */

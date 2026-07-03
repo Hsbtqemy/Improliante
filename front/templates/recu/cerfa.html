@@ -4,30 +4,34 @@
     <meta charset="utf-8" />
     <title>Reçu fiscal {{ recu.numero }}</title>
     <style>
-      @page { size: A4; margin: 2cm; }
-      body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #111; }
-      h1 { font-size: 16px; text-align: center; margin-bottom: 0; }
-      .sous-titre { text-align: center; color: #444; margin-top: 4px; }
-      .numero { text-align: right; font-weight: bold; margin: 12px 0; }
-      .bloc { border: 1px solid #333; padding: 10px 12px; margin: 10px 0; }
-      .bloc h2 { font-size: 13px; margin: 0 0 6px; }
+      @page { size: A4; margin: 1.8cm; }
+      * { box-sizing: border-box; }
+      body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #1a1a1a; line-height: 1.5; }
+      .entete-officielle { border-top: 4px solid #7a1f2b; padding-top: 12px; }
+      h1 { font-size: 16px; text-align: center; margin: 0 auto; max-width: 80%; color: #4a1219; }
+      .sous-titre { text-align: center; color: #555; margin-top: 4px; }
+      .numero { text-align: right; font-weight: bold; margin: 14px 0; color: #7a1f2b; }
+      .bloc { border: 1px solid #ccc; border-radius: 5px; padding: 11px 14px; margin: 12px 0; }
+      .bloc h2 { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #7a1f2b; margin: 0 0 7px; }
       .champ { margin: 3px 0; }
-      .montant { font-size: 15px; font-weight: bold; }
-      .mentions { font-size: 11px; color: #333; margin-top: 12px; }
+      .montant { font-size: 16px; font-weight: bold; color: #7a1f2b; }
+      .mentions { font-size: 10.5px; color: #333; margin-top: 14px; background: #f7f2f3; border-radius: 5px; padding: 10px 12px; }
       .signature { margin-top: 28px; }
       table { width: 100%; border-collapse: collapse; }
-      td { vertical-align: top; padding: 2px 4px; }
+      td { vertical-align: top; padding: 3px 4px; }
       .filigrane {
         position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
-        font-size: 60px; color: rgba(150, 150, 150, 0.25);
-        transform: rotate(-30deg); z-index: -1;
+        font-size: 58px; color: rgba(122, 31, 43, 0.10);
+        transform: rotate(-28deg); z-index: -1; font-weight: bold;
       }
     </style>
   </head>
   <body>
     {% if apercu %}<div class="filigrane">APERÇU — SANS VALEUR</div>{% endif %}
-    <h1>Reçu au titre des dons à certains organismes d'intérêt général</h1>
-    <p class="sous-titre">Article {{ asso.article_cgi }} du Code général des impôts — Cerfa n° 11580</p>
+    <div class="entete-officielle">
+      <h1>Reçu au titre des dons à certains organismes d'intérêt général</h1>
+      <p class="sous-titre">Article {{ asso.article_cgi }} du Code général des impôts — Cerfa n° 11580</p>
+    </div>
 
     <p class="numero">
       {% if recu.numero %}Reçu n° {{ recu.numero }} — émis le {{ recu.date_emission|date:"j F Y" }}

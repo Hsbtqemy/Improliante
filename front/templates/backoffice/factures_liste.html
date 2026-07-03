@@ -3,10 +3,15 @@
 {% block title %}Factures — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>Factures</h1>
+  <div class="liste-entete">
+    <h1>Factures</h1>
+    <span class="liste-entete__compte">
+      {{ page.paginator.count }} facture{{ page.paginator.count|pluralize }}
+    </span>
+  </div>
 
-  <p>
-    <a class="lien-bouton" href="{% url 'backoffice:creer_facture' %}">Nouvelle facture</a>
+  <p class="formulaire__actions">
+    <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_facture' %}">Nouvelle facture</a>
     <a class="lien-bouton" href="{% url 'backoffice:liste_clients' %}">Clients</a>
   </p>
 
@@ -28,7 +33,7 @@
           <th scope="col">Facture</th>
           <th scope="col">Client</th>
           <th scope="col">Statut</th>
-          <th scope="col">Total TTC</th>
+          <th scope="col" class="montant">Total TTC</th>
           <th scope="col">Actions</th>
         </tr>
       </thead>
@@ -37,11 +42,11 @@
           <tr>
             <td>
               {{ facture }}
-              {% if facture.type_piece == "avoir" %}<span class="badge badge--refuse">Avoir</span>{% endif %}
+              {% if facture.type_piece == "avoir" %}<span class="badge badge--annulee">Avoir</span>{% endif %}
             </td>
             <td>{{ facture.client }}</td>
-            <td><span class="badge">{{ facture.get_statut_display }}</span></td>
-            <td>{{ facture.total_ttc|floatformat:2 }} €</td>
+            <td><span class="badge badge--{{ facture.statut }}">{{ facture.get_statut_display }}</span></td>
+            <td class="montant">{{ facture.total_ttc|floatformat:2 }} €</td>
             <td>
               <a href="{% url 'backoffice:editer_facture' pk=facture.pk %}">
                 {% if facture.statut == "brouillon" %}Éditer{% else %}Voir{% endif %}

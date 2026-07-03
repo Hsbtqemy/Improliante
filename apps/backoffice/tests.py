@@ -512,6 +512,23 @@ def test_creer_facture_avec_plusieurs_lignes(client, db):
     assert facture.total_ttc == Decimal("990.00")  # 850 + 140 de TVA
 
 
+def test_ordre_des_lignes_suit_la_saisie(client, db):
+    """« Ordre » n'est plus saisi : les lignes gardent l'ordre de saisie (0, 1, 2…)."""
+    client.force_login(_staff())
+    donnees = _lignes_post(
+        _donnees_facture(Client.objects.create(nom="X")),
+        [
+            ("Première", "1", "10", "0"),
+            ("Deuxième", "1", "20", "0"),
+            ("Troisième", "1", "30", "0"),
+        ],
+    )
+    client.post("/bureau/factures/nouvelle/", donnees)
+    lignes = list(Facture.objects.get().lignes.all())  # triées par ordre, id
+    assert [ligne.designation for ligne in lignes] == ["Première", "Deuxième", "Troisième"]
+    assert [ligne.ordre for ligne in lignes] == [0, 1, 2]
+
+
 def _champs_nouveau_client(nom):
     """Champs préfixés du fieldset « Nouveau client » (seul `nom` est requis)."""
     base = {
@@ -625,6 +642,85 @@ def test_telecharger_facture_validee(client, db, monkeypatch):
     reponse = client.get(f"/bureau/factures/{facture.pk}/telecharger/")
     assert reponse.status_code == 200
     assert b"".join(reponse.streaming_content).startswith(b"%PDF")
+
+
+def test_facture_pdf_contient_reglement_et_net_a_payer(client, db, monkeypatch):
+    """Le PDF de facture rend les nouveaux blocs : règlement (IBAN), mention de
+    TVA et « Net à payer »."""
+    from apps.coeur.models import ParametresAssociation
+    from apps.facturation.services import valider_facture
+
+    params = ParametresAssociation.load()
+    params.nom = "L'Improliante"
+    params.iban = "FR7612345678901234567890123"
+    params.bic = "ABCDEFGH"
+    params.mention_tva = "TVA non applicable, art. 293 B du CGI"
+    params.save()
+
+    captures = []
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf",
+        lambda html, *, base_url=None: captures.append(html) or b"%PDF-1.4",
+    )
+    cl = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=cl)
+    LigneFacture.objects.create(
+        facture=facture,
+        designation="Atelier",
+        quantite=Decimal("2"),
+        prix_unitaire_ht=Decimal("100"),
+        taux_tva=Decimal("20"),
+    )
+    valider_facture(facture)
+    client.force_login(_staff())
+    client.get(f"/bureau/factures/{facture.pk}/telecharger/")
+
+    html = captures[0]
+    assert "Net à payer" in html
+    assert "IBAN FR7612345678901234567890123" in html
+    assert "TVA non applicable, art. 293 B du CGI" in html
+
+
+def test_supprimer_une_ligne_de_facture(client, db):
+    cl = Client.objects.create(nom="X")
+    facture = Facture.objects.create(client=cl)
+    ligne_a = LigneFacture.objects.create(
+        facture=facture, designation="Ligne A", quantite=Decimal("1"),
+        prix_unitaire_ht=Decimal("10"), ordre=0,
+    )
+    ligne_b = LigneFacture.objects.create(
+        facture=facture, designation="Ligne B", quantite=Decimal("1"),
+        prix_unitaire_ht=Decimal("20"), ordre=1,
+    )
+    client.force_login(_staff())
+    donnees = {
+        "client": cl.pk,
+        "objet": "",
+        "date_echeance": "",
+        "mentions_legales": "",
+        "lignes-TOTAL_FORMS": "2",
+        "lignes-INITIAL_FORMS": "2",
+        "lignes-MIN_NUM_FORMS": "0",
+        "lignes-MAX_NUM_FORMS": "1000",
+        "lignes-0-id": str(ligne_a.pk),
+        "lignes-0-designation": "Ligne A",
+        "lignes-0-quantite": "1",
+        "lignes-0-prix_unitaire_ht": "10",
+        "lignes-0-taux_tva": "0",
+        "lignes-0-ordre": "0",
+        "lignes-1-id": str(ligne_b.pk),
+        "lignes-1-designation": "Ligne B",
+        "lignes-1-quantite": "1",
+        "lignes-1-prix_unitaire_ht": "20",
+        "lignes-1-taux_tva": "0",
+        "lignes-1-ordre": "1",
+        "lignes-1-DELETE": "on",
+    }
+    reponse = client.post(f"/bureau/factures/{facture.pk}/", donnees)
+    assert reponse.status_code == 302
+    facture.refresh_from_db()
+    assert facture.lignes.count() == 1
+    assert facture.lignes.first() == ligne_a
 
 
 def test_creer_client(client, db):

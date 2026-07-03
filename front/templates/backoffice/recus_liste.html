@@ -15,7 +15,7 @@
           <tr>
             <th scope="col">Numéro</th>
             <th scope="col">Donateur</th>
-            <th scope="col">Montant</th>
+            <th scope="col" class="montant">Montant</th>
             <th scope="col">Versement</th>
             <th scope="col">Émis le</th>
             <th scope="col">PDF</th>
@@ -26,7 +26,7 @@
             <tr>
               <td>{{ recu.numero }}</td>
               <td>{{ recu.donateur_nom }}</td>
-              <td>{{ recu.montant|floatformat:2 }} €</td>
+              <td class="montant">{{ recu.montant|floatformat:2 }} €</td>
               <td>{{ recu.get_type_versement_display }} · {{ recu.date_versement|date:"j M Y" }}</td>
               <td>{{ recu.date_emission|date:"j M Y" }}</td>
               <td>

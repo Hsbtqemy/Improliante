@@ -3,10 +3,13 @@
 {% block title %}Devis — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>Devis</h1>
+  <div class="liste-entete">
+    <h1>Devis</h1>
+    <span class="liste-entete__compte">{{ page.paginator.count }} devis</span>
+  </div>
 
-  <p>
-    <a class="lien-bouton" href="{% url 'backoffice:creer_devis' %}">Nouveau devis</a>
+  <p class="formulaire__actions">
+    <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_devis' %}">Nouveau devis</a>
     <a class="lien-bouton" href="{% url 'backoffice:liste_clients' %}">Clients</a>
   </p>
 
@@ -17,7 +20,7 @@
           <th scope="col">Devis</th>
           <th scope="col">Client</th>
           <th scope="col">Statut</th>
-          <th scope="col">Total TTC</th>
+          <th scope="col" class="montant">Total TTC</th>
           <th scope="col">Actions</th>
         </tr>
       </thead>
@@ -26,8 +29,8 @@
           <tr>
             <td>{{ d }}</td>
             <td>{{ d.client }}</td>
-            <td><span class="badge">{{ d.get_statut_display }}</span></td>
-            <td>{{ d.total_ttc|floatformat:2 }} €</td>
+            <td><span class="badge badge--{{ d.statut }}">{{ d.get_statut_display }}</span></td>
+            <td class="montant">{{ d.total_ttc|floatformat:2 }} €</td>
             <td>
               <a href="{% url 'backoffice:editer_devis' pk=d.pk %}">
                 {% if d.statut == "facture" %}Voir{% else %}Éditer{% endif %}

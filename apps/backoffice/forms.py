@@ -99,8 +99,8 @@ class FactureForm(forms.ModelForm):
 LigneFactureFormSet = forms.inlineformset_factory(
     Facture,
     LigneFacture,
-    fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
-    extra=4,  # plusieurs lignes vides d'emblée (utilisable même sans JavaScript)
+    fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva"],
+    extra=1,  # une seule ligne vide ; « + Ajouter une ligne » (JS) pour d'autres
     can_delete=True,
 )
 
@@ -127,8 +127,8 @@ class DevisForm(forms.ModelForm):
 LigneDevisFormSet = forms.inlineformset_factory(
     Devis,
     LigneDevis,
-    fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva", "ordre"],
-    extra=4,  # plusieurs lignes vides d'emblée (utilisable même sans JavaScript)
+    fields=["designation", "quantite", "prix_unitaire_ht", "taux_tva"],
+    extra=1,  # une seule ligne vide ; « + Ajouter une ligne » (JS) pour d'autres
     can_delete=True,
 )
 
@@ -230,6 +230,9 @@ class ParametresAssociationForm(forms.ModelForm):
             "article_cgi",
             "signataire_nom",
             "signataire_qualite",
+            "iban",
+            "bic",
+            "mention_tva",
         ]
         widgets = {"objet": forms.Textarea(attrs={"rows": 2})}
 

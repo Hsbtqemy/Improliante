@@ -173,6 +173,16 @@ class ParametresAssociation(models.Model):
         help_text="Ex. président·e, trésorier·e.",
     )
 
+    # Coordonnées de règlement, imprimées sur devis et factures (facultatif).
+    iban = models.CharField("IBAN", max_length=34, blank=True)
+    bic = models.CharField("BIC", max_length=11, blank=True)
+    mention_tva = models.CharField(
+        "mention de TVA",
+        max_length=200,
+        blank=True,
+        help_text="Ex. « TVA non applicable, art. 293 B du CGI » (association non assujettie).",
+    )
+
     class Meta:
         verbose_name = "paramètres de l'association"
         verbose_name_plural = "paramètres de l'association"

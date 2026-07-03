@@ -1,9 +1,9 @@
-// Lignes de facture / devis : ajout dynamique + total HT/TVA/TTC en direct.
+// Lignes de facture / devis : ajout dynamique, suppression, total en direct.
 //
-// Amélioration progressive : sans JS, le formset affiche déjà plusieurs lignes
-// vides (extra=4) et la suppression se fait par la case « retirer » — donc
-// utilisable sans script. Avec JS, on peut ajouter autant de lignes que voulu
-// (clone de `empty_form`) et le total se recalcule à la saisie.
+// Amélioration progressive : sans JS, une ligne vide est disponible et la
+// suppression se fait par la case « Retirer » (DELETE). Avec JS : bouton
+// « + Ajouter une ligne » (clone de `empty_form`), bouton ✕ par ligne (barre la
+// ligne + la marque pour suppression), et total HT/TVA/TTC recalculé à la saisie.
 (function () {
   "use strict";
 
@@ -61,6 +61,24 @@
       }
     }
 
+    function preparerLigne(tr) {
+      var del = tr.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      var bouton = tr.querySelector("[data-supprimer-ligne]");
+      var label = tr.querySelector(".ligne-facturation__del");
+      if (!del || !bouton) {
+        return;
+      }
+      if (label) {
+        label.hidden = true; // JS actif : on masque la case brute
+      }
+      bouton.hidden = false;
+      bouton.addEventListener("click", function () {
+        del.checked = !del.checked;
+        bouton.setAttribute("aria-pressed", String(del.checked));
+        recalculer();
+      });
+    }
+
     function ajouterLigne() {
       var index = parseInt(totalForms.value, 10) || 0;
       var html = gabarit.textContent.replace(/__prefix__/g, index).trim();
@@ -72,6 +90,7 @@
       }
       tbody.appendChild(tr);
       totalForms.value = index + 1;
+      preparerLigne(tr);
       recalculer();
       var premier = tr.querySelector('input:not([type="hidden"]), select, textarea');
       if (premier) {
@@ -85,6 +104,7 @@
     if (btnAjouter && gabarit) {
       btnAjouter.addEventListener("click", ajouterLigne);
     }
+    tbody.querySelectorAll("tr").forEach(preparerLigne);
     recalculer();
   }
 

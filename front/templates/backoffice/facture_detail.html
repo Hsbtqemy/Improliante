@@ -6,7 +6,7 @@
   <h1>{{ facture.get_type_piece_display }} {{ facture.numero }}</h1>
 
   <p class="carte-projet__meta">
-    <span class="badge">{{ facture.get_statut_display }}</span>
+    <span class="badge badge--{{ facture.statut }}">{{ facture.get_statut_display }}</span>
     · {{ facture.client }}
     {% if facture.date %}· émise le {{ facture.date|date:"j F Y" }}{% endif %}
     {% if facture.avoir_de %}· avoir sur facture {{ facture.avoir_de.numero }}{% endif %}
@@ -17,26 +17,28 @@
     <thead>
       <tr>
         <th scope="col">Désignation</th>
-        <th scope="col">Qté</th>
-        <th scope="col">PU HT</th>
-        <th scope="col">TVA %</th>
-        <th scope="col">Total HT</th>
+        <th scope="col" class="montant">Qté</th>
+        <th scope="col" class="montant">PU HT</th>
+        <th scope="col" class="montant">TVA %</th>
+        <th scope="col" class="montant">Total HT</th>
       </tr>
     </thead>
     <tbody>
       {% for ligne in facture.lignes.all %}
         <tr>
           <td>{{ ligne.designation }}</td>
-          <td>{{ ligne.quantite|floatformat:2 }}</td>
-          <td>{{ ligne.prix_unitaire_ht|floatformat:2 }} €</td>
-          <td>{{ ligne.taux_tva|floatformat:2 }} %</td>
-          <td>{{ ligne.total_ht|floatformat:2 }} €</td>
+          <td class="montant">{{ ligne.quantite|floatformat:2 }}</td>
+          <td class="montant">{{ ligne.prix_unitaire_ht|floatformat:2 }} €</td>
+          <td class="montant">{{ ligne.taux_tva|floatformat:2 }} %</td>
+          <td class="montant">{{ ligne.total_ht|floatformat:2 }} €</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <p><strong>Total TTC : {{ facture.total_ttc|floatformat:2 }} €</strong></p>
+  <p class="formulaire__actions" style="justify-content: flex-end">
+    <span class="total-encadre">Total TTC&nbsp;: {{ facture.total_ttc|floatformat:2 }} €</span>
+  </p>
 
   {% if facture.type_piece != "avoir" and facture.avoirs.all %}
     <p class="carte-projet__meta">
