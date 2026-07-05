@@ -13,6 +13,8 @@ from .models import Document, Dossier
 class DossierAdmin(TreeAdmin):
     form = movenodeform_factory(Dossier)
     search_fields = ("nom",)
+    list_filter = ("espace", "visibilite")
+    autocomplete_fields = ("proprietaire",)
 
 
 @admin.register(Document)

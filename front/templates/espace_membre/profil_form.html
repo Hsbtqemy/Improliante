@@ -3,11 +3,14 @@
 {% block title %}Mon profil — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Mon profil</h1>
-  <p class="carte-projet__meta">
-    Ces informations apparaissent sur votre fiche publique si celle-ci est visible
-    (la visibilité est réglée par le bureau).
-  </p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>Mon profil</h1>
+    <p class="page-tete__sous">
+      Ces informations apparaissent sur votre fiche publique si celle-ci est visible
+      (la visibilité est réglée par le bureau).
+    </p>
+  </header>
 
   <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
     {% csrf_token %}

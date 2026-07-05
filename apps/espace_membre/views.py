@@ -15,8 +15,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.tokens import default_token_generator
+from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
@@ -30,12 +32,16 @@ from apps.coeur.services import (
 )
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
-from apps.documents.models import Document
+from apps.documents import services as documents_services
+from apps.documents.models import Document, Dossier
+from apps.documents.services import DossierNonVide
 from apps.gouvernance.models import Reunion
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 
 from .forms import (
+    DocumentMembreForm,
+    DossierCommunForm,
     EvenementMembreForm,
     LienReseauFormSet,
     ProfilMembreForm,
@@ -339,14 +345,55 @@ def activer_compte(request, uidb64, token):
 # par une vue authentifiée qui contrôle la confidentialité (règle 5).
 
 
-def _peut_acceder_document(user, document) -> bool:
-    """Autorisation d'accès à un document selon sa confidentialité.
+def _peut_voir_dossier_membre(user, dossier) -> bool:
+    """Autorisation de lecture d'un dossier PERSONNEL (espace PERSO).
 
-    - PUBLIC : tout compte connecté.
-    - MEMBRES : comptes rattachés à une fiche membre.
-    - PRIVÉ : bureau (staff) ou la personne qui a déposé le document.
-    Le bureau (staff) a accès à tout.
+    - branche Perso (visibilité PRIVE) : le propriétaire uniquement (bureau exclu) ;
+    - branche Bureau (visibilité BUREAU) : le propriétaire et le bureau.
+    (Le partage avec la troupe passe désormais par la branche « Partagé » /
+    espace commun, pas par les dossiers personnels.)
     """
+    membre = getattr(user, "membre", None)
+    if membre is not None and dossier.proprietaire_id == membre.pk:
+        return True
+    if dossier.visibilite == Dossier.Visibilite.BUREAU:
+        return est_bureau(user)
+    return False
+
+
+def _dossiers_membre_visibles(user):
+    """Queryset des dossiers PERSONNELS (espace PERSO) visibles par `user` :
+    ses propres dossiers, plus — pour le bureau — les dossiers « transmis au
+    bureau ». Base anti-IDOR des vues de la branche personnelle."""
+    membre = getattr(user, "membre", None)
+    portee = Q(pk__in=())
+    if membre is not None:
+        portee |= Q(proprietaire=membre)
+    if est_bureau(user):
+        portee |= Q(visibilite=Dossier.Visibilite.BUREAU)
+    return Dossier.objects.filter(espace=Dossier.Espace.PERSO).filter(portee)
+
+
+def _peut_voir_espace_commun(user) -> bool:
+    """Lecture de l'espace commun : tout membre (et le bureau)."""
+    return getattr(user, "membre", None) is not None or est_bureau(user)
+
+
+def _peut_acceder_document(user, document) -> bool:
+    """Autorisation d'accès à un document, selon l'espace de son dossier.
+
+    - Dossier PERSONNEL : suit la visibilité du dossier (`_peut_voir_dossier_membre`)
+      — un dossier privé n'est PAS visible du bureau.
+    - Dossier COMMUN : tout membre (troupe collaborative).
+    - Dossier ASSOCIATION / non classé : logique historique par confidentialité
+      (PUBLIC → tout connecté ; MEMBRES → membres ; PRIVÉ → bureau ou déposant).
+    """
+    dossier = document.dossier
+    if dossier is not None:
+        if dossier.espace == Dossier.Espace.PERSO:
+            return _peut_voir_dossier_membre(user, dossier)
+        if dossier.espace == Dossier.Espace.COMMUN:
+            return _peut_voir_espace_commun(user)
     if est_bureau(user):
         return True
     conf = document.confidentialite
@@ -358,14 +405,19 @@ def _peut_acceder_document(user, document) -> bool:
 
 
 def _documents_accessibles(user):
-    """Documents (version courante) visibles par l'utilisateur, sans exposer
-    les niveaux qu'il n'a pas le droit de voir."""
+    """Documents ASSOCIATIFS (version courante) visibles par l'utilisateur.
+
+    Les fichiers personnels et communs vivent dans leurs propres écrans et sont
+    exclus ici ; les documents non classés (sans dossier) restent inclus."""
+    base = Document.objects.filter(courant=True).filter(
+        Q(dossier__isnull=True) | Q(dossier__espace=Dossier.Espace.ASSOCIATION)
+    )
     if est_bureau(user):
-        return Document.objects.filter(courant=True).order_by("titre")
+        return base.order_by("titre")
     niveaux = {Document.Confidentialite.PUBLIC}
     if getattr(user, "membre", None) is not None:
         niveaux.add(Document.Confidentialite.MEMBRES)
-    return Document.objects.filter(courant=True, confidentialite__in=niveaux).order_by("titre")
+    return base.filter(confidentialite__in=niveaux).order_by("titre")
 
 
 @login_required
@@ -379,7 +431,7 @@ def mes_documents(request):
 def telecharger_document(request, pk):
     """Sert un document privé après contrôle des droits. Renvoie 404 (et non
     403) sur un document interdit : on ne révèle pas son existence."""
-    document = get_object_or_404(Document, pk=pk)
+    document = get_object_or_404(Document.objects.select_related("dossier"), pk=pk)
     if not _peut_acceder_document(request.user, document):
         raise Http404
     # Nom présenté = titre + extension réelle du fichier.
@@ -387,6 +439,326 @@ def telecharger_document(request, pk):
     return reponse_fichier_prive(
         document.fichier, nom_telechargement=f"{document.titre}{extension}"
     )
+
+
+# --- Fichiers du membre : explorateur unifié (Perso / Partagé / Bureau) ----
+# Un seul explorateur, trois branches :
+#   • Perso   : dossiers personnels privés (proprietaire=membre, visibilite=PRIVE) ;
+#   • Partagé : espace commun collaboratif de la troupe (espace=COMMUN) ;
+#   • Bureau  : dossiers transmis au bureau (proprietaire=membre, visibilite=BUREAU).
+# Un sous-dossier hérite de la branche de sa racine (cf. services). Anti-accès :
+# get_object_or_404 filtré par branche → un pk forgé d'une autre branche = 404.
+
+PERSO = Dossier.Espace.PERSO
+COMMUN = Dossier.Espace.COMMUN
+PRIVE = Dossier.Visibilite.PRIVE
+BUREAU = Dossier.Visibilite.BUREAU
+
+
+def _annoter_nb_docs(queryset):
+    """Ajoute `nb_docs` (nombre de documents courants) à un queryset de dossiers."""
+    return queryset.annotate(nb_docs=Count("documents", filter=Q(documents__courant=True)))
+
+
+def _qs_branche(membre, branche, *, racines=False):
+    """Queryset des dossiers d'une branche (`perso`/`partage`/`bureau`)."""
+    base = Dossier.get_root_nodes() if racines else Dossier.objects
+    if branche == "partage":
+        return base.filter(espace=COMMUN)
+    if membre is None:
+        return base.none()
+    vis = BUREAU if branche == "bureau" else PRIVE
+    return base.filter(espace=PERSO, proprietaire=membre, visibilite=vis)
+
+
+def _arbres_fichiers(membre, dossier_courant_id=None):
+    """Contexte des trois arbres (Perso / Partagé / Bureau) du panneau latéral."""
+
+    def annote(branche):
+        return Dossier.get_annotated_list_qs(_qs_branche(membre, branche).order_by("path"))
+
+    return {
+        "arbre_perso": annote("perso"),
+        "arbre_partage": annote("partage"),
+        "arbre_bureau": annote("bureau"),
+        "dossier_courant_id": dossier_courant_id,
+    }
+
+
+@login_required
+def mes_fichiers(request):
+    """Explorateur des fichiers : trois branches Perso / Partagé / Bureau.
+    POST (`branche` + nom/description) crée un dossier racine dans la branche."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+
+    dossier_form = DossierCommunForm()
+    branche = request.POST.get("branche")
+    if request.method == "POST" and request.POST.get("form_type") == "dossier":
+        dossier_form = DossierCommunForm(request.POST)
+        if dossier_form.is_valid():
+            nom = dossier_form.cleaned_data["nom"]
+            desc = dossier_form.cleaned_data["description"]
+            if branche == "partage":
+                documents_services.creer_dossier_commun(nom=nom, description=desc)
+            else:
+                documents_services.creer_dossier_membre(
+                    membre,
+                    nom=nom,
+                    description=desc,
+                    visibilite=BUREAU if branche == "bureau" else PRIVE,
+                )
+            messages.success(request, "Dossier créé.")
+            return redirect("espace_membre:mes_fichiers")
+
+    contexte = {
+        "perso_roots": _annoter_nb_docs(_qs_branche(membre, "perso", racines=True)),
+        "partage_roots": _annoter_nb_docs(_qs_branche(membre, "partage", racines=True)),
+        "bureau_roots": _annoter_nb_docs(_qs_branche(membre, "bureau", racines=True)),
+        "dossier_form": dossier_form,
+        "branche_active": branche,
+    }
+    contexte.update(_arbres_fichiers(membre))
+    return render(request, "espace_membre/mes_fichiers.html", contexte)
+
+
+@login_required
+def dossier_membre(request, pk):
+    """Détail d'un dossier personnel (branche Perso ou Bureau). Le propriétaire y
+    crée des sous-dossiers / téléverse ; le bureau peut lire les dossiers
+    « transmis au bureau »."""
+    membre = _membre_connecte(request)
+    dossier = get_object_or_404(_dossiers_membre_visibles(request.user), pk=pk)
+    est_proprio = membre is not None and dossier.proprietaire_id == membre.pk
+
+    dossier_form = DossierCommunForm()
+    document_form = DocumentMembreForm()
+    if request.method == "POST":
+        if not est_proprio:
+            raise Http404  # seul le propriétaire modifie son dossier
+        if request.POST.get("form_type") == "dossier":
+            dossier_form = DossierCommunForm(request.POST)
+            if dossier_form.is_valid():
+                documents_services.creer_dossier_membre(
+                    membre,
+                    nom=dossier_form.cleaned_data["nom"],
+                    description=dossier_form.cleaned_data["description"],
+                    parent=dossier,  # hérite de la branche du parent
+                )
+                messages.success(request, "Sous-dossier créé.")
+                return redirect("espace_membre:dossier_membre", pk=dossier.pk)
+        elif request.POST.get("form_type") == "document":
+            document_form = DocumentMembreForm(request.POST, request.FILES)
+            if document_form.is_valid():
+                documents_services.televerser_fichier(
+                    dossier,
+                    titre=document_form.cleaned_data["titre"],
+                    fichier=document_form.cleaned_data["fichier"],
+                    description=document_form.cleaned_data["description"],
+                    par=request.user,
+                )
+                messages.success(request, "Fichier ajouté.")
+                return redirect("espace_membre:dossier_membre", pk=dossier.pk)
+
+    visibles = _dossiers_membre_visibles(request.user)
+    sous_dossiers = _annoter_nb_docs(visibles.filter(pk__in=dossier.get_children().values("pk")))
+    ancetres = visibles.filter(pk__in=dossier.get_ancestors().values("pk"))
+    documents = dossier.documents.filter(courant=True).select_related("cree_par").order_by("titre")
+    contexte = {
+        "dossier": dossier,
+        "est_proprio": est_proprio,
+        "branche_bureau": dossier.visibilite == BUREAU,
+        "ancetres": ancetres,
+        "sous_dossiers": sous_dossiers,
+        "documents": documents,
+        "dossier_form": dossier_form,
+        "document_form": document_form,
+        "url_dossier": "espace_membre:dossier_membre",
+        "url_suppr_doc": "espace_membre:supprimer_document_membre",
+        "url_editer": "espace_membre:editer_dossier_membre",
+        "url_suppr_dossier": "espace_membre:supprimer_dossier_membre",
+        "peut_ecrire": est_proprio,
+    }
+    contexte.update(_arbres_fichiers(membre, dossier.pk))
+    return render(request, "espace_membre/dossier_detail.html", contexte)
+
+
+@login_required
+def editer_dossier_membre(request, pk):
+    """Renomme / redécrit un dossier personnel — propriétaire seul (404 sinon)."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+    dossier = get_object_or_404(Dossier, pk=pk, proprietaire=membre)
+    if request.method == "POST":
+        form = DossierCommunForm(request.POST, instance=dossier)
+        if form.is_valid():
+            documents_services.renommer_dossier(
+                dossier,
+                nom=form.cleaned_data["nom"],
+                description=form.cleaned_data["description"],
+            )
+            messages.success(request, "Dossier mis à jour.")
+            return redirect("espace_membre:dossier_membre", pk=dossier.pk)
+    else:
+        form = DossierCommunForm(instance=dossier)
+    return render(
+        request,
+        "espace_membre/dossier_form.html",
+        {"form": form, "dossier": dossier, "url_dossier": "espace_membre:dossier_membre"},
+    )
+
+
+@login_required
+@require_POST
+def supprimer_dossier_membre(request, pk):
+    """Supprime un dossier personnel VIDE (propriétaire seul)."""
+    membre = _membre_connecte(request)
+    dossier = get_object_or_404(Dossier, pk=pk, proprietaire=membre)
+    parent = dossier.get_parent()
+    try:
+        documents_services.supprimer_dossier_membre(dossier)
+    except DossierNonVide:
+        messages.error(request, "Le dossier doit être vide pour être supprimé.")
+        return redirect("espace_membre:dossier_membre", pk=dossier.pk)
+    messages.success(request, "Dossier supprimé.")
+    if parent is not None:
+        return redirect("espace_membre:dossier_membre", pk=parent.pk)
+    return redirect("espace_membre:mes_fichiers")
+
+
+@login_required
+@require_POST
+def supprimer_document_membre(request, pk):
+    """Supprime un fichier personnel (anti-IDOR via le dossier)."""
+    membre = _membre_connecte(request)
+    document = get_object_or_404(Document, pk=pk, dossier__proprietaire=membre)
+    dossier_id = document.dossier_id
+    documents_services.supprimer_document_membre(document)
+    messages.success(request, "Fichier supprimé.")
+    return redirect("espace_membre:dossier_membre", pk=dossier_id)
+
+
+# --- Branche « Partagé » : espace commun collaboratif ----------------------
+# Tout membre y lit ET écrit. Les vues n'ouvrent que des dossiers `espace=COMMUN`.
+
+
+@login_required
+def dossier_commun(request, pk):
+    """Détail d'un dossier commun : tout membre peut créer / téléverser."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+    dossier = get_object_or_404(Dossier, pk=pk, espace=COMMUN)
+
+    dossier_form = DossierCommunForm()
+    document_form = DocumentMembreForm()
+    if request.method == "POST":
+        if request.POST.get("form_type") == "dossier":
+            dossier_form = DossierCommunForm(request.POST)
+            if dossier_form.is_valid():
+                documents_services.creer_dossier_commun(
+                    nom=dossier_form.cleaned_data["nom"],
+                    description=dossier_form.cleaned_data["description"],
+                    parent=dossier,
+                )
+                messages.success(request, "Sous-dossier créé.")
+                return redirect("espace_membre:dossier_commun", pk=dossier.pk)
+        elif request.POST.get("form_type") == "document":
+            document_form = DocumentMembreForm(request.POST, request.FILES)
+            if document_form.is_valid():
+                documents_services.televerser_fichier(
+                    dossier,
+                    titre=document_form.cleaned_data["titre"],
+                    fichier=document_form.cleaned_data["fichier"],
+                    description=document_form.cleaned_data["description"],
+                    par=request.user,
+                )
+                messages.success(request, "Fichier ajouté.")
+                return redirect("espace_membre:dossier_commun", pk=dossier.pk)
+
+    sous_dossiers = _annoter_nb_docs(dossier.get_children())
+    documents = dossier.documents.filter(courant=True).select_related("cree_par").order_by("titre")
+    contexte = {
+        "dossier": dossier,
+        "est_proprio": True,  # espace collaboratif : tout membre écrit
+        "branche_bureau": False,
+        "ancetres": dossier.get_ancestors(),
+        "sous_dossiers": sous_dossiers,
+        "documents": documents,
+        "dossier_form": dossier_form,
+        "document_form": document_form,
+        "url_dossier": "espace_membre:dossier_commun",
+        "url_suppr_doc": "espace_membre:supprimer_document_commun",
+        "url_editer": "espace_membre:editer_dossier_commun",
+        "url_suppr_dossier": "espace_membre:supprimer_dossier_commun",
+        "peut_ecrire": True,
+    }
+    contexte.update(_arbres_fichiers(membre, dossier.pk))
+    return render(request, "espace_membre/dossier_detail.html", contexte)
+
+
+@login_required
+def editer_dossier_commun(request, pk):
+    """Renomme / redécrit un dossier commun (tout membre)."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+    dossier = get_object_or_404(Dossier, pk=pk, espace=COMMUN)
+    if request.method == "POST":
+        form = DossierCommunForm(request.POST, instance=dossier)
+        if form.is_valid():
+            documents_services.renommer_dossier(
+                dossier,
+                nom=form.cleaned_data["nom"],
+                description=form.cleaned_data["description"],
+            )
+            messages.success(request, "Dossier mis à jour.")
+            return redirect("espace_membre:dossier_commun", pk=dossier.pk)
+    else:
+        form = DossierCommunForm(instance=dossier)
+    return render(
+        request,
+        "espace_membre/dossier_form.html",
+        {"form": form, "dossier": dossier, "url_dossier": "espace_membre:dossier_commun"},
+    )
+
+
+@login_required
+@require_POST
+def supprimer_dossier_commun(request, pk):
+    """Supprime un dossier commun VIDE (tout membre)."""
+    if _membre_connecte(request) is None:
+        raise Http404
+    dossier = get_object_or_404(Dossier, pk=pk, espace=COMMUN)
+    parent = dossier.get_parent()
+    try:
+        documents_services.supprimer_dossier_membre(dossier)
+    except DossierNonVide:
+        messages.error(request, "Le dossier doit être vide pour être supprimé.")
+        return redirect("espace_membre:dossier_commun", pk=dossier.pk)
+    messages.success(request, "Dossier supprimé.")
+    if parent is not None:
+        return redirect("espace_membre:dossier_commun", pk=parent.pk)
+    return redirect("espace_membre:mes_fichiers")
+
+
+@login_required
+@require_POST
+def supprimer_document_commun(request, pk):
+    """Supprime un fichier de la branche partagée (tout membre)."""
+    if _membre_connecte(request) is None:
+        raise Http404
+    document = get_object_or_404(Document, pk=pk, dossier__espace=COMMUN)
+    dossier_id = document.dossier_id
+    documents_services.supprimer_document_membre(document)
+    messages.success(request, "Fichier supprimé.")
+    return redirect("espace_membre:dossier_commun", pk=dossier_id)
 
 
 # --- Convocations / comptes-rendus d'AG ------------------------------------

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dossier.nom }} — Fichiers{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre · {% if dossier.espace == 'commun' %}Partagé{% elif branche_bureau %}Bureau{% else %}Perso{% endif %}</span>
+    <h1>{{ dossier.nom }}</h1>
+    {% if dossier.description %}<p class="page-tete__sous">{{ dossier.description }}</p>{% endif %}
+  </header>
+
+  <div class="ged-layout">
+    {% include "espace_membre/_fichiers_arbre.html" %}
+
+    <div class="ged-main">
+      {% if peut_ecrire %}{% include "espace_membre/_fichiers_forms.html" %}{% endif %}
+
+      <nav class="fil-ariane" aria-label="Fil d'Ariane">
+        <a href="{% url 'espace_membre:mes_fichiers' %}">
+          <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg> Fichiers
+        </a>
+        {% for a in ancetres %}
+          <span class="fil-ariane__sep" aria-hidden="true">›</span>
+          <a href="{% url url_dossier pk=a.pk %}">{{ a.nom }}</a>
+        {% endfor %}
+        <span class="fil-ariane__sep" aria-hidden="true">›</span>
+        <span class="fil-ariane__actuel" aria-current="page">{{ dossier.nom }}</span>
+      </nav>
+
+      {% if peut_ecrire %}
+        <div class="ged-actions-dossier">
+          <a class="lien-bouton lien-bouton--discret" href="{% url url_editer pk=dossier.pk %}">Modifier le dossier</a>
+          <form method="post" action="{% url url_suppr_dossier pk=dossier.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="lien-bouton lien-bouton--discret">Supprimer le dossier</button>
+          </form>
+        </div>
+      {% endif %}
+
+      <section aria-labelledby="t-sous">
+        <h2 id="t-sous" class="ged-section-titre">Sous-dossiers</h2>
+        {% include "espace_membre/_fichiers_dossiers.html" with dossiers=sous_dossiers url_nom=url_dossier vide_titre="Aucun sous-dossier" vide_txt="Ajoutez un sous-dossier pour organiser vos fichiers." %}
+      </section>
+
+      <section aria-labelledby="t-docs">
+        <h2 id="t-docs" class="ged-section-titre">Documents</h2>
+        {% include "espace_membre/_fichiers_documents.html" %}
+      </section>
+    </div>
+  </div>
+{% endblock %}

@@ -3,38 +3,90 @@
 {% block title %}Mon espace — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Mon espace</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>Mon espace</h1>
+    {% if membre %}
+      <p class="page-tete__sous">Bonjour {{ membre }}.</p>
+    {% endif %}
+  </header>
 
   {% if membre %}
-    <p>Bonjour {{ membre }}.</p>
-
-    <nav aria-label="Actions de l'espace membre" class="espace-actions">
-      <a class="lien-bouton" href="{% url 'espace_membre:mes_projets' %}">Mes projets</a>
-      <a class="lien-bouton" href="{% url 'espace_membre:mes_evenements' %}">Mes événements</a>
-      <a class="lien-bouton" href="{% url 'espace_membre:mes_documents' %}">Mes documents</a>
-      <a class="lien-bouton" href="{% url 'espace_membre:mes_convocations' %}">Mes convocations</a>
-      <a class="lien-bouton" href="{% url 'espace_membre:mes_recus' %}">Mes reçus fiscaux</a>
-    </nav>
+    <ul class="actions-rapides">
+      <li>
+        <a class="action-carte" href="{% url 'espace_membre:mes_projets' %}">
+          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg></span>
+          Mes projets
+          <span class="action-carte__fleche" aria-hidden="true">→</span>
+        </a>
+      </li>
+      <li>
+        <a class="action-carte" href="{% url 'espace_membre:mes_evenements' %}">
+          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg></span>
+          Mes événements
+          <span class="action-carte__fleche" aria-hidden="true">→</span>
+        </a>
+      </li>
+      <li>
+        <a class="action-carte" href="{% url 'espace_membre:mes_documents' %}">
+          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg></span>
+          Mes documents
+          <span class="action-carte__fleche" aria-hidden="true">→</span>
+        </a>
+      </li>
+      <li>
+        <a class="action-carte" href="{% url 'espace_membre:mes_convocations' %}">
+          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg></span>
+          Mes convocations
+          <span class="action-carte__fleche" aria-hidden="true">→</span>
+        </a>
+      </li>
+      <li>
+        <a class="action-carte" href="{% url 'espace_membre:mes_recus' %}">
+          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg></span>
+          Mes reçus fiscaux
+          <span class="action-carte__fleche" aria-hidden="true">→</span>
+        </a>
+      </li>
+    </ul>
 
     <section aria-labelledby="titre-adhesions">
       <h2 id="titre-adhesions">Mes adhésions</h2>
       {% if adhesions %}
-        <ul>
+        <ul class="liste-projets">
           {% for adhesion in adhesions %}
-            <li>
-              {{ adhesion.saison }} — {{ adhesion.get_statut_display }}
-              ({{ adhesion.montant_verse }} € versés)
+            <li class="carte-projet">
+              <p class="carte-projet__titre">{{ adhesion.saison }}</p>
+              <p class="carte-projet__meta">
+                <span class="badge badge--{{ adhesion.statut }}">{{ adhesion.get_statut_display }}</span>
+                · {{ adhesion.montant_verse }} € versés
+              </p>
             </li>
           {% endfor %}
         </ul>
       {% else %}
-        <p>Aucune adhésion enregistrée pour l'instant.</p>
+        <div class="etat-vide">
+          <div class="etat-vide__ico" aria-hidden="true">
+            <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-recu"></use></svg>
+          </div>
+          <p class="etat-vide__titre">Aucune adhésion enregistrée</p>
+          <p>Vos adhésions apparaîtront ici une fois saisies par le bureau.</p>
+        </div>
       {% endif %}
     </section>
   {% else %}
-    <p>
-      Votre compte n'est pas encore rattaché à une fiche membre.
-      Contactez le bureau pour la mise en place.
-    </p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-membres"></use></svg>
+      </div>
+      <p class="etat-vide__titre">Compte pas encore rattaché à une fiche membre</p>
+      <p>
+        Votre accès est actif, mais aucune fiche membre n'y est reliée. Contactez
+        le bureau pour finaliser la mise en place et débloquer votre espace.
+      </p>
+      <p class="etat-vide__actions">
+        <a class="lien-bouton" href="{% url 'vitrine:contact' %}">Contacter le bureau</a>
+      </p>
+    </div>
   {% endif %}
 {% endblock %}

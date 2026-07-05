@@ -3,8 +3,11 @@
 {% block title %}Back-office — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Back-office</h1>
-  <p class="carte-projet__meta">Vue d'ensemble des tâches en cours.</p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Tableau de bord</h1>
+    <p class="page-tete__sous">Vue d'ensemble des tâches en cours.</p>
+  </header>
 
   <div class="tuiles">
     <a class="tuile" href="{% url 'backoffice:file_moderation' %}">
@@ -25,20 +28,81 @@
     </div>
   </div>
 
-  <nav aria-label="Modules du back-office" class="espace-actions">
-    <a class="lien-bouton" href="{% url 'backoffice:file_moderation' %}">Modération</a>
-    <a class="lien-bouton" href="{% url 'backoffice:liste_devis' %}">Devis</a>
-    <a class="lien-bouton" href="{% url 'backoffice:liste_factures' %}">Factures</a>
-    <a class="lien-bouton" href="{% url 'backoffice:liste_recus' %}">Reçus fiscaux</a>
-    <a class="lien-bouton" href="{% url 'backoffice:ged_racine' %}">Documents</a>
-    <a class="lien-bouton" href="{% url 'backoffice:budget_transactions' %}">Budget</a>
-    <a class="lien-bouton" href="{% url 'backoffice:gouvernance_reunions' %}">Gouvernance</a>
-  </nav>
+  <h2>Modules</h2>
+  <ul class="actions-rapides" aria-label="Modules du back-office">
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:file_moderation' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-bouclier"></use></svg></span>
+        Modération
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:liste_devis' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg></span>
+        Devis
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:liste_factures' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg></span>
+        Factures
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:liste_recus' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-ruban"></use></svg></span>
+        Reçus fiscaux
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:ged_racine' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg></span>
+        Documents
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:budget_transactions' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg></span>
+        Budget
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:gouvernance_reunions' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg></span>
+        Gouvernance
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+  </ul>
 
   <h2>Réglages</h2>
-  <nav aria-label="Réglages du back-office" class="espace-actions">
-    <a class="lien-bouton" href="{% url 'backoffice:parametres_association' %}">Paramètres de l'association</a>
-    <a class="lien-bouton" href="{% url 'backoffice:liste_membres' %}">Membres</a>
-    <a class="lien-bouton" href="{% url 'backoffice:equipe_bureau' %}">Équipe du bureau</a>
-  </nav>
+  <ul class="actions-rapides" aria-label="Réglages du back-office">
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:parametres_association' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg></span>
+        Paramètres de l'association
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:liste_membres' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg></span>
+        Membres
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+    <li>
+      <a class="action-carte" href="{% url 'backoffice:equipe_bureau' %}">
+        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg></span>
+        Équipe du bureau
+        <span class="action-carte__fleche" aria-hidden="true">→</span>
+      </a>
+    </li>
+  </ul>
 {% endblock %}

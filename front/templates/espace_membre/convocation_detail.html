@@ -3,14 +3,16 @@
 {% block title %}{{ reunion.titre }} — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>{{ reunion.titre }}</h1>
-
-  <p class="carte-projet__meta">
-    <span class="badge">{{ reunion.get_type_reunion_display }}</span>
-    <span class="badge badge--{{ reunion.statut }}">{{ reunion.get_statut_display }}</span>
-    {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
-    {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
-  </p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>{{ reunion.titre }}</h1>
+    <p class="page-tete__sous">
+      <span class="badge">{{ reunion.get_type_reunion_display }}</span>
+      <span class="badge badge--{{ reunion.statut }}">{{ reunion.get_statut_display }}</span>
+      {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
+      {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
+    </p>
+  </header>
 
   {% if ma_presence or pouvoir_donne or pouvoir_recu %}
     <section aria-labelledby="titre-statut">

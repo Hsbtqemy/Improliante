@@ -3,10 +3,17 @@
 {% block title %}Mes projets — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Mes projets</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>Mes projets</h1>
+  </header>
 
   {% if membre %}
-    <p><a class="lien-bouton" href="{% url 'espace_membre:creer_projet' %}">Proposer un nouveau projet</a></p>
+    <p class="formulaire__actions">
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_projet' %}">
+        Proposer un nouveau projet
+      </a>
+    </p>
 
     {% if projets %}
       <ul class="liste-projets">
@@ -29,14 +36,29 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>Vous ne portez aucun projet pour l'instant.</p>
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true">
+          <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-etoile"></use></svg>
+        </div>
+        <p class="etat-vide__titre">Aucun projet pour l'instant</p>
+        <p>Proposez votre première création : elle sera soumise au bureau pour validation.</p>
+        <p class="etat-vide__actions">
+          <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_projet' %}">Proposer un projet</a>
+        </p>
+      </div>
     {% endif %}
 
     <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
   {% else %}
-    <p>
-      Votre compte n'est pas encore rattaché à une fiche membre.
-      Contactez le bureau pour proposer un projet.
-    </p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-membres"></use></svg>
+      </div>
+      <p class="etat-vide__titre">Compte pas encore rattaché à une fiche membre</p>
+      <p>Contactez le bureau pour pouvoir proposer un projet.</p>
+      <p class="etat-vide__actions">
+        <a class="lien-bouton" href="{% url 'vitrine:contact' %}">Contacter le bureau</a>
+      </p>
+    </div>
   {% endif %}
 {% endblock %}

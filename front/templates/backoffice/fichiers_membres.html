@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Fichiers transmis — Back-office{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Documents</span>
+    <h1>Fichiers transmis au bureau</h1>
+    <p class="page-tete__sous">
+      Dossiers que des membres ont marqués « transmis au bureau ». Leurs dossiers
+      privés ne sont jamais visibles ici.
+    </p>
+  </header>
+
+  {% if dossiers %}
+    {% for d in dossiers %}
+      <section class="ged-transmis">
+        <h2 class="ged-section-titre">
+          {{ d.nom }}
+          <span class="ged-doc__desc">— {{ d.proprietaire.user.get_full_name|default:d.proprietaire.user.get_username }}</span>
+        </h2>
+        {% with documents=d.documents.all %}
+          {% if documents %}
+            <div class="tableau-wrap">
+              <table class="tableau">
+                <thead>
+                  <tr>
+                    <th scope="col">Document</th>
+                    <th scope="col">Ajouté le</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for doc in documents %}
+                    <tr>
+                      <td>
+                        <span class="ged-doc__titre">
+                          <svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg>
+                          {{ doc.titre }}
+                        </span>
+                        {% if doc.description %}<span class="ged-doc__desc">{{ doc.description }}</span>{% endif %}
+                      </td>
+                      <td class="ged-doc__modif">{{ doc.date_creation|date:"d/m/Y" }}</td>
+                      <td>
+                        <div class="ged-doc__actions">
+                          <a class="lien-bouton" href="{% url 'espace_membre:telecharger_document' pk=doc.pk %}">Télécharger</a>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="ged-doc__desc">Dossier vide.</p>
+          {% endif %}
+        {% endwith %}
+      </section>
+    {% endfor %}
+  {% else %}
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-document"></use></svg>
+      </div>
+      <p class="etat-vide__titre">Aucun fichier transmis</p>
+      <p>Quand un membre marque un dossier « transmis au bureau », il apparaît ici.</p>
+    </div>
+  {% endif %}
+{% endblock %}

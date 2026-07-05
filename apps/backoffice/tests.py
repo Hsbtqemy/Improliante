@@ -685,12 +685,18 @@ def test_supprimer_une_ligne_de_facture(client, db):
     cl = Client.objects.create(nom="X")
     facture = Facture.objects.create(client=cl)
     ligne_a = LigneFacture.objects.create(
-        facture=facture, designation="Ligne A", quantite=Decimal("1"),
-        prix_unitaire_ht=Decimal("10"), ordre=0,
+        facture=facture,
+        designation="Ligne A",
+        quantite=Decimal("1"),
+        prix_unitaire_ht=Decimal("10"),
+        ordre=0,
     )
     ligne_b = LigneFacture.objects.create(
-        facture=facture, designation="Ligne B", quantite=Decimal("1"),
-        prix_unitaire_ht=Decimal("20"), ordre=1,
+        facture=facture,
+        designation="Ligne B",
+        quantite=Decimal("1"),
+        prix_unitaire_ht=Decimal("20"),
+        ordre=1,
     )
     client.force_login(_staff())
     donnees = {

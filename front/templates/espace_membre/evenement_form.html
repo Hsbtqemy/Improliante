@@ -5,22 +5,27 @@
 {% endblock %}
 
 {% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    {% if evenement %}
+      <h1>Modifier « {{ evenement.titre }} »</h1>
+      <p class="page-tete__sous">
+        Statut :
+        <span class="badge badge--{{ evenement.statut_moderation }}">
+          {{ evenement.get_statut_moderation_display }}
+        </span>
+      </p>
+    {% else %}
+      <h1>Proposer un événement</h1>
+    {% endif %}
+  </header>
   {% if evenement %}
-    <h1>Modifier « {{ evenement.titre }} »</h1>
-    <p class="carte-projet__meta">
-      Statut :
-      <span class="badge badge--{{ evenement.statut_moderation }}">
-        {{ evenement.get_statut_moderation_display }}
-      </span>
-    </p>
     {% if evenement.statut_moderation == "refuse" and evenement.motif_refus %}
       <div class="message message--error" role="alert">
         <strong>Événement refusé.</strong> {{ evenement.motif_refus }}
         Corrigez puis soumettez à nouveau.
       </div>
     {% endif %}
-  {% else %}
-    <h1>Proposer un événement</h1>
   {% endif %}
 
   <p class="carte-projet__meta">

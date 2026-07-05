@@ -3,7 +3,7 @@
 {% block title %}Mes reçus fiscaux — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Mes reçus fiscaux</h1>
+  <header class="page-tete"><span class="page-tete__eyebrow">Espace membre</span><h1>Mes reçus fiscaux</h1></header>
 
   {% if recus %}
     <ul class="liste-projets">
@@ -21,7 +21,11 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p>Aucun reçu fiscal disponible pour l'instant.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-recu"></use></svg></div>
+      <p class="etat-vide__titre">Aucun reçu fiscal</p>
+      <p>Vos reçus fiscaux apparaîtront ici après enregistrement de vos versements.</p>
+    </div>
   {% endif %}
 
   <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>

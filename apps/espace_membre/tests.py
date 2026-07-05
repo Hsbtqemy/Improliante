@@ -14,7 +14,8 @@ from apps.budget.models import Adhesion, RecuFiscal, Saison
 from apps.budget.services import emettre_recu
 from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.common.models import Moderation
-from apps.documents.models import Document
+from apps.documents import services as doc_services
+from apps.documents.models import Document, Dossier
 from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
@@ -585,6 +586,404 @@ def test_mes_documents_ne_liste_que_les_accessibles(client, db):
     assert "Statuts" in corps
     assert "ConvocationAG" in corps
     assert "ContratConfidentiel" not in corps  # privé d'autrui : masqué
+
+
+# --- Mes fichiers : espace fichiers personnel du membre --------------------
+
+Visibilite = Dossier.Visibilite
+
+
+def _staff(username="bureau"):
+    return Utilisateur.objects.create_user(username=username, password="x", is_staff=True)
+
+
+def _dossier_membre(membre, visibilite, *, parent=None, nom="Dossier"):
+    return doc_services.creer_dossier_membre(membre, nom=nom, visibilite=visibilite, parent=parent)
+
+
+def _fichier(dossier, *, cree_par=None, titre="Fichier", contenu=b"data"):
+    return Document.objects.create(
+        titre=titre,
+        dossier=dossier,
+        cree_par=cree_par,
+        fichier=SimpleUploadedFile(f"{titre}.pdf", contenu, content_type="application/pdf"),
+    )
+
+
+def test_mes_fichiers_exige_la_connexion(client, db):
+    reponse = client.get("/espace/fichiers/")
+    assert reponse.status_code == 302
+    assert "/connexion/" in reponse.url
+
+
+def test_membre_cree_un_dossier_racine(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    reponse = client.post(
+        "/espace/fichiers/",
+        {"form_type": "dossier", "nom": "Photos", "description": "", "visibilite": "prive"},
+    )
+    assert reponse.status_code == 302
+    dossier = Dossier.objects.get(nom="Photos")
+    assert dossier.proprietaire == membre
+    assert dossier.get_depth() == 1
+    assert dossier.visibilite == "prive"
+
+
+def test_membre_cree_sous_dossier_et_televerse(client, db):
+    membre = _membre("alice")
+    racine = _dossier_membre(membre, Visibilite.PRIVE, nom="Racine")
+    client.force_login(membre.user)
+    client.post(
+        f"/espace/fichiers/{racine.pk}/",
+        {"form_type": "dossier", "nom": "Sous", "description": "", "visibilite": "prive"},
+    )
+    sous = Dossier.objects.get(nom="Sous")
+    assert sous.get_depth() == 2
+    assert sous.proprietaire == membre
+    reponse = client.post(
+        f"/espace/fichiers/{racine.pk}/",
+        {
+            "form_type": "document",
+            "titre": "Mon PDF",
+            "description": "",
+            "fichier": SimpleUploadedFile("x.pdf", b"data", content_type="application/pdf"),
+        },
+    )
+    assert reponse.status_code == 302
+    doc = Document.objects.get(titre="Mon PDF")
+    assert doc.dossier == racine
+    assert doc.cree_par == membre.user
+
+
+def test_dossier_prive_invisible_pour_un_autre_membre(client, db):
+    """ANTI-IDOR : le dossier privé d'autrui renvoie 404 (GET et POST), inchangé."""
+    alice = _membre("alice")
+    prive = _dossier_membre(alice, Visibilite.PRIVE, nom="Prive")
+    bob = _membre("bob")
+    client.force_login(bob.user)
+    assert client.get(f"/espace/fichiers/{prive.pk}/").status_code == 404
+    reponse = client.post(
+        f"/espace/fichiers/{prive.pk}/",
+        {
+            "form_type": "document",
+            "titre": "Intrus",
+            "fichier": SimpleUploadedFile("i.pdf", b"x", content_type="application/pdf"),
+        },
+    )
+    assert reponse.status_code == 404
+    assert not Document.objects.filter(titre="Intrus").exists()
+
+
+def test_dossier_prive_invisible_du_bureau(client, db):
+    """Décision produit : privé = strictement personnel, le bureau n'y accède pas."""
+    alice = _membre("alice")
+    prive = _dossier_membre(alice, Visibilite.PRIVE, nom="Prive")
+    doc = _fichier(prive, cree_par=alice.user, titre="Perso")
+    client.force_login(_staff())
+    assert client.get(f"/espace/fichiers/{prive.pk}/").status_code == 404
+    assert client.get(f"/espace/documents/{doc.pk}/telecharger/").status_code == 404
+
+
+def test_dossier_bureau_visible_du_bureau_pas_des_membres(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.BUREAU, nom="PourBureau")
+    doc = _fichier(dossier, cree_par=alice.user, titre="Note")
+    bob = _membre("bob")
+    client.force_login(bob.user)
+    assert client.get(f"/espace/fichiers/{dossier.pk}/").status_code == 404
+    assert client.get(f"/espace/documents/{doc.pk}/telecharger/").status_code == 404
+    client.force_login(_staff())
+    assert client.get(f"/espace/documents/{doc.pk}/telecharger/").status_code == 200
+
+
+def test_creer_dossier_par_branche_via_le_landing(client, db):
+    """Le landing crée un dossier dans la branche indiquée (perso / bureau / partage)."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post("/espace/fichiers/", {"form_type": "dossier", "branche": "perso", "nom": "P"})
+    client.post("/espace/fichiers/", {"form_type": "dossier", "branche": "bureau", "nom": "B"})
+    client.post("/espace/fichiers/", {"form_type": "dossier", "branche": "partage", "nom": "S"})
+    p = Dossier.objects.get(nom="P")
+    assert p.espace == "perso" and p.visibilite == "prive" and p.proprietaire == membre
+    b = Dossier.objects.get(nom="B")
+    assert b.espace == "perso" and b.visibilite == "bureau" and b.proprietaire == membre
+    s = Dossier.objects.get(nom="S")
+    assert s.espace == "commun" and s.proprietaire is None
+
+
+def test_sous_dossier_herite_de_la_branche_du_parent(client, db):
+    membre = _membre("alice")
+    bureau = _dossier_membre(membre, Visibilite.BUREAU, nom="Bur")
+    client.force_login(membre.user)
+    client.post(f"/espace/fichiers/{bureau.pk}/", {"form_type": "dossier", "nom": "Sub"})
+    sub = Dossier.objects.get(nom="Sub")
+    assert sub.visibilite == "bureau"  # hérité du parent, pas choisi
+    assert sub.proprietaire == membre
+
+
+def test_dossier_membre_absent_de_la_ged_bureau(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="DossierMembreAlice")
+    client.force_login(_staff())
+    corps = client.get("/bureau/documents/").content.decode()
+    assert "DossierMembreAlice" not in corps
+    assert client.get(f"/bureau/documents/dossier/{dossier.pk}/").status_code == 404
+
+
+def test_documents_association_exclut_les_fichiers_membres(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Perso")
+    _fichier(dossier, cree_par=alice.user, titre="FichierPersoAlice")
+    client.force_login(alice.user)
+    corps = client.get("/espace/documents/").content.decode()
+    assert "FichierPersoAlice" not in corps
+
+
+def test_upload_extension_interdite_refusee(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="D")
+    client.force_login(alice.user)
+    reponse = client.post(
+        f"/espace/fichiers/{dossier.pk}/",
+        {
+            "form_type": "document",
+            "titre": "Virus",
+            "fichier": SimpleUploadedFile("x.exe", b"MZ", content_type="application/octet-stream"),
+        },
+    )
+    assert reponse.status_code == 200  # formulaire re-rendu avec l'erreur
+    assert not Document.objects.filter(titre="Virus").exists()
+
+
+def test_upload_trop_volumineux_refuse(client, db, monkeypatch):
+    from apps.documents import validators
+
+    monkeypatch.setattr(validators, "TAILLE_MAX_DOCUMENT", 10)
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="D")
+    client.force_login(alice.user)
+    reponse = client.post(
+        f"/espace/fichiers/{dossier.pk}/",
+        {
+            "form_type": "document",
+            "titre": "Gros",
+            "fichier": SimpleUploadedFile(
+                "gros.pdf", b"12345678901234567890", content_type="application/pdf"
+            ),
+        },
+    )
+    assert reponse.status_code == 200
+    assert not Document.objects.filter(titre="Gros").exists()
+
+
+def test_membre_renomme_son_dossier(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Avant")
+    client.force_login(alice.user)
+    reponse = client.post(
+        f"/espace/fichiers/{dossier.pk}/editer/",
+        {"nom": "Apres", "description": "maj"},
+    )
+    assert reponse.status_code == 302
+    dossier.refresh_from_db()
+    assert dossier.nom == "Apres"
+    assert dossier.description == "maj"
+
+
+def test_membre_ne_peut_pas_editer_le_dossier_d_un_autre(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Alice")
+    bob = _membre("bob")
+    client.force_login(bob.user)
+    assert client.get(f"/espace/fichiers/{dossier.pk}/editer/").status_code == 404
+    reponse = client.post(
+        f"/espace/fichiers/{dossier.pk}/editer/",
+        {"nom": "Pirate", "description": ""},
+    )
+    assert reponse.status_code == 404
+    dossier.refresh_from_db()
+    assert dossier.nom == "Alice"
+
+
+def test_supprimer_dossier_vide(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Vide")
+    client.force_login(alice.user)
+    reponse = client.post(f"/espace/fichiers/{dossier.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Dossier.objects.filter(pk=dossier.pk).exists()
+
+
+def test_supprimer_dossier_non_vide_bloque(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Plein")
+    _fichier(dossier, cree_par=alice.user, titre="F")
+    client.force_login(alice.user)
+    reponse = client.post(f"/espace/fichiers/{dossier.pk}/supprimer/")
+    assert reponse.status_code == 302  # redirection + message d'erreur
+    assert Dossier.objects.filter(pk=dossier.pk).exists()
+
+
+def test_supprimer_son_document(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="D")
+    doc = _fichier(dossier, cree_par=alice.user, titre="AJeter")
+    client.force_login(alice.user)
+    reponse = client.post(f"/espace/fichiers/doc/{doc.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Document.objects.filter(pk=doc.pk).exists()
+
+
+def test_membre_ne_supprime_pas_le_document_d_un_autre(client, db):
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="D")
+    doc = _fichier(dossier, cree_par=alice.user, titre="Precieux")
+    bob = _membre("bob")
+    client.force_login(bob.user)
+    assert client.post(f"/espace/fichiers/doc/{doc.pk}/supprimer/").status_code == 404
+    assert Document.objects.filter(pk=doc.pk).exists()
+
+
+def test_landing_affiche_les_trois_branches(client, db):
+    alice = _membre("alice")
+    bob = _membre("bob")
+    _dossier_membre(alice, Visibilite.PRIVE, nom="AlicePrive")
+    _dossier_membre(alice, Visibilite.BUREAU, nom="AliceBureau")
+    _dossier_commun("DossierTroupe")
+    _dossier_membre(bob, Visibilite.PRIVE, nom="BobPrive")
+    client.force_login(alice.user)
+    corps = client.get("/espace/fichiers/").content.decode()
+    assert "AlicePrive" in corps  # branche Perso
+    assert "AliceBureau" in corps  # branche Bureau
+    assert "DossierTroupe" in corps  # branche Partagé (espace commun)
+    assert "BobPrive" not in corps  # le perso d'autrui n'apparaît jamais
+
+
+def test_ecran_fichiers_transmis_bureau(client, db):
+    alice = _membre("alice")
+    _dossier_membre(alice, Visibilite.BUREAU, nom="TransmisAlice")
+    _dossier_membre(alice, Visibilite.PRIVE, nom="PriveAlice")
+    client.force_login(_staff())
+    corps = client.get("/bureau/fichiers-transmis/").content.decode()
+    assert "TransmisAlice" in corps
+    assert "PriveAlice" not in corps
+
+
+def test_fichiers_transmis_reserve_au_bureau(client, db):
+    alice = _membre("alice")
+    client.force_login(alice.user)
+    assert client.get("/bureau/fichiers-transmis/").status_code == 403
+
+
+# --- Espace commun : dossiers collaboratifs de la troupe -------------------
+
+
+def _dossier_commun(nom="Commun", *, parent=None):
+    return doc_services.creer_dossier_commun(nom=nom, parent=parent)
+
+
+def test_membre_cree_un_dossier_partage_via_le_landing(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    reponse = client.post(
+        "/espace/fichiers/",
+        {"form_type": "dossier", "branche": "partage", "nom": "Affiches", "description": ""},
+    )
+    assert reponse.status_code == 302
+    d = Dossier.objects.get(nom="Affiches")
+    assert d.espace == "commun"
+    assert d.proprietaire is None
+
+
+def test_espace_commun_collaboratif_entre_membres(client, db):
+    _membre("alice")
+    commun = _dossier_commun("Musiques")
+    bob = _membre("bob")  # un AUTRE membre peut contribuer
+    client.force_login(bob.user)
+    assert client.get(f"/espace/commun/{commun.pk}/").status_code == 200
+    client.post(
+        f"/espace/commun/{commun.pk}/",
+        {"form_type": "dossier", "nom": "Acte 1", "description": ""},
+    )
+    assert Dossier.objects.filter(nom="Acte 1", espace="commun").exists()
+    reponse = client.post(
+        f"/espace/commun/{commun.pk}/",
+        {
+            "form_type": "document",
+            "titre": "BandeSon",
+            "fichier": SimpleUploadedFile("s.mp3", b"audio", content_type="audio/mpeg"),
+        },
+    )
+    assert reponse.status_code == 302
+    doc = Document.objects.get(titre="BandeSon")
+    assert doc.dossier == commun
+    assert doc.cree_par == bob.user
+
+
+def test_document_commun_telechargeable_par_tout_membre(client, db):
+    commun = _dossier_commun("Partages")
+    doc = _fichier(commun, titre="Note", contenu=b"hello")
+    bob = _membre("bob")
+    client.force_login(bob.user)
+    reponse = client.get(f"/espace/documents/{doc.pk}/telecharger/")
+    assert reponse.status_code == 200
+    assert _corps_stream(reponse) == b"hello"
+
+
+def test_espace_commun_refuse_sans_fiche_membre(client, db):
+    commun = _dossier_commun("Truc")
+    user = Utilisateur.objects.create_user(username="tech", password="x")
+    client.force_login(user)
+    # Pas de fiche membre : redirigé hors de l'espace commun.
+    assert client.get(f"/espace/commun/{commun.pk}/").status_code == 302
+
+
+def test_dossier_commun_absent_de_la_ged_bureau(client, db):
+    commun = _dossier_commun("DossierCommunX")
+    client.force_login(_staff())
+    corps = client.get("/bureau/documents/").content.decode()
+    assert "DossierCommunX" not in corps
+    assert client.get(f"/bureau/documents/dossier/{commun.pk}/").status_code == 404
+
+
+def test_document_commun_exclu_des_documents_association(client, db):
+    membre = _membre("alice")
+    commun = _dossier_commun("Commun")
+    _fichier(commun, titre="FichierCommunX")
+    client.force_login(membre.user)
+    corps = client.get("/espace/documents/").content.decode()
+    assert "FichierCommunX" not in corps
+
+
+def test_membre_supprime_un_fichier_commun(client, db):
+    alice = _membre("alice")
+    commun = _dossier_commun("Commun")
+    doc = _fichier(commun, cree_par=alice.user, titre="AJeter")
+    bob = _membre("bob")  # collaboratif : un autre membre peut supprimer
+    client.force_login(bob.user)
+    reponse = client.post(f"/espace/commun/doc/{doc.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Document.objects.filter(pk=doc.pk).exists()
+
+
+def test_supprimer_dossier_commun_non_vide_bloque(client, db):
+    membre = _membre("alice")
+    commun = _dossier_commun("Plein")
+    _fichier(commun, titre="F")
+    client.force_login(membre.user)
+    reponse = client.post(f"/espace/commun/{commun.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert Dossier.objects.filter(pk=commun.pk).exists()
+
+
+def test_url_commun_ne_touche_pas_un_dossier_perso(client, db):
+    """Un dossier perso n'est pas atteignable via les URLs de l'espace commun."""
+    alice = _membre("alice")
+    perso = _dossier_membre(alice, Visibilite.PRIVE, nom="Perso")
+    client.force_login(alice.user)
+    assert client.get(f"/espace/commun/{perso.pk}/").status_code == 404
+    assert client.post(f"/espace/commun/{perso.pk}/supprimer/").status_code == 404
 
 
 # --- Activation de compte (lien signé transmis par le bureau) --------------

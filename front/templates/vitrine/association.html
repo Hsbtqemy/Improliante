@@ -14,10 +14,12 @@
 
     {% if vedette %}
       <h3>À la une</h3>
-      {# Accordéon horizontal (100% CSS) alimenté par la vedette (quelques
-         profils). Mobile : cartes empilées. Desktop : au survol/focus, le
-         panneau s'élargit et révèle la fiche. Le nom est un lien toujours
-         focusable → déclenche `:focus-within` au clavier. #}
+      {% comment %}
+        Accordéon horizontal (100% CSS) alimenté par la vedette (quelques
+        profils). Mobile : cartes empilées. Desktop : au survol/focus, le
+        panneau s'élargit et révèle la fiche. Le nom est un lien toujours
+        focusable → déclenche « :focus-within » au clavier.
+      {% endcomment %}
       <ul class="membres-accordeon">
         {% for membre in vedette %}
           <li class="panneau">

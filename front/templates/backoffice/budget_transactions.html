@@ -3,7 +3,10 @@
 {% block title %}Budget — mouvements{% endblock %}
 
 {% block contenu %}
-  <h1>Budget — mouvements</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Budget — mouvements</h1>
+  </header>
   {% include "backoffice/_budget_nav.html" %}
 
   <form method="get" class="formulaire-inline">
@@ -40,49 +43,60 @@
     <button type="submit" class="lien-bouton">Filtrer</button>
   </form>
 
-  <p>
+  <p class="formulaire__actions">
     <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:budget_creer_transaction' %}">
       Nouveau mouvement
     </a>
   </p>
 
   {% if transactions %}
-    <table class="tableau">
-      <thead>
-        <tr>
-          <th scope="col">Date</th>
-          <th scope="col">Libellé</th>
-          <th scope="col">Type</th>
-          <th scope="col">Statut</th>
-          <th scope="col">Catégorie</th>
-          <th scope="col">Montant</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for t in transactions %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
           <tr>
-            <td>{{ t.date|date:"j M Y" }}</td>
-            <td>{{ t.libelle }}</td>
-            <td>{{ t.get_type_flux_display }}</td>
-            <td>{{ t.get_statut_display }}</td>
-            <td>{{ t.categorie|default:"—" }}</td>
-            <td>{{ t.montant|floatformat:2 }} €</td>
-            <td>
-              <a href="{% url 'backoffice:budget_editer_transaction' pk=t.pk %}">Éditer</a>
-              ·
-              <form method="post" action="{% url 'backoffice:budget_supprimer_transaction' pk=t.pk %}"
-                    style="display: inline">
-                {% csrf_token %}
-                <button type="submit" class="bouton-texte">Supprimer</button>
-              </form>
-            </td>
+            <th scope="col">Date</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Type</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Catégorie</th>
+            <th scope="col" class="montant">Montant</th>
+            <th scope="col">Actions</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+            <tr>
+              <td>{{ t.date|date:"j M Y" }}</td>
+              <td>{{ t.libelle }}</td>
+              <td><span class="badge">{{ t.get_type_flux_display }}</span></td>
+              <td>{{ t.get_statut_display }}</td>
+              <td>{{ t.categorie|default:"—" }}</td>
+              <td class="montant">{{ t.montant|floatformat:2 }} €</td>
+              <td>
+                <a href="{% url 'backoffice:budget_editer_transaction' pk=t.pk %}">Éditer</a>
+                ·
+                <form method="post" action="{% url 'backoffice:budget_supprimer_transaction' pk=t.pk %}"
+                      style="display: inline">
+                  {% csrf_token %}
+                  <button type="submit" class="bouton-texte">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% include "backoffice/_pagination.html" %}
   {% else %}
-    <p>Aucun mouvement{% if saison_courante %} pour cette saison{% endif %}.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-graphique"></use></svg>
+      </div>
+      <p class="etat-vide__titre">Aucun mouvement{% if saison_courante %} pour cette saison{% endif %}</p>
+      <p>Enregistrez recettes et dépenses pour suivre le budget et bâtir le bilan.</p>
+      <p class="etat-vide__actions">
+        <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:budget_creer_transaction' %}">Nouveau mouvement</a>
+      </p>
+    </div>
   {% endif %}
 {% endblock %}

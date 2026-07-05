@@ -1,0 +1,24 @@
+{% comment %}
+Arbre unifié des fichiers du membre, en trois branches : Perso / Partagé / Bureau.
+Panneau latéral permanent sur grand écran, repli sur mobile.
+Attendu : `arbre_perso`, `arbre_partage`, `arbre_bureau`, `dossier_courant_id`.
+{% endcomment %}
+<details class="ged-tree" open>
+  <summary class="ged-tree__resume">
+    <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg> Fichiers
+  </summary>
+  <nav class="ged-tree__nav" aria-label="Arborescence des fichiers">
+    <a class="ged-tree__racine{% if not dossier_courant_id %} est-actif{% endif %}"
+       href="{% url 'espace_membre:mes_fichiers' %}"
+       {% if not dossier_courant_id %}aria-current="page"{% endif %}>Vue d'ensemble</a>
+
+    <p class="ged-tree__groupe">Perso</p>
+    {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_perso url_nom="espace_membre:dossier_membre" %}
+
+    <p class="ged-tree__groupe">Partagé</p>
+    {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_partage url_nom="espace_membre:dossier_commun" %}
+
+    <p class="ged-tree__groupe">Bureau</p>
+    {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_bureau url_nom="espace_membre:dossier_membre" %}
+  </nav>
+</details>

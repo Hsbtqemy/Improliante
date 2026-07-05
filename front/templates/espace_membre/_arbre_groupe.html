@@ -1,0 +1,10 @@
+{% comment %}
+Un groupe de l'arbre : liste imbriquée d'une branche (treebeard annotated list).
+Attendu : `noeuds` (get_annotated_list_qs), `url_nom` (nom de la vue détail),
+`dossier_courant_id`.
+{% endcomment %}
+{% for node, structure in noeuds %}
+  {% if structure.open %}<ul><li>{% else %}</li><li>{% endif %}
+    <a href="{% url url_nom pk=node.pk %}"{% if node.pk == dossier_courant_id %} class="est-actif" aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>{{ node.nom }}</span></a>
+  {% for close in structure.close %}</li></ul>{% endfor %}
+{% endfor %}

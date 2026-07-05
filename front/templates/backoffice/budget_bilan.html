@@ -3,7 +3,10 @@
 {% block title %}Budget — bilan{% endblock %}
 
 {% block contenu %}
-  <h1>Bilan par catégorie</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Bilan par catégorie</h1>
+  </header>
   {% include "backoffice/_budget_nav.html" %}
 
   {% if saisons %}
@@ -27,45 +30,47 @@
         Exporter en Excel
       </a>
     </p>
-    <table class="tableau">
-      <thead>
-        <tr>
-          <th scope="col">Catégorie</th>
-          <th scope="col">Recettes prévues</th>
-          <th scope="col">Recettes réalisées</th>
-          <th scope="col">Dépenses prévues</th>
-          <th scope="col">Dépenses réalisées</th>
-          <th scope="col">Solde prévu</th>
-          <th scope="col">Solde réalisé</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for l in bilan.lignes %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
           <tr>
-            <td>{{ l.categorie }}</td>
-            <td>{{ l.recette_prevu|floatformat:2 }}</td>
-            <td>{{ l.recette_realise|floatformat:2 }}</td>
-            <td>{{ l.depense_prevu|floatformat:2 }}</td>
-            <td>{{ l.depense_realise|floatformat:2 }}</td>
-            <td>{{ l.solde_prevu|floatformat:2 }}</td>
-            <td>{{ l.solde_realise|floatformat:2 }}</td>
+            <th scope="col">Catégorie</th>
+            <th scope="col" class="montant">Recettes prévues</th>
+            <th scope="col" class="montant">Recettes réalisées</th>
+            <th scope="col" class="montant">Dépenses prévues</th>
+            <th scope="col" class="montant">Dépenses réalisées</th>
+            <th scope="col" class="montant">Solde prévu</th>
+            <th scope="col" class="montant">Solde réalisé</th>
           </tr>
-        {% empty %}
-          <tr><td colspan="7">Aucun mouvement pour cette saison.</td></tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <th scope="row">{{ bilan.totaux.categorie }}</th>
-          <td>{{ bilan.totaux.recette_prevu|floatformat:2 }}</td>
-          <td>{{ bilan.totaux.recette_realise|floatformat:2 }}</td>
-          <td>{{ bilan.totaux.depense_prevu|floatformat:2 }}</td>
-          <td>{{ bilan.totaux.depense_realise|floatformat:2 }}</td>
-          <td>{{ bilan.totaux.solde_prevu|floatformat:2 }}</td>
-          <td>{{ bilan.totaux.solde_realise|floatformat:2 }}</td>
-        </tr>
-      </tfoot>
-    </table>
+        </thead>
+        <tbody>
+          {% for l in bilan.lignes %}
+            <tr>
+              <td>{{ l.categorie }}</td>
+              <td class="montant">{{ l.recette_prevu|floatformat:2 }}</td>
+              <td class="montant">{{ l.recette_realise|floatformat:2 }}</td>
+              <td class="montant">{{ l.depense_prevu|floatformat:2 }}</td>
+              <td class="montant">{{ l.depense_realise|floatformat:2 }}</td>
+              <td class="montant">{{ l.solde_prevu|floatformat:2 }}</td>
+              <td class="montant">{{ l.solde_realise|floatformat:2 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7">Aucun mouvement pour cette saison.</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">{{ bilan.totaux.categorie }}</th>
+            <td class="montant">{{ bilan.totaux.recette_prevu|floatformat:2 }}</td>
+            <td class="montant">{{ bilan.totaux.recette_realise|floatformat:2 }}</td>
+            <td class="montant">{{ bilan.totaux.depense_prevu|floatformat:2 }}</td>
+            <td class="montant">{{ bilan.totaux.depense_realise|floatformat:2 }}</td>
+            <td class="montant">{{ bilan.totaux.solde_prevu|floatformat:2 }}</td>
+            <td class="montant">{{ bilan.totaux.solde_realise|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   {% else %}
     <p>Créez d'abord une saison (onglet « Saisons ») et des mouvements.</p>
   {% endif %}

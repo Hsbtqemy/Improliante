@@ -3,8 +3,11 @@
 {% block title %}Modération — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>File de modération</h1>
-  <p class="carte-projet__meta">Fiches proposées par les membres, en attente de validation.</p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>File de modération</h1>
+    <p class="page-tete__sous">Fiches proposées par les membres, en attente de validation.</p>
+  </header>
 
   <section aria-labelledby="titre-projets">
     <h2 id="titre-projets">Projets ({{ projets|length }})</h2>
@@ -36,7 +39,13 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>Aucun projet en attente.</p>
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true">
+          <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-bouclier"></use></svg>
+        </div>
+        <p class="etat-vide__titre">Aucun projet en attente</p>
+        <p>Rien à modérer côté projets pour le moment.</p>
+      </div>
     {% endif %}
   </section>
 
@@ -79,7 +88,13 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>Aucun événement en attente.</p>
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true">
+          <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-calendrier"></use></svg>
+        </div>
+        <p class="etat-vide__titre">Aucun événement en attente</p>
+        <p>Rien à modérer côté agenda pour le moment.</p>
+      </div>
     {% endif %}
   </section>
 {% endblock %}

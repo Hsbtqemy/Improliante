@@ -3,7 +3,7 @@
 {% block title %}Mes convocations — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Convocations et assemblées</h1>
+  <header class="page-tete"><span class="page-tete__eyebrow">Espace membre</span><h1>Convocations et assemblées</h1></header>
 
   {% if reunions %}
     <ul class="liste-projets">
@@ -25,7 +25,11 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p>Aucune convocation pour l'instant.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-enveloppe"></use></svg></div>
+      <p class="etat-vide__titre">Aucune convocation</p>
+      <p>Vos convocations et comptes-rendus d'assemblées apparaîtront ici.</p>
+    </div>
   {% endif %}
 
   <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>

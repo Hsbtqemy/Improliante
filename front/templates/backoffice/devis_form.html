@@ -6,12 +6,15 @@
 {% endblock %}
 
 {% block contenu %}
-  <h1>
-    {% if devis %}Modifier le devis {{ devis.numero }}{% else %}Nouveau devis{% endif %}
-  </h1>
-  {% if devis %}
-    <p class="carte-projet__meta">Statut : <span class="badge">{{ devis.get_statut_display }}</span></p>
-  {% endif %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>
+      {% if devis %}Modifier le devis {{ devis.numero }}{% else %}Nouveau devis{% endif %}
+    </h1>
+    {% if devis %}
+      <p class="page-tete__sous">Statut : <span class="badge">{{ devis.get_statut_display }}</span></p>
+    {% endif %}
+  </header>
 
   <form method="post" class="formulaire">
     {% csrf_token %}
@@ -31,27 +34,29 @@
     {{ formset.management_form }}
     {% if formset.non_form_errors %}<div class="erreurs" role="alert">{{ formset.non_form_errors }}</div>{% endif %}
     <div data-formset-lignes="lignes">
-      <table class="tableau">
-        <thead>
-          <tr>
-            <th scope="col">Désignation</th>
-            <th scope="col">Qté</th>
-            <th scope="col">PU HT</th>
-            <th scope="col">TVA %</th>
-            <th scope="col">Retirer</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for ligne in formset %}
-            {% include "backoffice/_ligne_facturation.html" %}
-          {% endfor %}
-        </tbody>
-        <tfoot class="totaux">
-          <tr><th scope="row" colspan="4" class="totaux__label">Total HT</th><td class="montant" data-total-ht>—</td></tr>
-          <tr><th scope="row" colspan="4" class="totaux__label">TVA</th><td class="montant" data-total-tva>—</td></tr>
-          <tr class="totaux__ttc"><th scope="row" colspan="4" class="totaux__label">Total TTC</th><td class="montant" data-total-ttc>—</td></tr>
-        </tfoot>
-      </table>
+      <div class="tableau-wrap">
+        <table class="tableau">
+          <thead>
+            <tr>
+              <th scope="col">Désignation</th>
+              <th scope="col">Qté</th>
+              <th scope="col">PU HT</th>
+              <th scope="col">TVA %</th>
+              <th scope="col">Retirer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ligne in formset %}
+              {% include "backoffice/_ligne_facturation.html" %}
+            {% endfor %}
+          </tbody>
+          <tfoot class="totaux">
+            <tr><th scope="row" colspan="4" class="totaux__label">Total HT</th><td class="montant" data-total-ht>—</td></tr>
+            <tr><th scope="row" colspan="4" class="totaux__label">TVA</th><td class="montant" data-total-tva>—</td></tr>
+            <tr class="totaux__ttc"><th scope="row" colspan="4" class="totaux__label">Total TTC</th><td class="montant" data-total-ttc>—</td></tr>
+          </tfoot>
+        </table>
+      </div>
       <p>
         <button type="button" class="lien-bouton" data-ajouter-ligne>+ Ajouter une ligne</button>
       </p>

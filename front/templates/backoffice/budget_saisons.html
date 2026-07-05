@@ -3,7 +3,10 @@
 {% block title %}Budget — saisons{% endblock %}
 
 {% block contenu %}
-  <h1>Saisons</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Saisons</h1>
+  </header>
   {% include "backoffice/_budget_nav.html" %}
 
   <section aria-labelledby="titre-nouvelle">
@@ -30,7 +33,11 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>Aucune saison.</p>
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-graphique"></use></svg></div>
+        <p class="etat-vide__titre">Aucune saison</p>
+        <p>Ajoutez une saison pour cadrer les mouvements de budget sur une période.</p>
+      </div>
     {% endif %}
   </section>
 {% endblock %}

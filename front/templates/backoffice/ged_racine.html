@@ -3,27 +3,36 @@
 {% block title %}Documents (GED) — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>Documents (GED)</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Documents</span>
+    <h1>Gestion des documents</h1>
+    <p class="page-tete__sous">
+      Classez et versionnez les fichiers de l'association : statuts, PV d'assemblée,
+      contrats, comptes, récépissés de préfecture…
+    </p>
+  </header>
 
-  <section aria-labelledby="titre-arbre">
-    <h2 id="titre-arbre">Dossiers</h2>
-    {% if dossiers %}
-      <ul class="arbre-dossiers">
-        {% for d in dossiers %}
-          <li style="padding-left: {{ d.depth }}em">
-            <a href="{% url 'backoffice:ged_dossier' pk=d.pk %}">{{ d.nom }}</a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>Aucun dossier pour l'instant.</p>
-    {% endif %}
-  </section>
+  <div class="ged-layout">
+    {% include "backoffice/_ged_arbre.html" %}
 
-  {% include "backoffice/_ged_forms.html" %}
+    <div class="ged-main">
+      {% include "backoffice/_ged_forms.html" %}
 
-  <section aria-labelledby="titre-docs-racine">
-    <h2 id="titre-docs-racine">Documents non classés</h2>
-    {% include "backoffice/_ged_documents.html" %}
-  </section>
+      <nav class="fil-ariane" aria-label="Fil d'Ariane">
+        <span class="fil-ariane__actuel" aria-current="page">
+          <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg> Racine
+        </span>
+      </nav>
+
+      <section aria-labelledby="t-dossiers">
+        <h2 id="t-dossiers" class="ged-section-titre">Dossiers</h2>
+        {% include "backoffice/_ged_dossiers.html" with dossiers=racines vide_titre="Aucun dossier" vide_txt="Créez un premier dossier pour organiser vos documents." %}
+      </section>
+
+      <section aria-labelledby="t-nonclasses">
+        <h2 id="t-nonclasses" class="ged-section-titre">Documents non classés</h2>
+        {% include "backoffice/_ged_documents.html" %}
+      </section>
+    </div>
+  </div>
 {% endblock %}

@@ -4,22 +4,53 @@
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
-  <h1>Paramètres de l'association</h1>
-  <p class="carte-projet__meta">
-    Ces informations constituent l'en-tête des documents officiels (reçus fiscaux, factures…).
-  </p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Paramètres de l'association</h1>
+    <p class="page-tete__sous">
+      Ces informations constituent l'en-tête des documents officiels (reçus fiscaux, factures…).
+    </p>
+  </header>
 
   <form method="post" class="formulaire" novalidate>
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-    {% for field in form %}
-      <p class="champ">
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {{ field }}
-        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
-        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
-      </p>
-    {% endfor %}
-    <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+
+    <fieldset class="bloc-form">
+      <legend>Identité</legend>
+      {% include "_champ.html" with field=form.nom %}
+      {% include "_champ.html" with field=form.objet %}
+    </fieldset>
+
+    <fieldset class="bloc-form">
+      <legend>Adresse</legend>
+      {% include "_champ.html" with field=form.adresse %}
+      {% include "_champ.html" with field=form.code_postal %}
+      {% include "_champ.html" with field=form.ville %}
+    </fieldset>
+
+    <fieldset class="bloc-form">
+      <legend>Immatriculation</legend>
+      {% include "_champ.html" with field=form.numero_rna %}
+      {% include "_champ.html" with field=form.numero_siret %}
+      {% include "_champ.html" with field=form.article_cgi %}
+    </fieldset>
+
+    <fieldset class="bloc-form">
+      <legend>Signataire des documents</legend>
+      {% include "_champ.html" with field=form.signataire_nom %}
+      {% include "_champ.html" with field=form.signataire_qualite %}
+    </fieldset>
+
+    <fieldset class="bloc-form">
+      <legend>Règlement &amp; TVA</legend>
+      {% include "_champ.html" with field=form.iban %}
+      {% include "_champ.html" with field=form.bic %}
+      {% include "_champ.html" with field=form.mention_tva %}
+    </fieldset>
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+    </div>
   </form>
 {% endblock %}

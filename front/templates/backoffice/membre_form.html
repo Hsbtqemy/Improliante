@@ -4,7 +4,10 @@
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:liste_membres' %}">← Membres</a></p>
-  <h1>Nouveau membre</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Nouveau membre</h1>
+  </header>
 
   {% if lien_activation %}
     <div class="message message--success" role="status">

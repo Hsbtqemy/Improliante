@@ -1,17 +1,49 @@
 /* Front public — mobile-first, unités relatives (rem), contrastes AA. */
 
 :root {
-  --couleur-texte: #1a1a1a;
+  /* Encres & surfaces */
+  --ink: #18131c; /* near-black chaud : en-tête, pied, hero, rail */
+  --ink-2: #251d2c; /* surface sombre élevée */
+  --couleur-texte: #18131c;
   --couleur-fond: #ffffff;
-  --couleur-primaire: #7a1f2b; /* bordeaux, contraste AA sur blanc */
-  --couleur-primaire-clair: #f3e7e9;
-  --couleur-lien: #7a1f2b; /* liens texte (thémé en mode sombre) */
-  --couleur-muet: #565656;
-  --bordure: #e2e2e2;
+  --surface: #ffffff; /* fond des cartes / tuiles / tables (ressortent sur le canvas) */
+  --surface-alt: #f6f1ea; /* sections alternées & filtres */
+  --canvas: #ece5d8; /* fond de PAGE : chaud, non blanc, non pastel (kraft/greige) */
+
+  /* Marque — bordeaux punchy + accent ambre */
+  --couleur-primaire: #a01f3c; /* bordeaux vif, contraste AA sur blanc */
+  --couleur-primaire-vif: #c62a4a; /* survols / éclats */
+  --couleur-primaire-clair: #fbe7ec;
+  --accent: #ffb703; /* ambre — énergie (texte foncé au-dessus) */
+  --couleur-lien: #a01f3c;
+  --couleur-muet: #5c5560;
+  --bordure: #e8e1d9;
+
+  /* Profondeur */
+  --ombre: 0 1px 2px rgba(24, 19, 28, 0.06), 0 8px 24px rgba(24, 19, 28, 0.07);
+  --ombre-forte: 0 6px 14px rgba(24, 19, 28, 0.12), 0 18px 40px rgba(24, 19, 28, 0.14);
+
   --espace: 1rem;
-  --largeur-max: 62rem;
-  --rayon: 0.375rem;
-  /* Contrat de variables pour le futur panneau d'accessibilité
+  --largeur-max: 74rem; /* ~1184px : respire sur desktop sans nuire à la lecture */
+  --largeur-texte: 46rem; /* borne de confort pour les longs blocs de texte */
+  --rayon: 0.5rem;
+  --rayon-lg: 1rem;
+
+  /* Rail de l'espace connecté — surchargé par les thèmes (défaut : sombre) */
+  --rail-bg: var(--ink);
+  --rail-bordure: transparent;
+  --rail-texte: rgba(255, 255, 255, 0.82);
+  --rail-texte-fort: #fff;
+  --rail-titre: rgba(255, 255, 255, 0.45);
+  --rail-hover: rgba(255, 255, 255, 0.08);
+  --rail-actif-bg: rgba(255, 255, 255, 0.1);
+  --rail-actif-bord: var(--accent);
+  --rail-actif-texte: #fff;
+  --rail-sep: rgba(255, 255, 255, 0.09);
+
+  /* Typographie */
+  --police-titre: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  /* Contrat de variables pour le panneau d'accessibilité
      (taille du texte, interligne — bascule via une classe sur <html>). */
   --taille-base: 1rem;
   --interligne: 1.6;
@@ -27,7 +59,9 @@ body {
   font-size: var(--taille-base);
   line-height: var(--interligne);
   color: var(--couleur-texte);
-  background: var(--couleur-fond);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -64,9 +98,13 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
-/* En-tête */
+/* En-tête — bandeau sombre pleine largeur, collant */
 .site-entete {
-  border-bottom: 1px solid var(--bordure);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--ink);
+  border-bottom: 3px solid var(--couleur-primaire);
 }
 .site-entete__inner {
   display: flex;
@@ -74,49 +112,116 @@ select:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: var(--espace);
-  padding-block: 0.75rem;
+  padding-block: 0.85rem;
 }
 .site-logo {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--couleur-lien);
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+  color: #fff;
   text-decoration: none;
+}
+.site-logo::after {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: 0.15rem;
+  border-radius: 1px;
+  background: var(--accent); /* point ambre : signature de marque */
 }
 .site-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.15rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 .site-nav a {
   display: inline-block;
-  padding: 0.5rem; /* zone tactile */
-  color: var(--couleur-texte);
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--rayon);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 600;
   text-decoration: none;
 }
 .site-nav a:hover {
-  text-decoration: underline;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  text-decoration: none;
 }
 .nav-deconnexion {
   display: inline;
   margin: 0;
 }
 .nav-deconnexion button {
-  padding: 0.5rem;
+  padding: 0.45rem 0.7rem;
   border: none;
+  border-radius: var(--rayon);
   background: none;
-  color: var(--couleur-texte);
+  color: rgba(255, 255, 255, 0.82);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 .nav-deconnexion button:hover {
-  text-decoration: underline;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  text-decoration: none;
 }
 
 main {
-  padding-block: 2rem;
+  padding-block: 2.5rem;
+}
+
+/* Hero (accueil) — bloc sombre, grande typo, éclat ambre */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink);
+  color: #fff;
+  border-radius: var(--rayon-lg);
+  padding: clamp(1.75rem, 5vw, 3.5rem);
+  margin-block: 0.5rem 3rem;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -6rem;
+  top: -6rem;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 183, 3, 0.22), transparent 70%);
+  pointer-events: none;
+}
+.hero > * {
+  position: relative;
+}
+.hero__titre {
+  font-family: var(--police-titre);
+  font-size: clamp(2.2rem, 6vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0;
+}
+.hero__titre .accent {
+  color: var(--accent);
+}
+.hero__intro {
+  font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 42rem;
+  margin: 1rem 0 0;
+}
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
 }
 
 /* Mise en page de l'espace connecté : sidebar de navigation + contenu.
@@ -142,19 +247,150 @@ main {
   }
 }
 
+/* --- Espace connecté : chrome applicatif partagé ------------------------- */
+/* Le contenu devient un panneau « app » posé sur le fond (canvas/mesh). */
+.espace-grille--avec-nav .espace-grille__contenu {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 1.5rem 1.25rem;
+  box-shadow: var(--ombre);
+}
+@media (min-width: 48rem) {
+  .espace-grille--avec-nav .espace-grille__contenu {
+    padding: 2rem 2.25rem;
+  }
+}
+
+/* En-tête de page : sur-titre + titre + sous-titre + actions */
+.page-tete {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid var(--bordure);
+}
+.page-tete__eyebrow {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--couleur-lien);
+  margin-bottom: 0.35rem;
+}
+.page-tete h1 {
+  margin: 0;
+}
+.page-tete__sous {
+  margin: 0.4rem 0 0;
+  color: var(--couleur-muet);
+}
+.page-tete__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+/* Actions rapides : grille de cartes-liens */
+.actions-rapides {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+.action-carte {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--couleur-texte);
+  text-decoration: none;
+  font-weight: 600;
+  box-shadow: var(--ombre);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.action-carte:hover {
+  transform: translateY(-2px);
+  border-color: var(--couleur-primaire);
+  box-shadow: var(--ombre-forte);
+}
+.action-carte__ico {
+  flex: 0 0 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+  font-size: 1.1rem;
+}
+.action-carte__fleche {
+  margin-left: auto;
+  color: var(--couleur-muet);
+  font-weight: 700;
+}
+
+/* Icônes SVG en ligne (sprite _icones_svg.html) — héritent de currentColor */
+.ico {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* État vide : bloc centré (icône + titre + message + action) */
+.etat-vide {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border: 1px dashed var(--bordure);
+  border-radius: var(--rayon-lg);
+  background: var(--surface-alt);
+  color: var(--couleur-muet);
+}
+.etat-vide__ico {
+  font-size: 2rem;
+  line-height: 1;
+}
+.etat-vide__titre {
+  margin: 0.5rem 0 0.25rem;
+  color: var(--couleur-texte);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.etat-vide p {
+  margin: 0 auto;
+  max-width: 34rem;
+}
+.etat-vide__actions {
+  margin-top: 1.25rem;
+}
+
 /* Bouton de repli de la nav (visible sur mobile uniquement, via JS) */
 .nav-espace__bascule {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 0.6rem 0.75rem;
+  padding: 0.7rem 0.9rem;
   margin-bottom: 0.5rem;
-  border: 1px solid var(--bordure);
+  border: 1px solid var(--rail-bordure);
   border-radius: var(--rayon);
-  background: var(--couleur-primaire-clair);
-  color: var(--couleur-texte);
+  background: var(--rail-bg);
+  color: var(--rail-texte-fort);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 .nav-espace__bascule[aria-expanded="true"]::before {
@@ -164,16 +400,32 @@ main {
   content: "▸ ";
 }
 
-/* Navigation groupée de l'espace connecté */
+/* Rail de navigation de l'espace connecté — panneau « app », piloté par tokens */
+.nav-espace {
+  background: var(--rail-bg);
+  color: var(--rail-texte);
+  border: 1px solid var(--rail-bordure);
+  border-radius: var(--rayon-lg);
+  padding: 1.25rem 0.9rem;
+}
 .nav-espace__groupe {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--rail-sep);
+}
+.nav-espace__groupe:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 .nav-espace__titre {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--couleur-muet);
-  margin: 0 0 0.35rem;
+  letter-spacing: 0.09em;
+  color: var(--rail-titre);
+  margin: 0 0 0.5rem;
+  padding-inline: 0.7rem;
 }
 .nav-espace__liste {
   list-style: none;
@@ -181,36 +433,78 @@ main {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
 .nav-espace__liste a {
-  display: block;
-  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.7rem;
   border-radius: var(--rayon);
-  color: var(--couleur-texte);
+  color: var(--rail-texte);
+  font-weight: 600;
+  font-size: 0.95rem;
   text-decoration: none;
   border-left: 3px solid transparent;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.nav-espace__liste .ico {
+  width: 1.1rem;
+  height: 1.1rem;
+  opacity: 0.6;
+  transition: opacity 0.14s ease;
 }
 .nav-espace__liste a:hover {
-  background: var(--couleur-primaire-clair);
+  background: var(--rail-hover);
+  color: var(--rail-texte-fort);
+}
+.nav-espace__liste a:hover .ico {
+  opacity: 0.9;
 }
 .nav-espace__liste a[aria-current="page"] {
-  background: var(--couleur-primaire-clair);
-  border-left-color: var(--couleur-primaire);
-  font-weight: 600;
+  background: var(--rail-actif-bg);
+  border-left-color: var(--rail-actif-bord);
+  color: var(--rail-actif-texte);
+  font-weight: 700;
+}
+.nav-espace__liste a[aria-current="page"] .ico {
+  opacity: 1;
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--police-titre);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
 h1 {
-  font-size: 1.75rem;
-  line-height: 1.2;
+  font-size: clamp(2rem, 5vw, 2.9rem);
+  line-height: 1.05;
 }
 h2 {
-  font-size: 1.35rem;
-  margin-top: 2rem;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  line-height: 1.15;
+  margin-top: 2.75rem;
+}
+h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 .intro {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: var(--couleur-muet);
+  max-width: var(--largeur-texte);
+}
+
+/* Sur-titre / étiquette (uppercase, tracké) — accent « punchy » */
+.eyebrow {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--couleur-lien); /* token adaptatif (lisible en mode sombre) */
 }
 
 /* Grille de cartes responsive */
@@ -232,32 +526,50 @@ h2 {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+@media (min-width: 72rem) {
+  .cartes {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 .carte {
+  background: var(--surface);
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   overflow: hidden;
+  box-shadow: var(--ombre);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.carte:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ombre-forte);
+  border-color: var(--couleur-primaire);
 }
 .carte__image {
   width: 100%;
-  height: 10rem;
+  aspect-ratio: 3 / 4; /* affiche portrait : garde sa forme, plus de bandeau recadré */
   object-fit: cover;
   display: block;
 }
 .carte__titre {
-  margin: 0.75rem;
+  margin: 0.85rem 0.85rem 0.35rem;
   font-size: 1.1rem;
+  font-weight: 700;
 }
 .carte__titre a {
   color: var(--couleur-texte);
   text-decoration: none;
 }
 .carte__titre a:hover {
-  text-decoration: underline;
+  color: var(--couleur-lien);
+  text-decoration: none;
 }
 .carte__meta {
-  margin: 0 0.75rem 0.75rem;
-  color: var(--couleur-muet);
-  font-size: 0.9rem;
+  margin: 0 0.85rem 0.9rem;
+  color: var(--couleur-lien);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* Filtres */
@@ -266,8 +578,9 @@ h2 {
   flex-wrap: wrap;
   gap: var(--espace);
   margin-block: 1.5rem;
-  padding: var(--espace);
-  background: var(--couleur-primaire-clair);
+  padding: 1rem 1.25rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--bordure);
   border-radius: var(--rayon);
 }
 .filtres__champ {
@@ -276,8 +589,11 @@ h2 {
   gap: 0.25rem;
 }
 .filtres label {
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--couleur-muet);
 }
 .filtres select {
   min-height: 2.75rem; /* zone tactile ~44px */
@@ -287,16 +603,40 @@ h2 {
 
 /* Lien-bouton */
 .lien-bouton {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   min-height: 2.75rem;
-  padding: 0.6rem 1.1rem;
+  padding: 0.6rem 1.25rem;
   background: var(--couleur-primaire);
   color: #fff;
+  font-weight: 700;
   text-decoration: none;
+  border: 2px solid transparent;
   border-radius: var(--rayon);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 .lien-bouton:hover {
-  opacity: 0.9;
+  background: var(--couleur-primaire-vif);
+  transform: translateY(-2px);
+  opacity: 1;
+}
+/* Variante « fantôme » : sur fond sombre (hero) */
+.lien-bouton--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+.lien-bouton--ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #fff;
+}
+/* Variante ambre — appel à l'action fort */
+.lien-bouton--accent {
+  background: var(--accent);
+  color: var(--ink);
+}
+.lien-bouton--accent:hover {
+  background: #ffc633;
 }
 
 /* Fiche */
@@ -342,6 +682,43 @@ h2 {
   .fiche-membre__col-parcours {
     flex: 1;
     min-width: 0;
+  }
+}
+
+/* Fiche spectacle : affiche à gauche (sticky), infos à droite. Même schéma que
+   la fiche membre. Mobile : empilé (affiche puis infos). Desktop (≥48rem) : 2 col. */
+.fiche-spectacle__corps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.fiche-spectacle__affiche {
+  width: 100%;
+  height: auto;
+  border-radius: var(--rayon);
+  display: block;
+}
+.fiche-spectacle__col-infos > :first-child {
+  margin-top: 0;
+}
+@media (min-width: 48rem) {
+  .fiche-spectacle__corps {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+  .fiche-spectacle__col-affiche {
+    flex: 0 0 20rem;
+    position: sticky;
+    top: 1rem;
+  }
+  .fiche-spectacle__col-infos {
+    flex: 1;
+    min-width: 0;
+  }
+  /* Les longs blocs de texte restent lisibles même dans une colonne large. */
+  .fiche-spectacle__col-infos p {
+    max-width: var(--largeur-texte);
   }
 }
 
@@ -491,24 +868,35 @@ th.montant {
 
 /* Tables de données : zébrures + survol discrets */
 .tableau tbody tr:nth-child(even) {
-  background: #fafafa;
+  background: var(--surface-alt);
 }
 .tableau tbody tr:hover {
   background: var(--couleur-primaire-clair);
 }
 
-/* En-tête de liste : titre + compteur + actions */
+/* En-tête de liste : titre + compteur (pastille) + actions, souligné */
 .liste-entete {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--bordure);
+}
+.liste-entete h1 {
+  margin: 0;
 }
 .liste-entete__compte {
-  color: var(--couleur-muet);
-  font-size: 0.95rem;
+  color: var(--couleur-primaire);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.6rem;
+  background: var(--couleur-primaire-clair);
+  border-radius: 999px;
 }
 
 /* Badges de statut — palette AA (facturation, devis, reçus) */
@@ -555,13 +943,26 @@ th.montant {
   margin-top: 0;
   font-size: 1.05rem;
 }
+.bloc-form legend {
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0 0.5rem;
+  color: var(--couleur-texte);
+}
 
-/* Pied de page */
+/* Pied de page — bandeau sombre */
 .site-pied {
-  margin-top: 3rem;
-  padding-block: 1.5rem;
-  border-top: 1px solid var(--bordure);
-  color: var(--couleur-muet);
+  margin-top: 4rem;
+  padding-block: 2.5rem;
+  background: var(--ink);
+  border-top: 3px solid var(--couleur-primaire);
+  color: rgba(255, 255, 255, 0.72);
+}
+.site-pied a {
+  color: #fff;
+}
+.site-pied__liens {
+  margin-top: 0.35rem;
 }
 
 /* Utilitaire visuellement masqué mais lu par les lecteurs d'écran */
@@ -684,13 +1085,13 @@ th.montant {
   font-size: 0.9rem;
 }
 
-/* Carte membre : photo en médaillon */
+/* Carte membre : photo en médaillon carré (portrait non déformé) */
 .carte--membre {
   text-align: center;
   padding-bottom: 0.75rem;
 }
 .carte--membre .carte__image {
-  height: 12rem;
+  aspect-ratio: 1 / 1;
 }
 
 /* Formulaires */
@@ -710,13 +1111,36 @@ th.montant {
 .formulaire select {
   width: 100%;
   min-height: 2.75rem;
-  padding: 0.5rem;
+  padding: 0.55rem 0.7rem;
   font-size: 1rem;
+  color: var(--couleur-texte);
+  background: var(--surface);
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .formulaire textarea {
   min-height: 8rem;
+}
+.formulaire input:focus,
+.formulaire textarea:focus,
+.formulaire select:focus {
+  outline: none;
+  border-color: var(--couleur-primaire);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--couleur-primaire) 22%, transparent);
+}
+/* Champ en erreur : le widget vire au rouge (son .champ contient un .champ__erreur) */
+.champ:has(.champ__erreur) input,
+.champ:has(.champ__erreur) textarea,
+.champ:has(.champ__erreur) select {
+  border-color: #c22f3e;
+}
+.champ:has(.champ__erreur) input:focus,
+.champ:has(.champ__erreur) textarea:focus,
+.champ:has(.champ__erreur) select:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #c22f3e 22%, transparent);
 }
 .champ--case {
   display: flex;
@@ -844,12 +1268,17 @@ html.contraste {
   --bordure: #000;
 }
 html.sombre {
-  --couleur-fond: #141414;
+  --couleur-fond: #131017;
   --couleur-texte: #f2f2f2;
-  --couleur-muet: #c9c9c9;
-  --bordure: #3a3a3a;
-  --couleur-primaire-clair: #2a1e20;
-  --couleur-lien: #e8a0ab;
+  --couleur-muet: #b7b0bd;
+  --bordure: #3a333f;
+  --surface: #211b28;
+  --surface-alt: #1b1620;
+  --canvas: #100c13;
+  --couleur-primaire-clair: #2a1e24;
+  --couleur-lien: #f0a0b4; /* rose clair : bordeaux lisible sur fond sombre */
+  --ombre: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --ombre-forte: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 html.espacement body {
   line-height: 1.9;
@@ -935,6 +1364,32 @@ html.anim-reduites * {
   background: #f8d7da;
   color: #7a1220;
 }
+/* Confidentialité des documents (GED) */
+.badge--conf-prive {
+  background: #f8d7da;
+  color: #7a1220;
+}
+.badge--conf-membres {
+  background: #fff3cd;
+  color: #5c4400;
+}
+.badge--conf-public {
+  background: #d8f0e0;
+  color: #14532d;
+}
+/* Visibilité des dossiers de membre (Mes fichiers) */
+.badge--vis-prive {
+  background: #f8d7da;
+  color: #7a1220;
+}
+.badge--vis-partage {
+  background: #d8f0e0;
+  color: #14532d;
+}
+.badge--vis-bureau {
+  background: #fff3cd;
+  color: #5c4400;
+}
 
 /* Pagination */
 .pagination {
@@ -953,39 +1408,67 @@ html.anim-reduites * {
   margin-block: 1.5rem;
 }
 .tuile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding: 1.25rem;
+  padding: 1.35rem;
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   text-decoration: none;
   color: var(--couleur-texte);
-  background: var(--couleur-fond);
+  background: var(--surface);
+  box-shadow: var(--ombre);
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.tuile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--couleur-primaire);
 }
 a.tuile:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ombre-forte);
   border-color: var(--couleur-primaire);
 }
 .tuile__nombre {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--couleur-primaire);
+  font-family: var(--police-titre);
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--couleur-lien);
 }
 .tuile__label {
   color: var(--couleur-muet);
+  font-weight: 600;
 }
 
 /* Formulaire en ligne (filtres) + bouton d'aspect lien */
 .formulaire-inline {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem 0.9rem;
   align-items: end;
   flex-wrap: wrap;
-  margin-block: 1rem;
+  margin-block: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.formulaire-inline label {
+  align-self: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--couleur-muet);
 }
 .formulaire-inline select {
   min-height: 2.75rem;
-  padding: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface);
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
 }
@@ -999,14 +1482,325 @@ a.tuile:hover {
   cursor: pointer;
 }
 
-/* Arbre des dossiers (GED) */
-.arbre-dossiers {
-  list-style: none;
-  padding-left: 0;
+/* --- GED : gestion documentaire ---------------------------------------- */
+
+/* Fil d'Ariane (chemin de dossiers) */
+.fil-ariane {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
 }
-.arbre-dossiers li {
-  padding-block: 0.2rem;
-  border-bottom: 1px solid var(--bordure);
+.fil-ariane a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--rayon);
+  color: var(--couleur-muet);
+  text-decoration: none;
+}
+.fil-ariane a:hover {
+  color: var(--couleur-primaire);
+  background: var(--couleur-primaire-clair);
+}
+.fil-ariane .ico {
+  width: 1rem;
+  height: 1rem;
+}
+.fil-ariane__sep {
+  color: var(--couleur-muet);
+  opacity: 0.55;
+}
+.fil-ariane__actuel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  color: var(--couleur-texte);
+  font-weight: 700;
+}
+
+/* Barre d'actions (créer un dossier / téléverser), repliée en <details> */
+.ged-barre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+.ged-action {
+  flex: 0 0 auto;
+}
+.ged-action[open] {
+  flex-basis: 100%;
+}
+summary.lien-bouton {
+  gap: 0.45rem;
+  cursor: pointer;
+  list-style: none;
+}
+summary.lien-bouton::-webkit-details-marker {
+  display: none;
+}
+.ged-action__form {
+  margin-top: 0.75rem;
+  max-width: 40rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  background: var(--surface);
+  box-shadow: var(--ombre);
+}
+
+/* Titres de section GED */
+.ged-section-titre {
+  font-size: 1.05rem;
+  margin: 1.75rem 0 0.75rem;
+}
+/* Actions sur un dossier de membre (modifier / supprimer) */
+.ged-actions-dossier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.ged-actions-dossier .lien-bouton {
+  min-height: 2.1rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+/* Liste de dossiers (lignes/cartes cliquables) */
+.ged-liste {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.6rem;
+}
+.ged-item__lien {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  height: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--couleur-texte);
+  text-decoration: none;
+  box-shadow: var(--ombre);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ged-item__lien:hover {
+  transform: translateY(-2px);
+  border-color: var(--couleur-primaire);
+  box-shadow: var(--ombre-forte);
+}
+.ged-item__ico {
+  flex: 0 0 2.4rem;
+  height: 2.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+}
+.ged-item__ico .ico {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+.ged-item__corps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.ged-item__nom {
+  font-weight: 700;
+}
+.ged-item__meta {
+  font-size: 0.83rem;
+  color: var(--couleur-muet);
+}
+.ged-item__fleche {
+  margin-left: auto;
+  color: var(--couleur-muet);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+/* Documents : cellules enrichies + action « nouvelle version » repliée */
+.ged-doc__titre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.ged-doc__titre .ico {
+  color: var(--couleur-muet);
+}
+.ged-doc__desc {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--couleur-muet);
+  margin-top: 0.15rem;
+}
+.ged-doc__modif {
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.ged-doc__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+.ged-doc__actions .lien-bouton {
+  min-height: 2.1rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+}
+.ged-version__form {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Variante bouton discret (contour, secondaire) — hors formulaire__actions */
+.lien-bouton--discret {
+  background: transparent;
+  color: var(--couleur-primaire);
+  border-color: var(--couleur-primaire);
+  box-shadow: none;
+}
+.lien-bouton--discret:hover {
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+}
+
+/* Deux panneaux : arborescence (gauche) + contenu du dossier (droite).
+   Mobile : une colonne, l'arbre en repli au-dessus. */
+.ged-layout {
+  display: block;
+}
+.ged-main {
+  min-width: 0; /* laisse la table déborder dans son .tableau-wrap, pas la grille */
+}
+@media (min-width: 62rem) {
+  .ged-layout {
+    display: grid;
+    grid-template-columns: 14rem 1fr;
+    gap: 1.75rem;
+    align-items: start;
+  }
+}
+
+/* Panneau arborescence */
+.ged-tree {
+  margin-bottom: 1.25rem;
+}
+.ged-tree__resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.ged-tree__resume::-webkit-details-marker {
+  display: none;
+}
+.ged-tree__nav {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.ged-tree__racine {
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--rayon);
+  color: var(--couleur-texte);
+  font-weight: 700;
+  text-decoration: none;
+}
+/* En-tête d'une branche dans l'arbre (Perso / Partagé / Bureau) */
+.ged-tree__groupe {
+  margin: 0.85rem 0 0.15rem;
+  padding-inline: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--couleur-muet);
+}
+/* Note discrète à côté d'un titre de section (branche sur la vue d'ensemble) */
+.ged-section-note {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--couleur-muet);
+}
+.ged-branche {
+  padding-top: 0.75rem;
+}
+.ged-branche + .ged-branche {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--bordure);
+}
+.ged-tree__nav ul {
+  list-style: none;
+  margin: 0 0 0 0.4rem;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--bordure);
+}
+.ged-tree__nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--rayon);
+  color: var(--couleur-texte);
+  text-decoration: none;
+}
+.ged-tree__nav a .ico {
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--couleur-muet);
+}
+.ged-tree__nav a:hover,
+.ged-tree__racine:hover {
+  background: var(--couleur-primaire-clair);
+}
+.ged-tree__nav a.est-actif,
+.ged-tree__racine.est-actif {
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+  font-weight: 700;
+}
+.ged-tree__nav a.est-actif .ico {
+  color: var(--couleur-primaire);
+}
+@media (min-width: 62rem) {
+  /* Panneau permanent : pas de repli, on masque le résumé. */
+  .ged-tree {
+    position: sticky;
+    top: 1rem;
+    margin-bottom: 0;
+    padding: 0.85rem 0.75rem;
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon-lg);
+    background: var(--surface-alt);
+  }
+  .ged-tree__resume {
+    display: none;
+  }
 }
 
 /* Tableaux (back-office) */
@@ -1014,15 +1808,37 @@ a.tuile:hover {
   width: 100%;
   border-collapse: collapse;
   margin-block: 1rem;
+  background: var(--surface);
 }
 .tableau th,
 .tableau td {
   text-align: left;
-  padding: 0.5rem 0.6rem;
+  padding: 0.65rem 0.75rem;
   border-bottom: 1px solid var(--bordure);
 }
 .tableau th {
-  background: var(--couleur-primaire-clair);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+/* Conteneur scrollable pour les tables larges (mobile) */
+.tableau-wrap {
+  overflow-x: auto;
+  margin-block: 1rem;
+}
+.tableau-wrap .tableau {
+  margin-block: 0;
+}
+/* Liens d'action dans la dernière colonne */
+.tableau td a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.tableau td a:hover {
+  text-decoration: underline;
 }
 
 /* Actions de formulaire (plusieurs boutons) */
@@ -1032,9 +1848,25 @@ a.tuile:hover {
   flex-wrap: wrap;
   margin-top: 1.5rem;
 }
+/* Barre d'actions DANS un formulaire : filet séparateur + hiérarchie de boutons.
+   Restreint à `.formulaire` pour ne pas affecter les barres de boutons des listes. */
+.formulaire .formulaire__actions {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--bordure);
+}
 .lien-bouton--primaire {
-  outline: 2px solid var(--couleur-primaire);
-  outline-offset: 2px;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--couleur-primaire) 45%, transparent);
+}
+.formulaire .formulaire__actions .lien-bouton:not(.lien-bouton--primaire):not(.lien-bouton--accent) {
+  background: transparent;
+  color: var(--couleur-primaire);
+  border-color: var(--couleur-primaire);
+  box-shadow: none;
+}
+.formulaire .formulaire__actions .lien-bouton:not(.lien-bouton--primaire):not(.lien-bouton--accent):hover {
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
 }
 
 /* Champ affichant un lien à copier (ex. lien d'activation d'un compte) */
@@ -1079,9 +1911,10 @@ a.tuile:hover {
 /* Section images du formulaire de projet (affiche + galerie) */
 .formulaire__images {
   margin-top: 1.5rem;
-  padding: 1rem;
-  border: 1px solid var(--couleur-bordure, #ccc);
-  border-radius: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-alt);
 }
 .formulaire__images legend {
   font-weight: 600;
@@ -1237,4 +2070,230 @@ a.tuile:hover {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* =========================================================================
+   THÈMES DE TEST — palettes & dosage du sombre (bascule ?theme=a..g, dev only)
+   À figer sur le choix retenu, puis retirer le sélecteur + les variantes.
+   Rail : sombre par défaut ; « rail clair » = bundle de tokens partagé.
+   A bordeaux chaud · B sombre chaud · C clair · D prune/rose · E nuit bleue ·
+   F charbon/corail · G forêt/terracotta
+   ========================================================================= */
+
+/* Bundle « rail clair » partagé (crème, item actif en couleur primaire) */
+html[data-theme="a"],
+html[data-theme="c"],
+html[data-theme="e"],
+html[data-theme="f"] {
+  --rail-bg: var(--surface-alt);
+  --rail-bordure: var(--bordure);
+  --rail-texte: var(--couleur-texte);
+  --rail-texte-fort: var(--couleur-texte);
+  --rail-titre: var(--couleur-muet);
+  --rail-hover: var(--couleur-primaire-clair);
+  --rail-actif-bg: var(--couleur-primaire-clair);
+  --rail-actif-bord: var(--couleur-primaire);
+  --rail-actif-texte: var(--couleur-primaire);
+  --rail-sep: var(--bordure);
+}
+
+/* A — bordeaux-aubergine chaud (bordeaux + ambre) · rail clair */
+html[data-theme="a"] {
+  --ink: #241019;
+}
+
+/* B — sombre chaud partout, rail compris (bordeaux très profond) */
+html[data-theme="b"] {
+  --ink: #2a1220;
+}
+
+/* D — velours prune & rose magenta + or · rail sombre prune */
+html[data-theme="d"] {
+  --ink: #241028;
+  --couleur-primaire: #c02555;
+  --couleur-primaire-vif: #e14b7a;
+  --couleur-primaire-clair: #fbe4ec;
+  --couleur-lien: #c02555;
+  --accent: #ffca3a;
+}
+
+/* E — nuit bleue & or, accent rouge-corail · rail clair */
+html[data-theme="e"] {
+  --ink: #101a33;
+  --couleur-primaire: #cf3a3f;
+  --couleur-primaire-vif: #e5484d;
+  --couleur-primaire-clair: #fde5e5;
+  --couleur-lien: #b83338;
+  --accent: #f2c14e;
+}
+
+/* F — charbon & corail + jaune doux · rail clair */
+html[data-theme="f"] {
+  --ink: #201d20;
+  --couleur-primaire: #d0293c;
+  --couleur-primaire-vif: #ef4d54;
+  --couleur-primaire-clair: #fde4e6;
+  --couleur-lien: #c2263a;
+  --accent: #ffd166;
+}
+
+/* G — forêt profonde & terracotta/ambre · rail sombre vert */
+html[data-theme="g"] {
+  --ink: #12241b;
+  --couleur-primaire: #a8501e;
+  --couleur-primaire-vif: #c56a30;
+  --couleur-primaire-clair: #f6e6da;
+  --couleur-lien: #9a4a1a;
+  --accent: #e9c46a;
+}
+
+/* C — clair : en-tête bordeaux, hero crème, pied bordeaux (rail clair) */
+html[data-theme="c"] {
+  --ink: #2a1220;
+}
+html[data-theme="c"] .site-entete {
+  background: var(--couleur-primaire);
+  border-bottom-color: #7a1730;
+}
+html[data-theme="c"] .site-pied {
+  background: var(--couleur-primaire);
+  border-top-color: #7a1730;
+  color: rgba(255, 255, 255, 0.85);
+}
+html[data-theme="c"] .hero {
+  background: var(--surface-alt);
+  color: var(--couleur-texte);
+}
+html[data-theme="c"] .hero__titre {
+  color: var(--couleur-texte);
+}
+html[data-theme="c"] .hero__titre .accent {
+  color: var(--couleur-primaire);
+}
+html[data-theme="c"] .hero__intro {
+  color: var(--couleur-muet);
+}
+html[data-theme="c"] .hero::after {
+  background: radial-gradient(circle, rgba(160, 31, 60, 0.12), transparent 70%);
+}
+html[data-theme="c"] .hero .lien-bouton--ghost {
+  border-color: var(--couleur-primaire);
+  color: var(--couleur-primaire);
+}
+html[data-theme="c"] .hero .lien-bouton--ghost:hover {
+  background: var(--couleur-primaire-clair);
+}
+
+/* =========================================================================
+   FONDS DE PAGE (data-fond) — canvas teinté + traitement dynamique / texture
+   Couche fixe derrière le contenu (z-index négatif) : les cartes blanches et
+   les bandeaux passent au-dessus. « mesh » dérive ses couleurs de la palette.
+   ========================================================================= */
+html[data-fond="mesh"] body::before,
+html[data-fond="grain"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+/* Mesh — 4 nappes de couleur (palette) réparties dans les COINS (positions
+   explicites), fondu long pour éviter les arcs/bandes. Le calque pivote et
+   « respire » lentement → les nappes des coins bougent visiblement. Le banding
+   8-bit est cassé par la micro-texture ::after. */
+html[data-fond="mesh"] body::before {
+  inset: -30%;
+  background:
+    radial-gradient(
+      58% 58% at 18% 20%,
+      color-mix(in srgb, var(--couleur-primaire) 44%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      54% 54% at 84% 14%,
+      color-mix(in srgb, var(--accent) 40%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      60% 60% at 78% 82%,
+      color-mix(in srgb, var(--couleur-primaire-vif) 36%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      54% 54% at 24% 90%,
+      color-mix(in srgb, var(--ink) 22%, transparent),
+      transparent 68%
+    );
+  background-repeat: no-repeat;
+  animation: fond-derive 24s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes fond-derive {
+  from {
+    transform: rotate(-5deg) scale(1.08) translate3d(-2%, -1%, 0);
+  }
+  to {
+    transform: rotate(7deg) scale(1.16) translate3d(2%, 2%, 0);
+  }
+}
+/* Micro-texture qui dithère le dégradé (supprime les bandes 8-bit) */
+html[data-fond="mesh"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.045;
+}
+/* Grain — texture papier/affiche bien visible, statique (SVG feTurbulence).
+   mix-blend-mode: multiply → la trame « mord » le canvas comme sur du papier. */
+html[data-fond="grain"] body::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.14;
+  mix-blend-mode: multiply;
+}
+
+/* Sélecteur de test (dev) — bas-gauche, à retirer après choix */
+.theme-switch {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.6rem;
+  background: rgba(24, 19, 28, 0.94);
+  color: #fff;
+  border-radius: var(--rayon);
+  font-size: 0.75rem;
+  box-shadow: var(--ombre-forte);
+}
+.theme-switch__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.theme-switch__label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 700;
+  min-width: 3.5rem;
+}
+.theme-switch a {
+  color: #fff;
+  text-decoration: none;
+  padding: 0.28rem 0.5rem;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.theme-switch a:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.theme-switch a[aria-current="true"] {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--accent);
+  font-weight: 700;
 }

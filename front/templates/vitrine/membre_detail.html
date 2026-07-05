@@ -67,8 +67,10 @@
         {% endif %}
 
         {% if bluesky_handle %}
-          {# Chargement au clic uniquement : aucune requête vers Bluesky tant que
-             l'internaute n'a pas cliqué (RGPD — pas de tiers non consenti). #}
+          {% comment %}
+            Chargement au clic uniquement : aucune requête vers Bluesky tant que
+            l'internaute n'a pas cliqué (RGPD — pas de tiers non consenti).
+          {% endcomment %}
           <section class="bluesky-feed" aria-labelledby="titre-bluesky" data-bluesky-handle="{{ bluesky_handle }}">
             <h2 id="titre-bluesky">Bluesky</h2>
             <p class="bluesky-feed__compte">@{{ bluesky_handle }}</p>

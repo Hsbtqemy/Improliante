@@ -3,11 +3,7 @@
 {% block title %}Mes documents — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Documents</h1>
-
-  <p class="carte-projet__meta">
-    Ces documents sont servis de façon sécurisée : chaque téléchargement vérifie vos droits.
-  </p>
+  <header class="page-tete"><span class="page-tete__eyebrow">Espace membre</span><h1>Documents</h1><p class="page-tete__sous">Ces documents sont servis de façon sécurisée : chaque téléchargement vérifie vos droits.</p></header>
 
   {% if documents %}
     <ul class="liste-projets">
@@ -29,7 +25,11 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p>Aucun document disponible pour l'instant.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-document"></use></svg></div>
+      <p class="etat-vide__titre">Aucun document</p>
+      <p>Vos documents apparaîtront ici dès qu'ils seront partagés avec vous.</p>
+    </div>
   {% endif %}
 
   <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>

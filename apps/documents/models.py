@@ -21,10 +21,55 @@ from apps.common.stockage import StockagePrive
 
 
 class Dossier(MP_Node):
-    """Dossier de la GED — nœud d'une arborescence infinie (treebeard)."""
+    """Dossier de la GED — nœud d'une arborescence infinie (treebeard).
+
+    Trois espaces cohabitent dans le même arbre, distingués par ``espace`` :
+
+    - ``PERSO`` : dossier d'un membre (``proprietaire`` renseigné, ``visibilite``
+      privé/partagé/bureau) — écran « Mes fichiers » ;
+    - ``COMMUN`` : espace collaboratif de la troupe (``proprietaire`` NULL) —
+      tout membre y lit et écrit ;
+    - ``ASSOCIATION`` : GED officielle gérée par le bureau (``proprietaire`` NULL).
+
+    Invariant : un sous-arbre appartient au même espace (et au même
+    ``proprietaire``) que sa racine — un sous-dossier hérite de son parent.
+    ``proprietaire``/``visibilite`` ne s'appliquent qu'à l'espace ``PERSO``.
+    """
+
+    class Espace(models.TextChoices):
+        PERSO = "perso", "Personnel"
+        COMMUN = "commun", "Commun (troupe)"
+        ASSOCIATION = "association", "Association (bureau)"
+
+    class Visibilite(models.TextChoices):
+        PRIVE = "prive", "Privé (moi seul)"
+        PARTAGE = "partage", "Partagé (toute la troupe)"
+        BUREAU = "bureau", "Transmis au bureau"
 
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    espace = models.CharField(
+        max_length=12,
+        choices=Espace.choices,
+        default=Espace.ASSOCIATION,
+        help_text="Personnel (membre), commun (troupe) ou association (bureau).",
+    )
+    proprietaire = models.ForeignKey(
+        "coeur.Membre",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="dossiers",
+        verbose_name="propriétaire",
+        help_text="Renseigné uniquement pour l'espace personnel d'un membre.",
+    )
+    visibilite = models.CharField(
+        "visibilité",
+        max_length=8,
+        choices=Visibilite.choices,
+        default=Visibilite.PRIVE,
+        help_text="Ne s'applique qu'aux dossiers personnels d'un membre.",
+    )
 
     node_order_by = ["nom"]
 

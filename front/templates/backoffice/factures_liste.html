@@ -27,40 +27,51 @@
   </form>
 
   {% if factures %}
-    <table class="tableau">
-      <thead>
-        <tr>
-          <th scope="col">Facture</th>
-          <th scope="col">Client</th>
-          <th scope="col">Statut</th>
-          <th scope="col" class="montant">Total TTC</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for facture in factures %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
           <tr>
-            <td>
-              {{ facture }}
-              {% if facture.type_piece == "avoir" %}<span class="badge badge--annulee">Avoir</span>{% endif %}
-            </td>
-            <td>{{ facture.client }}</td>
-            <td><span class="badge badge--{{ facture.statut }}">{{ facture.get_statut_display }}</span></td>
-            <td class="montant">{{ facture.total_ttc|floatformat:2 }} €</td>
-            <td>
-              <a href="{% url 'backoffice:editer_facture' pk=facture.pk %}">
-                {% if facture.statut == "brouillon" %}Éditer{% else %}Voir{% endif %}
-              </a>
-              {% if facture.statut != "brouillon" %}
-                · <a href="{% url 'backoffice:telecharger_facture' pk=facture.pk %}">PDF</a>
-              {% endif %}
-            </td>
+            <th scope="col">Facture</th>
+            <th scope="col">Client</th>
+            <th scope="col">Statut</th>
+            <th scope="col" class="montant">Total TTC</th>
+            <th scope="col">Actions</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for facture in factures %}
+            <tr>
+              <td>
+                {{ facture }}
+                {% if facture.type_piece == "avoir" %}<span class="badge badge--annulee">Avoir</span>{% endif %}
+              </td>
+              <td>{{ facture.client }}</td>
+              <td><span class="badge badge--{{ facture.statut }}">{{ facture.get_statut_display }}</span></td>
+              <td class="montant">{{ facture.total_ttc|floatformat:2 }} €</td>
+              <td>
+                <a href="{% url 'backoffice:editer_facture' pk=facture.pk %}">
+                  {% if facture.statut == "brouillon" %}Éditer{% else %}Voir{% endif %}
+                </a>
+                {% if facture.statut != "brouillon" %}
+                  · <a href="{% url 'backoffice:telecharger_facture' pk=facture.pk %}">PDF</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% include "backoffice/_pagination.html" %}
   {% else %}
-    <p>Aucune facture pour l'instant.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-recu"></use></svg>
+      </div>
+      <p class="etat-vide__titre">Aucune facture</p>
+      <p>Créez votre première facture : elle recevra son numéro légal à la validation.</p>
+      <p class="etat-vide__actions">
+        <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_facture' %}">Nouvelle facture</a>
+      </p>
+    </div>
   {% endif %}
 {% endblock %}

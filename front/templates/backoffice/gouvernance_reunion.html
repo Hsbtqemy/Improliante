@@ -4,13 +4,16 @@
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:gouvernance_reunions' %}">← Réunions</a></p>
-  <h1>{{ reunion.titre }}</h1>
-  <p class="carte-projet__meta">
-    <span class="badge">{{ reunion.get_type_reunion_display }}</span>
-    <span class="badge">{{ reunion.get_statut_display }}</span>
-    {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
-    {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
-  </p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>{{ reunion.titre }}</h1>
+    <p class="page-tete__sous">
+      <span class="badge">{{ reunion.get_type_reunion_display }}</span>
+      <span class="badge">{{ reunion.get_statut_display }}</span>
+      {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
+      {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
+    </p>
+  </header>
   {% if reunion.convocation_texte %}<p>{{ reunion.convocation_texte|linebreaksbr }}</p>{% endif %}
 
   {# --- Quorum --- #}
@@ -56,18 +59,20 @@
   <section aria-labelledby="t-presences">
     <h2 id="t-presences">Présences ({{ reunion.nb_presents }} présent·es, {{ reunion.nb_representes }} représenté·es)</h2>
     {% if presences %}
-      <table class="tableau">
-        <thead><tr><th scope="col">Membre</th><th scope="col">Statut</th><th scope="col">Droit de vote</th></tr></thead>
-        <tbody>
-          {% for p in presences %}
-            <tr>
-              <td>{{ p.membre }}</td>
-              <td>{{ p.get_statut_display }}</td>
-              <td>{% if p.peut_voter %}oui{% else %}non{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="tableau-wrap">
+        <table class="tableau">
+          <thead><tr><th scope="col">Membre</th><th scope="col">Statut</th><th scope="col">Droit de vote</th></tr></thead>
+          <tbody>
+            {% for p in presences %}
+              <tr>
+                <td>{{ p.membre }}</td>
+                <td>{{ p.get_statut_display }}</td>
+                <td>{% if p.peut_voter %}oui{% else %}non{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p>Aucune présence enregistrée.</p>
     {% endif %}
@@ -123,30 +128,32 @@
   <section aria-labelledby="t-resolutions">
     <h2 id="t-resolutions">Résolutions</h2>
     {% if resolutions %}
-      <table class="tableau">
-        <thead>
-          <tr>
-            <th scope="col">Intitulé</th><th scope="col">Majorité</th>
-            <th scope="col">Pour / Contre / Abst.</th><th scope="col">Résultat</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r, res in resolutions %}
+      <div class="tableau-wrap">
+        <table class="tableau">
+          <thead>
             <tr>
-              <td>{{ r.intitule }}</td>
-              <td>{{ r.get_type_majorite_display }}</td>
-              <td>{{ res.pour }} / {{ res.contre }} / {{ res.abstention }}</td>
-              <td>
-                {% if res.adoptee %}
-                  <span class="badge badge--publie">Adoptée</span>
-                {% else %}
-                  <span class="badge badge--refuse">Rejetée</span>
-                {% endif %}
-              </td>
+              <th scope="col">Intitulé</th><th scope="col">Majorité</th>
+              <th scope="col">Pour / Contre / Abst.</th><th scope="col">Résultat</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for r, res in resolutions %}
+              <tr>
+                <td>{{ r.intitule }}</td>
+                <td>{{ r.get_type_majorite_display }}</td>
+                <td>{{ res.pour }} / {{ res.contre }} / {{ res.abstention }}</td>
+                <td>
+                  {% if res.adoptee %}
+                    <span class="badge badge--publie">Adoptée</span>
+                  {% else %}
+                    <span class="badge badge--refuse">Rejetée</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p>Aucune résolution.</p>
     {% endif %}

@@ -1,0 +1,21 @@
+{% comment %}
+Arborescence complète des dossiers — navigation directe vers n'importe quel
+niveau. Panneau latéral permanent sur grand écran, repli (<details>) sur mobile.
+Rendu imbriqué via treebeard get_annotated_list (structure.open / .close).
+Attendu : `arbre_annote` (Dossier.get_annotated_list()), `dossier_courant_id`.
+{% endcomment %}
+<details class="ged-tree" open>
+  <summary class="ged-tree__resume">
+    <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg> Arborescence
+  </summary>
+  <nav class="ged-tree__nav" aria-label="Arborescence des dossiers">
+    <a class="ged-tree__racine{% if not dossier_courant_id %} est-actif{% endif %}"
+       href="{% url 'backoffice:ged_racine' %}"
+       {% if not dossier_courant_id %}aria-current="page"{% endif %}>Racine</a>
+    {% for node, structure in arbre_annote %}
+      {% if structure.open %}<ul><li>{% else %}</li><li>{% endif %}
+        <a href="{% url 'backoffice:ged_dossier' pk=node.pk %}"{% if node.pk == dossier_courant_id %} class="est-actif" aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>{{ node.nom }}</span></a>
+      {% for close in structure.close %}</li></ul>{% endfor %}
+    {% endfor %}
+  </nav>
+</details>

@@ -3,7 +3,7 @@
 {% block title %}Mes événements — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Mes événements</h1>
+  <header class="page-tete"><span class="page-tete__eyebrow">Espace membre</span><h1>Mes événements</h1></header>
 
   <p><a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
 
@@ -28,7 +28,12 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p>Vous n'avez proposé aucun événement pour l'instant.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-calendrier"></use></svg></div>
+      <p class="etat-vide__titre">Aucun événement proposé</p>
+      <p>Proposez un événement pour qu'il apparaisse ici après validation.</p>
+      <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
+    </div>
   {% endif %}
 
   <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>

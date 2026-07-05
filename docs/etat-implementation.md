@@ -21,9 +21,34 @@ appliquées sur `<html>`, JS externe sans inline).
 
 ### Espace membre (`apps/espace_membre`) — connecté
 Tableau de bord (adhésions), **proposer/éditer son projet** (spectacle),
-**proposer/éditer un événement**, consulter ses **documents**, ses
-**convocations/CR d'AG**, ses **reçus fiscaux**. Tout est filtré par le membre
-connecté (voir *Anti-IDOR*).
+**proposer/éditer un événement**, consulter les **documents de l'association**,
+ses **convocations/CR d'AG**, ses **reçus fiscaux**, et gérer ses **fichiers**
+dans un explorateur unifié (« Fichiers »). Tout est filtré par le membre connecté
+(voir *Anti-IDOR*).
+
+**Explorateur « Fichiers » à trois branches.** Un seul écran (`espace_membre.
+mes_fichiers`) présente trois branches, portées par `Dossier.espace` +
+`Dossier.visibilite` :
+- **Perso** : `espace=PERSO`, `proprietaire=membre`, `visibilite=PRIVE` — à lui seul ;
+- **Partagé** : `espace=COMMUN` (`proprietaire` NULL) — espace **collaboratif** :
+  tout membre y lit ET écrit (détail sous `dossier_commun`, URL `espace/commun/`) ;
+- **Bureau** : `espace=PERSO`, `proprietaire=membre`, `visibilite=BUREAU` — transmis
+  au bureau (consultable via `backoffice:fichiers_membres`).
+
+Les dossiers Perso/Bureau passent par `dossier_membre` (URL `espace/fichiers/`),
+le Partagé par `dossier_commun`. La **branche est choisie à la création** (bouton
+par branche) ; un **sous-dossier hérite de la branche de sa racine** (services
+`creer_dossier_membre` / `creer_dossier_commun`). L'association `GED` reste
+`espace=ASSOCIATION` (bureau).
+
+**Accès (helpers `apps/espace_membre/views.py`).** L'accès à un document suit
+l'espace de son dossier : `PERSO` → `_peut_voir_dossier_membre` (Perso =
+propriétaire seul, **bureau exclu** ; Bureau = propriétaire + bureau) ; `COMMUN` →
+`_peut_voir_espace_commun` (tout membre) ; `ASSOCIATION`/non classé → logique
+historique par `confidentialite`. **Étanchéité** : la GED bureau
+(`backoffice.ged_racine`/`ged_dossier`) et « Documents de l'association » sont
+scopées à `espace=ASSOCIATION` — dossiers personnels et communs n'y
+apparaissent jamais.
 
 ### Back-office (`apps/backoffice`) — bureau
 3ᵉ app métier (sans modèle propre), **interface sur-mesure** (templates sur
@@ -52,7 +77,11 @@ orchestrent et rendent le retour utilisateur). Points d'entrée notables :
 - `apps/facturation/services.py` : `valider_facture` (numéro légal),
   `creer_avoir`, `transformer_en_facture`, `numeroter_devis`, rendus PDF.
 - `apps/budget/services.py` : `emettre_recu`, `bilan_par_categorie`, PDF Cerfa.
-- `apps/documents/services.py` : `remplacer_document` (versionnement).
+- `apps/documents/services.py` : `remplacer_document` (versionnement) ;
+  `creer_dossier_membre`, `televerser_fichier_membre`, `modifier_dossier_membre`,
+  `supprimer_dossier_membre`, `supprimer_document_membre` (espace « Mes fichiers »).
+  Validation d'upload partagée : `apps/documents/validators.py`
+  (`valider_fichier_document` : taille max + extensions exécutables refusées).
 
 ### Rôles & autorisation bureau
 `apps/coeur/roles.py` est la **seule** porte : `est_bureau(user)` (groupe Django

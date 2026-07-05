@@ -9,6 +9,7 @@ from django import forms
 from apps.budget.models import Categorie, RecuFiscal, Saison, Transaction
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 from apps.documents.models import Document, Dossier
+from apps.documents.validators import valider_fichier_document
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
 
@@ -160,11 +161,17 @@ class DocumentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["date_validite"].input_formats = ["%Y-%m-%d"]
 
+    def clean_fichier(self):
+        return valider_fichier_document(self.cleaned_data.get("fichier"))
+
 
 class NouvelleVersionForm(forms.Form):
     """Remplacement d'un document par une nouvelle version (fichier seul)."""
 
     fichier = forms.FileField(label="Nouveau fichier")
+
+    def clean_fichier(self):
+        return valider_fichier_document(self.cleaned_data.get("fichier"))
 
 
 # --- Budget -----------------------------------------------------------------

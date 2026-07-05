@@ -3,7 +3,10 @@
 {% block title %}Budget — catégories{% endblock %}
 
 {% block contenu %}
-  <h1>Catégories</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Catégories</h1>
+  </header>
   {% include "backoffice/_budget_nav.html" %}
 
   <section aria-labelledby="titre-nouvelle">
@@ -28,7 +31,11 @@
         {% for c in categories %}<li>{{ c.nom }}{% if c.description %} — {{ c.description }}{% endif %}</li>{% endfor %}
       </ul>
     {% else %}
-      <p>Aucune catégorie.</p>
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-graphique"></use></svg></div>
+        <p class="etat-vide__titre">Aucune catégorie</p>
+        <p>Créez une première catégorie pour classer recettes et dépenses.</p>
+      </div>
     {% endif %}
   </section>
 {% endblock %}

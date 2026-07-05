@@ -1,0 +1,11 @@
+{% comment %}
+Rend un champ de formulaire (label + widget + aide + erreurs).
+Attendu dans le contexte : `field` (un BoundField).
+Réutilisable pour regrouper les champs en sections `.bloc-form`.
+{% endcomment %}
+<p class="champ">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+  {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+</p>

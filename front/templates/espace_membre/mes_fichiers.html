@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Fichiers — Espace membre{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>Fichiers</h1>
+    <p class="page-tete__sous">
+      Vos fichiers rangés en trois espaces : <strong>Perso</strong> (à vous seul),
+      <strong>Partagé</strong> (toute la troupe) et <strong>Bureau</strong>
+      (transmis au bureau).
+    </p>
+  </header>
+
+  <div class="ged-layout">
+    {% include "espace_membre/_fichiers_arbre.html" %}
+
+    <div class="ged-main">
+      <section aria-labelledby="t-perso" class="ged-branche">
+        <h2 id="t-perso" class="ged-section-titre">Perso <span class="ged-section-note">— à vous seul</span></h2>
+        {% include "espace_membre/_creer_dossier.html" with branche="perso" %}
+        {% include "espace_membre/_fichiers_dossiers.html" with dossiers=perso_roots url_nom="espace_membre:dossier_membre" vide_titre="Aucun dossier perso" vide_txt="Créez un dossier privé pour vos propres fichiers." %}
+      </section>
+
+      <section aria-labelledby="t-partage" class="ged-branche">
+        <h2 id="t-partage" class="ged-section-titre">Partagé <span class="ged-section-note">— toute la troupe</span></h2>
+        {% include "espace_membre/_creer_dossier.html" with branche="partage" %}
+        {% include "espace_membre/_fichiers_dossiers.html" with dossiers=partage_roots url_nom="espace_membre:dossier_commun" vide_titre="Aucun dossier partagé" vide_txt="Créez un dossier commun pour la troupe (affiches, musiques…)." %}
+      </section>
+
+      <section aria-labelledby="t-bureau" class="ged-branche">
+        <h2 id="t-bureau" class="ged-section-titre">Bureau <span class="ged-section-note">— transmis au bureau</span></h2>
+        {% include "espace_membre/_creer_dossier.html" with branche="bureau" %}
+        {% include "espace_membre/_fichiers_dossiers.html" with dossiers=bureau_roots url_nom="espace_membre:dossier_membre" vide_titre="Aucun dossier transmis" vide_txt="Créez un dossier pour transmettre des pièces au bureau (justificatifs…)." %}
+      </section>
+    </div>
+  </div>
+{% endblock %}

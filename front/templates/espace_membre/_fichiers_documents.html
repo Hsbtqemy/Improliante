@@ -1,8 +1,6 @@
 {% comment %}
-Documents courants d'un dossier (ou non classés).
-Colonnes : titre + description, confidentialité, version, dernière modif,
-actions (télécharger + remplacer par une nouvelle version, replié).
-Attendu : `documents`, `version_form`.
+Documents d'un dossier. `peut_ecrire` → bouton de suppression.
+Attendu : `documents`, `url_suppr_doc` (nom de la vue de suppression), `peut_ecrire`.
 {% endcomment %}
 {% if documents %}
   <div class="tableau-wrap">
@@ -10,9 +8,7 @@ Attendu : `documents`, `version_form`.
       <thead>
         <tr>
           <th scope="col">Document</th>
-          <th scope="col">Accès</th>
-          <th scope="col">Version</th>
-          <th scope="col">Dernière modif.</th>
+          <th scope="col">Ajouté le</th>
           <th scope="col">Actions</th>
         </tr>
       </thead>
@@ -25,28 +21,20 @@ Attendu : `documents`, `version_form`.
                 {{ doc.titre }}
               </span>
               {% if doc.description %}<span class="ged-doc__desc">{{ doc.description }}</span>{% endif %}
-              {% if doc.date_validite %}<span class="ged-doc__desc">Valable jusqu'au {{ doc.date_validite|date:"d/m/Y" }}</span>{% endif %}
             </td>
-            <td>
-              <span class="badge badge--conf-{{ doc.confidentialite }}">{{ doc.get_confidentialite_display }}</span>
-            </td>
-            <td>v{{ doc.version }}</td>
             <td class="ged-doc__modif">
-              {{ doc.date_modification|date:"d/m/Y" }}
+              {{ doc.date_creation|date:"d/m/Y" }}
               {% if doc.cree_par %}<span class="ged-doc__desc">par {{ doc.cree_par.get_short_name|default:doc.cree_par.get_username }}</span>{% endif %}
             </td>
             <td>
               <div class="ged-doc__actions">
                 <a class="lien-bouton" href="{% url 'espace_membre:telecharger_document' pk=doc.pk %}">Télécharger</a>
-                <details class="ged-version">
-                  <summary class="lien-bouton lien-bouton--discret">Nouvelle version</summary>
-                  <form method="post" enctype="multipart/form-data" class="ged-version__form"
-                        action="{% url 'backoffice:ged_nouvelle_version' pk=doc.pk %}">
+                {% if peut_ecrire %}
+                  <form method="post" action="{% url url_suppr_doc pk=doc.pk %}">
                     {% csrf_token %}
-                    {{ version_form.fichier }}
-                    <button type="submit" class="lien-bouton lien-bouton--primaire">Remplacer</button>
+                    <button type="submit" class="lien-bouton lien-bouton--discret">Supprimer</button>
                   </form>
-                </details>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -60,6 +48,6 @@ Attendu : `documents`, `version_form`.
       <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-document"></use></svg>
     </div>
     <p class="etat-vide__titre">Aucun document</p>
-    <p>Utilisez « Téléverser un document » ci-dessus pour en déposer un ici.</p>
+    <p>{% if peut_ecrire %}Utilisez « Téléverser un fichier » ci-dessus pour en déposer un.{% else %}Ce dossier ne contient pas encore de fichier.{% endif %}</p>
   </div>
 {% endif %}

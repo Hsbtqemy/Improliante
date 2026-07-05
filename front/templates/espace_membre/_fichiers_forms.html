@@ -1,0 +1,39 @@
+{% comment %}
+Barre d'actions « Mes fichiers » : nouveau dossier / téléverser (repliés en
+<details>, s'ouvrent si le formulaire revient en erreur).
+Attendu : `dossier_form` ; `document_form` (rendu seulement s'il est fourni :
+pas de téléversement à la racine) ; `dossier` (présent = sous-dossier).
+{% endcomment %}
+<div class="ged-barre">
+  <details class="ged-action"{% if dossier_form.errors %} open{% endif %}>
+    <summary class="lien-bouton lien-bouton--discret">
+      <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg>
+      Nouveau {% if dossier %}sous-dossier{% else %}dossier{% endif %}
+    </summary>
+    <form method="post" class="formulaire ged-action__form">
+      {% csrf_token %}
+      <input type="hidden" name="form_type" value="dossier" />
+      {% for field in dossier_form %}{% include "_champ.html" with field=field %}{% endfor %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Créer le dossier</button>
+      </div>
+    </form>
+  </details>
+
+  {% if document_form %}
+    <details class="ged-action"{% if document_form.errors %} open{% endif %}>
+      <summary class="lien-bouton lien-bouton--primaire">
+        <svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg>
+        Téléverser un fichier
+      </summary>
+      <form method="post" enctype="multipart/form-data" class="formulaire ged-action__form">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="document" />
+        {% for field in document_form %}{% include "_champ.html" with field=field %}{% endfor %}
+        <div class="formulaire__actions">
+          <button type="submit" class="lien-bouton lien-bouton--primaire">Téléverser</button>
+        </div>
+      </form>
+    </details>
+  {% endif %}
+</div>

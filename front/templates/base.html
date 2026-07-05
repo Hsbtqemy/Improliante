@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}">
+<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme 'a' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,6 +13,7 @@
   </head>
   <body>
     <a class="lien-evitement" href="#contenu">Aller au contenu principal</a>
+    {% include "_icones_svg.html" %}
 
     <header class="site-entete">
       <div class="conteneur site-entete__inner">
@@ -82,6 +83,39 @@
         </p>
       </div>
     </footer>
+
+    {# Sélecteur de thème/fond (DEV) — à retirer après choix ; persistance en cookie via le script ci-dessous. #}
+    {% firstof request.GET.theme request.COOKIES.theme 'a' as theme_actif %}
+    {% firstof request.GET.fond request.COOKIES.fond 'mesh' as fond_actif %}
+    <div class="theme-switch" role="group" aria-label="Réglages d'apparence (développement)">
+      <div class="theme-switch__row">
+        <span class="theme-switch__label">Palette</span>
+        <a href="?theme=a"{% if theme_actif == 'a' %} aria-current="true"{% endif %}>A · bordeaux chaud</a>
+        <a href="?theme=b"{% if theme_actif == 'b' %} aria-current="true"{% endif %}>B · sombre chaud</a>
+        <a href="?theme=c"{% if theme_actif == 'c' %} aria-current="true"{% endif %}>C · clair</a>
+        <a href="?theme=d"{% if theme_actif == 'd' %} aria-current="true"{% endif %}>D · prune/rose</a>
+        <a href="?theme=e"{% if theme_actif == 'e' %} aria-current="true"{% endif %}>E · nuit bleue</a>
+        <a href="?theme=f"{% if theme_actif == 'f' %} aria-current="true"{% endif %}>F · corail</a>
+        <a href="?theme=g"{% if theme_actif == 'g' %} aria-current="true"{% endif %}>G · forêt</a>
+      </div>
+      <div class="theme-switch__row">
+        <span class="theme-switch__label">Fond</span>
+        <a href="?fond=plat"{% if fond_actif == 'plat' %} aria-current="true"{% endif %}>Plat teinté</a>
+        <a href="?fond=mesh"{% if fond_actif == 'mesh' %} aria-current="true"{% endif %}>Mesh animé</a>
+        <a href="?fond=grain"{% if fond_actif == 'grain' %} aria-current="true"{% endif %}>Grain</a>
+      </div>
+    </div>
+    <script>
+      // Mémorise le thème passé en ?theme= dans un cookie pour qu'il persiste
+      // pendant la navigation (test seulement).
+      (function () {
+        var s = location.search;
+        var mt = s.match(/[?&]theme=([a-g])/);
+        if (mt) document.cookie = "theme=" + mt[1] + ";path=/;max-age=604800;samesite=Lax";
+        var mf = s.match(/[?&]fond=(plat|mesh|grain)/);
+        if (mf) document.cookie = "fond=" + mf[1] + ";path=/;max-age=604800;samesite=Lax";
+      })();
+    </script>
 
     {# Panneau d'accessibilité (options d'affichage) #}
     <button

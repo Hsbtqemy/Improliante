@@ -59,6 +59,7 @@ urlpatterns = [
         views.ged_nouvelle_version,
         name="ged_nouvelle_version",
     ),
+    path("bureau/fichiers-transmis/", views.fichiers_membres, name="fichiers_membres"),
     path("bureau/budget/", views.budget_transactions, name="budget_transactions"),
     path(
         "bureau/budget/transaction/nouvelle/",

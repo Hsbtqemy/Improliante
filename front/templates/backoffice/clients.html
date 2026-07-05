@@ -3,7 +3,10 @@
 {% block title %}Clients — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>Clients</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Clients</h1>
+  </header>
 
   <section aria-labelledby="titre-nouveau">
     <h2 id="titre-nouveau">Nouveau client</h2>
@@ -31,7 +34,11 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>Aucun client enregistré.</p>
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-membres"></use></svg></div>
+        <p class="etat-vide__titre">Aucun client enregistré</p>
+        <p>Ajoutez un client avec le formulaire ci-dessus pour l'associer à vos devis et factures.</p>
+      </div>
     {% endif %}
   </section>
 

@@ -4,11 +4,14 @@
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
-  <h1>Membres</h1>
-  <p class="carte-projet__meta">
-    Comptes des membres de l'association. La création génère un lien d'activation
-    à transmettre au membre (il y choisit son mot de passe).
-  </p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Membres</h1>
+    <p class="page-tete__sous">
+      Comptes des membres de l'association. La création génère un lien d'activation
+      à transmettre au membre (il y choisit son mot de passe).
+    </p>
+  </header>
 
   <p>
     <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_membre' %}">
@@ -16,62 +19,64 @@
     </a>
   </p>
 
-  <table class="tableau">
-    <thead>
-      <tr>
-        <th scope="col">Nom</th>
-        <th scope="col">E-mail</th>
-        <th scope="col">Compte</th>
-        <th scope="col">Actif</th>
-        <th scope="col">Site public</th>
-        <th scope="col">À la une</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for membre in membres %}
+  <div class="tableau-wrap">
+    <table class="tableau">
+      <thead>
         <tr>
-          <td>{{ membre }}</td>
-          <td>{{ membre.user.email|default:"—" }}</td>
-          <td>
-            {% if membre.user.has_usable_password %}
-              <span class="badge badge--publie">Activé</span>
-            {% else %}
-              <span class="badge">En attente d'activation</span>
-            {% endif %}
-          </td>
-          <td>{% if membre.actif %}Oui{% else %}Non{% endif %}</td>
-          <td>
-            {% if membre.visible_sur_site %}
-              <span class="badge badge--publie">Visible</span>
-            {% else %}
-              <span class="badge">Masqué</span>
-            {% endif %}
-            <form method="post" action="{% url 'backoffice:basculer_visibilite_membre' membre.pk %}" style="display: inline">
-              {% csrf_token %}
-              <button type="submit" class="bouton-texte">
-                {% if membre.visible_sur_site %}Masquer{% else %}Publier{% endif %}
-              </button>
-            </form>
-          </td>
-          <td>
-            {% if membre.mis_en_avant %}
-              <span class="badge badge--publie">À la une</span>
-            {% else %}
-              <span class="badge">Non</span>
-            {% endif %}
-            <form method="post" action="{% url 'backoffice:basculer_mise_en_avant_membre' membre.pk %}" style="display: inline">
-              {% csrf_token %}
-              <button type="submit" class="bouton-texte">
-                {% if membre.mis_en_avant %}Retirer{% else %}Mettre{% endif %}
-              </button>
-            </form>
-          </td>
+          <th scope="col">Nom</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Compte</th>
+          <th scope="col">Actif</th>
+          <th scope="col">Site public</th>
+          <th scope="col">À la une</th>
         </tr>
-      {% empty %}
-        <tr><td colspan="6">Aucun membre pour l'instant.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for membre in membres %}
+          <tr>
+            <td>{{ membre }}</td>
+            <td>{{ membre.user.email|default:"—" }}</td>
+            <td>
+              {% if membre.user.has_usable_password %}
+                <span class="badge badge--publie">Activé</span>
+              {% else %}
+                <span class="badge">En attente d'activation</span>
+              {% endif %}
+            </td>
+            <td>{% if membre.actif %}Oui{% else %}Non{% endif %}</td>
+            <td>
+              {% if membre.visible_sur_site %}
+                <span class="badge badge--publie">Visible</span>
+              {% else %}
+                <span class="badge">Masqué</span>
+              {% endif %}
+              <form method="post" action="{% url 'backoffice:basculer_visibilite_membre' membre.pk %}" style="display: inline">
+                {% csrf_token %}
+                <button type="submit" class="bouton-texte">
+                  {% if membre.visible_sur_site %}Masquer{% else %}Publier{% endif %}
+                </button>
+              </form>
+            </td>
+            <td>
+              {% if membre.mis_en_avant %}
+                <span class="badge badge--publie">À la une</span>
+              {% else %}
+                <span class="badge">Non</span>
+              {% endif %}
+              <form method="post" action="{% url 'backoffice:basculer_mise_en_avant_membre' membre.pk %}" style="display: inline">
+                {% csrf_token %}
+                <button type="submit" class="bouton-texte">
+                  {% if membre.mis_en_avant %}Retirer{% else %}Mettre{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">Aucun membre pour l'instant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {% include "backoffice/_pagination.html" %}
 {% endblock %}

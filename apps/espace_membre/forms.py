@@ -7,6 +7,8 @@ from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
 from apps.coeur.models import LienReseau, Membre
+from apps.documents.models import Document, Dossier
+from apps.documents.validators import valider_fichier_document
 from apps.spectacles.models import Spectacle
 
 # Format des <input type="datetime-local"> (sans fuseau ni secondes).
@@ -225,3 +227,29 @@ LienReseauFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+class DossierCommunForm(forms.ModelForm):
+    """Création / édition d'un dossier de fichiers (nom + description).
+
+    La branche (Perso / Partagé / Bureau) est décidée par la vue selon l'action,
+    pas par un champ du formulaire."""
+
+    class Meta:
+        model = Dossier
+        fields = ["nom", "description"]
+        widgets = {"description": forms.Textarea(attrs={"rows": 2})}
+
+
+class DocumentMembreForm(forms.ModelForm):
+    """Téléversement d'un fichier par un membre (le dossier et l'auteur sont
+    posés par la vue ; l'audience est portée par le dossier, pas par le
+    document → pas de champ `confidentialite`)."""
+
+    class Meta:
+        model = Document
+        fields = ["titre", "fichier", "description"]
+        widgets = {"description": forms.Textarea(attrs={"rows": 2})}
+
+    def clean_fichier(self):
+        return valider_fichier_document(self.cleaned_data.get("fichier"))

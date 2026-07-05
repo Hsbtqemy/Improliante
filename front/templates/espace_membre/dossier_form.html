@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ dossier.nom }} — Fichiers{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url url_dossier pk=dossier.pk %}">← Retour au dossier</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre · Fichiers</span>
+    <h1>Modifier le dossier</h1>
+  </header>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{% include "_champ.html" with field=field %}{% endfor %}
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <a class="lien-bouton" href="{% url url_dossier pk=dossier.pk %}">Annuler</a>
+    </div>
+  </form>
+{% endblock %}

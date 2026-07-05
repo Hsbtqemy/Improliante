@@ -1,0 +1,21 @@
+{% comment %}
+Bouton + formulaire (replié) de création d'un dossier racine dans une branche.
+Attendu : `branche` (perso/partage/bureau), `dossier_form`, `branche_active`.
+{% endcomment %}
+<div class="ged-barre">
+  <details class="ged-action"{% if branche_active == branche and dossier_form.errors %} open{% endif %}>
+    <summary class="lien-bouton lien-bouton--discret">
+      <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg>
+      Nouveau dossier
+    </summary>
+    <form method="post" class="formulaire ged-action__form">
+      {% csrf_token %}
+      <input type="hidden" name="form_type" value="dossier" />
+      <input type="hidden" name="branche" value="{{ branche }}" />
+      {% for field in dossier_form %}{% include "_champ.html" with field=field %}{% endfor %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Créer</button>
+      </div>
+    </form>
+  </details>
+</div>

@@ -3,33 +3,42 @@
 {% block title %}Gouvernance — Back-office{% endblock %}
 
 {% block contenu %}
-  <h1>Réunions & assemblées générales</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Réunions & assemblées générales</h1>
+  </header>
 
   {% if reunions %}
-    <table class="tableau">
-      <thead>
-        <tr>
-          <th scope="col">Titre</th>
-          <th scope="col">Type</th>
-          <th scope="col">Statut</th>
-          <th scope="col">Date</th>
-          <th scope="col"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in reunions %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
           <tr>
-            <td>{{ r.titre }}</td>
-            <td>{{ r.get_type_reunion_display }}</td>
-            <td><span class="badge">{{ r.get_statut_display }}</span></td>
-            <td>{% if r.date %}{{ r.date|date:"j M Y H:i" }}{% else %}—{% endif %}</td>
-            <td><a href="{% url 'backoffice:gouvernance_reunion' pk=r.pk %}">Ouvrir</a></td>
+            <th scope="col">Titre</th>
+            <th scope="col">Type</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Date</th>
+            <th scope="col"></th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for r in reunions %}
+            <tr>
+              <td>{{ r.titre }}</td>
+              <td>{{ r.get_type_reunion_display }}</td>
+              <td><span class="badge">{{ r.get_statut_display }}</span></td>
+              <td>{% if r.date %}{{ r.date|date:"j M Y H:i" }}{% else %}—{% endif %}</td>
+              <td><a href="{% url 'backoffice:gouvernance_reunion' pk=r.pk %}">Ouvrir</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
-    <p>Aucune réunion pour l'instant.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-balance"></use></svg></div>
+      <p class="etat-vide__titre">Aucune réunion</p>
+      <p>Créez une réunion ou une assemblée générale avec le formulaire ci-dessous.</p>
+    </div>
   {% endif %}
 
   <section aria-labelledby="titre-nouvelle">
