@@ -22,15 +22,19 @@
           />
         {% endif %}
         {% if membre.site_web or membre.liens_reseaux.all %}
-          <nav class="fiche__liens" aria-label="Liens de {{ membre }}">
-            <ul>
-              {% if membre.site_web %}
-                <li><a href="{{ membre.site_web }}" rel="noopener nofollow" target="_blank">Site web</a></li>
-              {% endif %}
-              {% for lien in membre.liens_reseaux.all %}
-                <li><a href="{{ lien.url }}" rel="noopener nofollow" target="_blank">{{ lien.nom_affiche }}</a></li>
-              {% endfor %}
-            </ul>
+          <nav class="linktree" aria-label="Liens de {{ membre }}">
+            {% if membre.site_web %}
+              <a class="linktree__lien" href="{{ membre.site_web }}" rel="noopener nofollow" target="_blank">
+                <svg class="ico" aria-hidden="true"><use href="#ico-globe"></use></svg>
+                <span>Site web</span>
+              </a>
+            {% endif %}
+            {% for lien in membre.liens_reseaux.all %}
+              <a class="linktree__lien" href="{{ lien.url }}" rel="noopener nofollow" target="_blank">
+                <svg class="ico" aria-hidden="true"><use href="#ico-{{ lien.reseau }}"></use></svg>
+                <span>{{ lien.nom_affiche }}</span>
+              </a>
+            {% endfor %}
           </nav>
         {% endif %}
       </div>

@@ -141,6 +141,32 @@ def test_association_affiche_vedette_et_grille(client, db):
     assert all(m.visible_sur_site for m in reponse.context["vedette"])
 
 
+def test_association_montre_les_projets_en_cours_des_membres(client, db):
+    membre = _membre("MembrePorteur", visible=True)
+    projet = Spectacle.objects.create(
+        titre="MonProjetPerso",
+        statut_moderation=Spectacle.StatutModeration.PUBLIE,
+        type_portage=Spectacle.TypePortage.PERSONNEL,
+        statut_projet=Spectacle.StatutProjet.EN_REPETITION,
+    )
+    projet.porteurs.add(membre)
+    # Un projet archivé ou non publié ne doit PAS apparaître sur les cartes.
+    archive = Spectacle.objects.create(
+        titre="ProjetArchive",
+        statut_moderation=Spectacle.StatutModeration.PUBLIE,
+        statut_projet=Spectacle.StatutProjet.ARCHIVE,
+    )
+    archive.porteurs.add(membre)
+    brouillon = Spectacle.objects.create(titre="ProjetBrouillon")  # non publié
+    brouillon.porteurs.add(membre)
+
+    corps = client.get("/association/").content.decode()
+    assert "MonProjetPerso" in corps
+    assert "carte-membre__tag--personnel" in corps  # étiquette « Projet perso »
+    assert "ProjetArchive" not in corps
+    assert "ProjetBrouillon" not in corps
+
+
 def test_membre_detail_404_si_non_visible(client, db):
     membre = _membre("Secret", visible=False)
     assert client.get(f"/membres/{membre.pk}/").status_code == 404

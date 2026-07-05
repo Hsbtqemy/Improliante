@@ -9,7 +9,7 @@ from __future__ import annotations
 import calendar
 from datetime import date, timedelta
 
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -149,9 +149,19 @@ def association(request):
 
     Deux niveaux : une vedette (accordéon) de quelques membres — « à la une »
     puis complétée au hasard — et la grille exhaustive de tous les visibles."""
+    # Projets en cours d'un membre : spectacles qu'il porte, publiés et non
+    # archivés — attachés en `projets_en_cours` pour éviter les requêtes N+1.
+    projets_en_cours = (
+        Spectacle.objects.filter(statut_moderation=_PUBLIE)
+        .exclude(statut_projet=Spectacle.StatutProjet.ARCHIVE)
+        .order_by("titre")
+    )
     membres = (
         Membre.objects.filter(visible_sur_site=True)
         .select_related("user", "photo")
+        .prefetch_related(
+            Prefetch("spectacles_portes", queryset=projets_en_cours, to_attr="projets_en_cours")
+        )
         .order_by("user__last_name", "user__first_name")
     )
     return render(

@@ -14,4 +14,18 @@
   {% if membre.role_public %}
     <p class="carte__meta">{{ membre.role_public }}</p>
   {% endif %}
+  {% if membre.projets_en_cours %}
+    <ul class="carte-membre__projets">
+      {% for projet in membre.projets_en_cours %}
+        <li>
+          <a class="carte-membre__projet-titre" href="{% url 'vitrine:spectacle' projet.pk %}">{{ projet.titre }}</a>
+          <span class="carte-membre__tag carte-membre__tag--{{ projet.type_portage }}">
+            {% if projet.type_portage == 'personnel' %}Projet perso
+            {% elif projet.type_portage == 'collectif' %}Projet collectif
+            {% else %}Production asso{% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 </li>

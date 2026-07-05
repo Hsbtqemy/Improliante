@@ -238,12 +238,17 @@ main {
     display: grid;
     grid-template-columns: 15rem 1fr;
     gap: 2rem;
-    align-items: start;
+    /* Colonnes de hauteur égale : la box de contenu s'étire toujours au moins
+       jusqu'à la hauteur du menu (plus de rail qui dépasse sous la box). */
+    align-items: stretch;
   }
   .espace-grille__nav {
+    /* Le rail garde sa hauteur propre (compact + collant), c'est la box qui
+       s'aligne dessus — pas l'inverse. Haut du rail aligné avec la box. */
+    align-self: start;
     position: sticky;
     top: 1rem;
-    padding-block: 2rem 1rem;
+    padding-block: 0;
   }
 }
 
@@ -392,6 +397,11 @@ main {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+/* Respecte l'attribut `hidden` (masqué sur desktop, où la nav est toujours
+   visible) : sans ceci, `display: block` ci-dessus l'emporterait sur `hidden`. */
+.nav-espace__bascule[hidden] {
+  display: none;
 }
 .nav-espace__bascule[aria-expanded="true"]::before {
   content: "▾ ";
@@ -1087,11 +1097,105 @@ th.montant {
 
 /* Carte membre : photo en médaillon carré (portrait non déformé) */
 .carte--membre {
+  position: relative; /* ancre le « stretched link » du nom */
   text-align: center;
   padding-bottom: 0.75rem;
 }
 .carte--membre .carte__image {
   aspect-ratio: 1 / 1;
+}
+/* Toute la carte cliquable : le lien du nom s'étend en overlay invisible.
+   Les liens de projet (z-index plus haut) restent cliquables par-dessus. */
+.carte--membre .carte__titre a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+/* Projets en cours d'un membre, sous son identité (titre + étiquette portage) */
+.carte-membre__projets {
+  position: relative;
+  z-index: 1; /* au-dessus de l'overlay du nom → liens spectacle cliquables */
+  list-style: none;
+  margin: 0.1rem 0.85rem 0;
+  padding: 0.7rem 0 0;
+  border-top: 1px solid var(--bordure);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.carte-membre__projets li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.carte-membre__projet-titre {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--couleur-texte);
+  text-decoration: none;
+}
+.carte-membre__projet-titre:hover {
+  color: var(--couleur-lien);
+}
+.carte-membre__tag {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+}
+.carte-membre__tag--personnel {
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+}
+.carte-membre__tag--collectif {
+  background: #fff3cd;
+  color: #5c4400;
+}
+.carte-membre__tag--association {
+  background: var(--surface-alt);
+  color: var(--couleur-muet);
+}
+
+/* Bloc de liens « linktree » sur la fiche d'un membre : boutons empilés + icône */
+.linktree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 1rem 0 0;
+}
+.linktree__lien {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0.95rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--couleur-texte);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--ombre);
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease,
+    color 0.14s ease;
+}
+.linktree__lien:hover {
+  transform: translateY(-2px);
+  border-color: var(--couleur-primaire);
+  box-shadow: var(--ombre-forte);
+  color: var(--couleur-primaire);
+}
+.linktree__lien .ico {
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  color: var(--couleur-muet);
+}
+.linktree__lien:hover .ico {
+  color: var(--couleur-primaire);
 }
 
 /* Formulaires */
