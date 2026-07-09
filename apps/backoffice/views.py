@@ -14,7 +14,7 @@ from django.contrib import messages
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -41,7 +41,6 @@ from apps.common.moderation import (
     valider,
 )
 from apps.documents.models import Document, Dossier
-from apps.documents.services import remplacer_document
 from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
     DevisDejaFacture,
@@ -69,14 +68,11 @@ from .forms import (
     CategorieForm,
     ClientForm,
     DevisForm,
-    DocumentForm,
-    DossierForm,
     FactureForm,
     LigneDevisFormSet,
     LigneFactureFormSet,
     MembreForm,
     MembreRapideForm,
-    NouvelleVersionForm,
     ParametresAssociationForm,
     PouvoirForm,
     PresenceForm,
@@ -745,124 +741,11 @@ def telecharger_devis(request, pk):
     return reponse
 
 
-# --- GED (dépôt de documents côté bureau) ----------------------------------
-# La consultation membre existe déjà (espace_membre) ; ici, le bureau dépose,
-# classe et versionne. Le téléchargement réutilise la vue authentifiée de
-# l'espace membre (le bureau a accès à tout via est_bureau).
-
-
-def _traiter_formulaires_ged(request, *, parent=None):
-    """Traite la création de dossier / le téléversement de document sur une page
-    GED. Renvoie (dossier_form, document_form, redirection|None)."""
-    dossier_form = DossierForm()
-    document_form = DocumentForm()
-    if request.method != "POST":
-        return dossier_form, document_form, None
-
-    if request.POST.get("form_type") == "dossier":
-        dossier_form = DossierForm(request.POST)
-        if dossier_form.is_valid():
-            # Dossiers créés depuis le back-office = espace association (bureau).
-            infos = {"espace": Dossier.Espace.ASSOCIATION, "proprietaire": None}
-            if parent is not None:
-                parent.add_child(**infos, **dossier_form.cleaned_data)
-            else:
-                Dossier.add_root(**infos, **dossier_form.cleaned_data)
-            messages.success(request, "Dossier créé.")
-            return dossier_form, document_form, True
-    elif request.POST.get("form_type") == "document":
-        document_form = DocumentForm(request.POST, request.FILES)
-        if document_form.is_valid():
-            document = document_form.save(commit=False)
-            document.dossier = parent
-            document.cree_par = request.user
-            document.save()
-            messages.success(request, "Document téléversé.")
-            return dossier_form, document_form, True
-    return dossier_form, document_form, None
-
-
-@bureau_requis
-def ged_racine(request):
-    """Racine de la GED : arbre des dossiers + documents non classés."""
-    dossier_form, document_form, ok = _traiter_formulaires_ged(request)
-    if ok:
-        return redirect("backoffice:ged_racine")
-    # Étanchéité : la GED bureau ne montre QUE les dossiers de l'association.
-    # Les dossiers personnels (« Mes fichiers ») et communs (« Espace commun »)
-    # cohabitent dans le même arbre treebeard mais ne doivent jamais apparaître ici.
-    associatifs = Dossier.objects.filter(espace=Dossier.Espace.ASSOCIATION)
-    racines = (
-        Dossier.get_root_nodes()
-        .filter(espace=Dossier.Espace.ASSOCIATION)
-        .annotate(nb_docs=Count("documents", filter=Q(documents__courant=True)))
-    )
-    return render(
-        request,
-        "backoffice/ged_racine.html",
-        {
-            # Navigation : uniquement les dossiers de premier niveau (on descend
-            # ensuite dossier par dossier). L'arbre complet reste accessible via
-            # le panneau latéral (arbre_annote).
-            "racines": racines,
-            "arbre_annote": Dossier.get_annotated_list_qs(associatifs.order_by("path")),
-            "dossier_courant_id": None,
-            "documents": Document.objects.filter(dossier__isnull=True, courant=True)
-            .select_related("cree_par")
-            .order_by("titre"),
-            "dossier_form": dossier_form,
-            "document_form": document_form,
-            "version_form": NouvelleVersionForm(),
-        },
-    )
-
-
-@bureau_requis
-def ged_dossier(request, pk):
-    """Détail d'un dossier : sous-dossiers, documents courants, téléversement."""
-    # Une URL du back-office ne doit jamais ouvrir un dossier de membre ou commun.
-    dossier = get_object_or_404(Dossier, pk=pk, espace=Dossier.Espace.ASSOCIATION)
-    dossier_form, document_form, ok = _traiter_formulaires_ged(request, parent=dossier)
-    if ok:
-        return redirect("backoffice:ged_dossier", pk=dossier.pk)
-    sous_dossiers = dossier.get_children().annotate(
-        nb_docs=Count("documents", filter=Q(documents__courant=True))
-    )
-    associatifs = Dossier.objects.filter(espace=Dossier.Espace.ASSOCIATION)
-    return render(
-        request,
-        "backoffice/ged_dossier.html",
-        {
-            "dossier": dossier,
-            "ancetres": dossier.get_ancestors(),
-            "arbre_annote": Dossier.get_annotated_list_qs(associatifs.order_by("path")),
-            "dossier_courant_id": dossier.pk,
-            "sous_dossiers": sous_dossiers,
-            "documents": dossier.documents.filter(courant=True)
-            .select_related("cree_par")
-            .order_by("titre"),
-            "dossier_form": dossier_form,
-            "document_form": document_form,
-            "version_form": NouvelleVersionForm(),
-        },
-    )
-
-
-@bureau_requis
-@require_POST
-def ged_nouvelle_version(request, pk):
-    """Remplace un document par une nouvelle version (l'ancienne est conservée)."""
-    # Le versionnement bureau ne concerne que les documents de l'association.
-    ancien = get_object_or_404(Document, pk=pk, dossier__espace=Dossier.Espace.ASSOCIATION)
-    form = NouvelleVersionForm(request.POST, request.FILES)
-    if form.is_valid():
-        remplacer_document(ancien, fichier=form.cleaned_data["fichier"], par=request.user)
-        messages.success(request, "Nouvelle version enregistrée.")
-    else:
-        messages.error(request, "Aucun fichier fourni.")
-    if ancien.dossier_id:
-        return redirect("backoffice:ged_dossier", pk=ancien.dossier_id)
-    return redirect("backoffice:ged_racine")
+# --- Fichiers transmis au bureau -------------------------------------------
+# La GED (espace association) a fusionné dans l'explorateur « Fichiers » de
+# l'espace membre (branche Association, éditable par le bureau). Ne reste ici
+# que la vue transverse, en lecture seule, des dossiers que les membres
+# transmettent au bureau (visibilité BUREAU de leurs dossiers personnels).
 
 
 @bureau_requis

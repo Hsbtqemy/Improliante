@@ -12,8 +12,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
       <li><a href="{% url 'espace_membre:mes_projets' %}" {% if vn == 'espace_membre:mes_projets' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Mes projets</span></a></li>
       <li><a href="{% url 'espace_membre:mes_evenements' %}" {% if vn == 'espace_membre:mes_evenements' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Mes événements</span></a></li>
       <li><a href="{% url 'espace_membre:mes_convocations' %}" {% if vn == 'espace_membre:mes_convocations' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Mes convocations</span></a></li>
-      <li><a href="{% url 'espace_membre:mes_fichiers' %}" {% if vn == 'espace_membre:mes_fichiers' or vn == 'espace_membre:dossier_membre' or vn == 'espace_membre:editer_dossier_membre' or vn == 'espace_membre:dossier_commun' or vn == 'espace_membre:editer_dossier_commun' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Fichiers</span></a></li>
-      <li><a href="{% url 'espace_membre:mes_documents' %}" {% if vn == 'espace_membre:mes_documents' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg><span>Documents de l'association</span></a></li>
+      <li><a href="{% url 'espace_membre:mes_fichiers' %}" {% if vn == 'espace_membre:mes_fichiers' or vn == 'espace_membre:dossier_membre' or vn == 'espace_membre:editer_dossier_membre' or vn == 'espace_membre:dossier_commun' or vn == 'espace_membre:editer_dossier_commun' or vn == 'espace_membre:dossier_association' or vn == 'espace_membre:editer_dossier_association' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Fichiers</span></a></li>
       <li><a href="{% url 'espace_membre:mes_recus' %}" {% if vn == 'espace_membre:mes_recus' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Mes reçus</span></a></li>
       <li><a href="{% url 'espace_membre:mon_profil' %}" {% if vn == 'espace_membre:mon_profil' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>
     </ul>
@@ -46,13 +45,6 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
         <li><a href="{% url 'backoffice:gouvernance_reunions' %}" {% if vn == 'backoffice:gouvernance_reunions' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-ruban"></use></svg><span>Gouvernance</span></a></li>
         <li><a href="{% url 'backoffice:liste_membres' %}" {% if vn == 'backoffice:liste_membres' or vn == 'backoffice:creer_membre' or vn == 'backoffice:editer_membre' or vn == 'backoffice:ouvrir_acces_membre' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg><span>Membres</span></a></li>
         <li><a href="{% url 'backoffice:equipe_bureau' %}" {% if vn == 'backoffice:equipe_bureau' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-badge"></use></svg><span>Équipe du bureau</span></a></li>
-      </ul>
-    </section>
-
-    <section class="nav-espace__groupe">
-      <h2 class="nav-espace__titre">Documents</h2>
-      <ul class="nav-espace__liste">
-        <li><a href="{% url 'backoffice:ged_racine' %}" {% if vn == 'backoffice:ged_racine' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Documents (GED)</span></a></li>
         <li><a href="{% url 'backoffice:fichiers_membres' %}" {% if vn == 'backoffice:fichiers_membres' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Fichiers transmis</span></a></li>
       </ul>
     </section>

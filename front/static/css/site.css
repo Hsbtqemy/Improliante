@@ -343,6 +343,191 @@ main {
   font-weight: 700;
 }
 
+/* --- Accueil de l'espace membre (tableau de bord) ----------------------- */
+.accueil-tete {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.accueil-tete__photo,
+.accueil-tete__avatar {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.accueil-tete__avatar {
+  display: grid;
+  place-items: center;
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+}
+.accueil-tete__avatar .ico {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+.accueil-tete h1 {
+  margin: 0.1rem 0;
+}
+.accueil-tete__role {
+  color: var(--couleur-muet);
+  margin: 0;
+}
+.accueil-bloc {
+  margin-top: 2rem;
+}
+.accueil-bloc__tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.accueil-ok,
+.accueil-vide {
+  color: var(--couleur-muet);
+}
+
+/* Rappels « à traiter » */
+.rappels {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.rappel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--bordure);
+  border-left: 3px solid var(--couleur-primaire);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+.rappel a {
+  color: var(--couleur-texte);
+  text-decoration: none;
+}
+.rappel a:hover {
+  text-decoration: underline;
+}
+.rappel__ico {
+  flex: 0 0 1.5rem;
+  color: var(--couleur-primaire);
+}
+.rappel__meta {
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+  margin-left: 0.35rem;
+}
+
+/* Prochaines dates */
+.dates {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+.date-carte {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+.date-carte__jour {
+  flex: 0 0 3rem;
+  text-align: center;
+  align-self: start;
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+  padding: 0.35rem 0;
+}
+.date-carte__num {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.date-carte__mois {
+  display: block;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+.date-carte__titre {
+  margin: 0;
+  font-weight: 600;
+}
+.date-carte__meta {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+}
+
+/* Accès rapides (grille compacte) + statut d'adhésion discret */
+.acces-rapides {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem;
+}
+.acces-rapides a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--couleur-texte);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.acces-rapides a:hover {
+  border-color: var(--couleur-primaire);
+  color: var(--couleur-primaire);
+}
+.adhesion-ligne {
+  margin-top: 0.9rem;
+  color: var(--couleur-muet);
+  font-size: 0.95rem;
+}
+
+/* Réponse à une convocation (présence / pouvoir) */
+.reponse-convoc {
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--bordure);
+  border-left: 3px solid var(--couleur-primaire);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+.reponse-choix {
+  border: 0;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+.reponse-choix label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+  margin: 0 0 0.45rem;
+  cursor: pointer;
+}
+
 /* Icônes SVG en ligne (sprite _icones_svg.html) — héritent de currentColor */
 .ico {
   width: 1.15rem;
@@ -1235,6 +1420,16 @@ th.montant {
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+/* Radios et cases à cocher : rendu natif (échappent à la « boîte » pleine largeur) */
+.formulaire input[type="radio"],
+.formulaire input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  accent-color: var(--couleur-primaire);
 }
 .formulaire textarea {
   min-height: 8rem;

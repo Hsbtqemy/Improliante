@@ -3,78 +3,136 @@
 {% block title %}Mon espace — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <header class="page-tete">
-    <span class="page-tete__eyebrow">Espace membre</span>
-    <h1>Mon espace</h1>
-    {% if membre %}
-      <p class="page-tete__sous">Bonjour {{ membre }}.</p>
-    {% endif %}
-  </header>
-
   {% if membre %}
-    <ul class="actions-rapides">
-      <li>
-        <a class="action-carte" href="{% url 'espace_membre:mes_projets' %}">
-          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg></span>
-          Mes projets
-          <span class="action-carte__fleche" aria-hidden="true">→</span>
-        </a>
-      </li>
-      <li>
-        <a class="action-carte" href="{% url 'espace_membre:mes_evenements' %}">
-          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg></span>
-          Mes événements
-          <span class="action-carte__fleche" aria-hidden="true">→</span>
-        </a>
-      </li>
-      <li>
-        <a class="action-carte" href="{% url 'espace_membre:mes_documents' %}">
-          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg></span>
-          Mes documents
-          <span class="action-carte__fleche" aria-hidden="true">→</span>
-        </a>
-      </li>
-      <li>
-        <a class="action-carte" href="{% url 'espace_membre:mes_convocations' %}">
-          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg></span>
-          Mes convocations
-          <span class="action-carte__fleche" aria-hidden="true">→</span>
-        </a>
-      </li>
-      <li>
-        <a class="action-carte" href="{% url 'espace_membre:mes_recus' %}">
-          <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg></span>
-          Mes reçus fiscaux
-          <span class="action-carte__fleche" aria-hidden="true">→</span>
-        </a>
-      </li>
-    </ul>
+    <header class="accueil-tete">
+      {% if membre.photo and membre.photo.fichier %}
+        <img class="accueil-tete__photo" src="{{ membre.photo.fichier.url }}" alt="{{ membre.photo.alt }}" />
+      {% else %}
+        <span class="accueil-tete__avatar" aria-hidden="true"><svg class="ico"><use href="#ico-profil"></use></svg></span>
+      {% endif %}
+      <div>
+        <span class="page-tete__eyebrow">Espace membre</span>
+        <h1>Bonjour {{ membre.prenom|default:membre }}</h1>
+        {% if membre.role_public %}<p class="accueil-tete__role">{{ membre.role_public }}</p>{% endif %}
+      </div>
+    </header>
 
-    <section aria-labelledby="titre-adhesions">
-      <h2 id="titre-adhesions">Mes adhésions</h2>
-      {% if adhesions %}
-        <ul class="liste-projets">
-          {% for adhesion in adhesions %}
-            <li class="carte-projet">
-              <p class="carte-projet__titre">{{ adhesion.saison }}</p>
-              <p class="carte-projet__meta">
-                <span class="badge badge--{{ adhesion.statut }}">{{ adhesion.get_statut_display }}</span>
-                · {{ adhesion.montant_verse }} € versés
-              </p>
+    {# --- À traiter ------------------------------------------------------- #}
+    <section class="accueil-bloc" aria-labelledby="titre-atraiter">
+      <h2 id="titre-atraiter">À traiter</h2>
+      {% if rien_a_traiter %}
+        <p class="accueil-ok"><span aria-hidden="true">✨</span> Tout est à jour.</p>
+      {% else %}
+        <ul class="rappels">
+          {% for reunion in convocations %}
+            <li class="rappel">
+              <span class="rappel__ico" aria-hidden="true"><svg class="ico"><use href="#ico-enveloppe"></use></svg></span>
+              <a href="{% url 'espace_membre:detail_convocation' reunion.pk %}">
+                Répondre à la convocation — <strong>{{ reunion.titre }}</strong>
+                <span class="rappel__meta">{{ reunion.date|date:"l j F à G\hi" }}</span>
+              </a>
+            </li>
+          {% endfor %}
+          {% for projet in projets_a_soumettre %}
+            <li class="rappel">
+              <span class="rappel__ico" aria-hidden="true"><svg class="ico"><use href="#ico-etoile"></use></svg></span>
+              <a href="{% url 'espace_membre:editer_projet' projet.pk %}">
+                Finaliser et soumettre — <strong>{{ projet.titre }}</strong>
+                <span class="rappel__meta">brouillon</span>
+              </a>
+            </li>
+          {% endfor %}
+          {% if adhesion_en_attente %}
+            <li class="rappel">
+              <span class="rappel__ico" aria-hidden="true"><svg class="ico"><use href="#ico-recu"></use></svg></span>
+              Adhésion {{ adhesion.saison }} <span class="rappel__meta">en attente de règlement</span>
+            </li>
+          {% endif %}
+        </ul>
+      {% endif %}
+    </section>
+
+    {# --- Prochaines dates ----------------------------------------------- #}
+    <section class="accueil-bloc" aria-labelledby="titre-dates">
+      <div class="accueil-bloc__tete">
+        <h2 id="titre-dates">Prochaines dates</h2>
+        <a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">+ Proposer une date</a>
+      </div>
+      {% if evenements %}
+        <ul class="dates">
+          {% for ev in evenements %}
+            <li class="date-carte">
+              <div class="date-carte__jour">
+                <span class="date-carte__num">{{ ev.date_debut|date:"j" }}</span>
+                <span class="date-carte__mois">{{ ev.date_debut|date:"M" }}</span>
+              </div>
+              <div class="date-carte__corps">
+                <p class="date-carte__titre">{{ ev.titre }}</p>
+                <p class="date-carte__meta">
+                  {{ ev.date_debut|date:"l G\hi" }}{% firstof ev.lieu ev.lieu_texte as lieu %}{% if lieu %} · {{ lieu }}{% endif %}
+                </p>
+                {% if ev.je_participe %}<span class="badge badge--publie">Tu y participes</span>{% endif %}
+              </div>
             </li>
           {% endfor %}
         </ul>
       {% else %}
-        <div class="etat-vide">
-          <div class="etat-vide__ico" aria-hidden="true">
-            <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-recu"></use></svg>
-          </div>
-          <p class="etat-vide__titre">Aucune adhésion enregistrée</p>
-          <p>Vos adhésions apparaîtront ici une fois saisies par le bureau.</p>
-        </div>
+        <p class="accueil-vide">Aucune date à venir pour l'instant —
+          <a href="{% url 'espace_membre:creer_evenement' %}">proposes-en une</a>.</p>
+      {% endif %}
+    </section>
+
+    {# --- Tes projets ---------------------------------------------------- #}
+    <section class="accueil-bloc" aria-labelledby="titre-projets">
+      <div class="accueil-bloc__tete">
+        <h2 id="titre-projets">Tes projets</h2>
+        <a class="lien-bouton" href="{% url 'espace_membre:creer_projet' %}">+ Proposer un projet</a>
+      </div>
+      {% if projets %}
+        <ul class="liste-projets">
+          {% for projet in projets %}
+            <li class="carte-projet">
+              <h3 class="carte-projet__titre">
+                <a href="{% url 'espace_membre:editer_projet' pk=projet.pk %}">{{ projet.titre }}</a>
+              </h3>
+              <p class="carte-projet__meta">
+                <span class="badge badge--{{ projet.statut_moderation }}">{{ projet.get_statut_moderation_display }}</span>
+                · {{ projet.get_type_portage_display }}
+              </p>
+            </li>
+          {% endfor %}
+        </ul>
+        {% if projets|length == 6 %}
+          <p><a href="{% url 'espace_membre:mes_projets' %}">Voir tous mes projets →</a></p>
+        {% endif %}
+      {% else %}
+        <p class="accueil-vide">Tu ne portes pas encore de projet —
+          <a href="{% url 'espace_membre:creer_projet' %}">proposes-en un</a>.</p>
+      {% endif %}
+    </section>
+
+    {# --- Accès rapides + adhésion discrète ------------------------------ #}
+    <section class="accueil-bloc" aria-labelledby="titre-acces">
+      <h2 id="titre-acces">Accès rapides</h2>
+      <ul class="acces-rapides">
+        <li><a href="{% url 'espace_membre:mes_convocations' %}"><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Convocations</span></a></li>
+        <li><a href="{% url 'espace_membre:mes_fichiers' %}"><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Fichiers</span></a></li>
+        <li><a href="{% url 'espace_membre:mes_recus' %}"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Reçus fiscaux</span></a></li>
+        <li><a href="{% url 'espace_membre:mon_profil' %}"><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>
+      </ul>
+      {% if adhesion %}
+        <p class="adhesion-ligne">
+          Adhésion {{ adhesion.saison }} ·
+          <span class="badge badge--{{ adhesion.statut }}">{{ adhesion.get_statut_display }}</span>
+          · {{ adhesion.montant_verse|floatformat:0 }} € versés
+        </p>
       {% endif %}
     </section>
   {% else %}
+    <header class="page-tete">
+      <span class="page-tete__eyebrow">Espace membre</span>
+      <h1>Mon espace</h1>
+    </header>
     <div class="etat-vide">
       <div class="etat-vide__ico" aria-hidden="true">
         <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-membres"></use></svg>

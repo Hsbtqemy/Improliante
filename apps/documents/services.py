@@ -55,18 +55,40 @@ def creer_dossier_commun(*, nom, description="", parent=None) -> Dossier:
     return Dossier.add_root(**donnees)
 
 
-def televerser_fichier(dossier, *, titre, fichier, description="", par) -> Document:
-    """Dépose un fichier dans un dossier (personnel ou commun).
+@transaction.atomic
+def creer_dossier_association(*, nom, description="", parent=None) -> Dossier:
+    """Crée un dossier de l'espace ASSOCIATION (GED officielle du bureau), sans propriétaire."""
+    donnees = {
+        "nom": nom,
+        "description": description,
+        "espace": Dossier.Espace.ASSOCIATION,
+        "proprietaire": None,
+    }
+    if parent is not None:
+        return parent.add_child(**donnees)
+    return Dossier.add_root(**donnees)
 
-    L'audience est portée par le dossier ; la `confidentialite` du Document n'est
-    pas consultée hors espace association."""
-    return Document.objects.create(
-        titre=titre,
-        dossier=dossier,
-        fichier=fichier,
-        description=description,
-        cree_par=par,
-    )
+
+def televerser_fichier(
+    dossier, *, titre, fichier, description="", par, confidentialite=None, date_validite=None
+):
+    """Dépose un fichier dans un dossier (personnel, commun ou association).
+
+    L'audience est en général portée par le dossier ; pour l'espace ASSOCIATION,
+    le bureau fixe la `confidentialite` (sinon le défaut du modèle) et une
+    éventuelle `date_validite`."""
+    donnees = {
+        "titre": titre,
+        "dossier": dossier,
+        "fichier": fichier,
+        "description": description,
+        "cree_par": par,
+    }
+    if confidentialite is not None:
+        donnees["confidentialite"] = confidentialite
+    if date_validite is not None:
+        donnees["date_validite"] = date_validite
+    return Document.objects.create(**donnees)
 
 
 # Rétro-compatibilité : ancien nom explicite « membre » (mêmes effets).

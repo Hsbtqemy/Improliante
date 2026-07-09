@@ -20,35 +20,39 @@ persistés en base). Panneau d'accessibilité (préférences en cookie, classes
 appliquées sur `<html>`, JS externe sans inline).
 
 ### Espace membre (`apps/espace_membre`) — connecté
-Tableau de bord (adhésions), **proposer/éditer son projet** (spectacle),
-**proposer/éditer un événement**, consulter les **documents de l'association**,
-ses **convocations/CR d'AG**, ses **reçus fiscaux**, et gérer ses **fichiers**
-dans un explorateur unifié (« Fichiers »). Tout est filtré par le membre connecté
-(voir *Anti-IDOR*).
+Tableau de bord (à traiter, prochaines dates, projets), **proposer/éditer son
+projet** (spectacle), **proposer/éditer un événement**, répondre à ses
+**convocations/CR d'AG** (présence / pouvoir), ses **reçus fiscaux**, et gérer
+tous ses **fichiers** dans un explorateur unifié (« Fichiers »). Tout est filtré
+par le membre connecté (voir *Anti-IDOR*).
 
-**Explorateur « Fichiers » à trois branches.** Un seul écran (`espace_membre.
-mes_fichiers`) présente trois branches, portées par `Dossier.espace` +
+**Explorateur « Fichiers » à quatre branches.** Un seul écran (`espace_membre.
+mes_fichiers`) présente quatre branches, portées par `Dossier.espace` +
 `Dossier.visibilite` :
 - **Perso** : `espace=PERSO`, `proprietaire=membre`, `visibilite=PRIVE` — à lui seul ;
 - **Partagé** : `espace=COMMUN` (`proprietaire` NULL) — espace **collaboratif** :
-  tout membre y lit ET écrit (détail sous `dossier_commun`, URL `espace/commun/`) ;
+  tout membre y lit ET écrit (détail `dossier_commun`, URL `espace/commun/`) ;
 - **Bureau** : `espace=PERSO`, `proprietaire=membre`, `visibilite=BUREAU` — transmis
-  au bureau (consultable via `backoffice:fichiers_membres`).
+  au bureau (consultable en agrégat via `backoffice:fichiers_membres`) ;
+- **Association** : `espace=ASSOCIATION` (`proprietaire` NULL) — documents officiels
+  de l'asso. **Éditable par le bureau** (dossiers, dépôt avec `confidentialite`,
+  **versionnement**, suppression) ; **lecture seule filtrée par confidentialité**
+  pour les membres (détail `dossier_association`, URL `espace/association/`).
 
-Les dossiers Perso/Bureau passent par `dossier_membre` (URL `espace/fichiers/`),
-le Partagé par `dossier_commun`. La **branche est choisie à la création** (bouton
-par branche) ; un **sous-dossier hérite de la branche de sa racine** (services
-`creer_dossier_membre` / `creer_dossier_commun`). L'association `GED` reste
-`espace=ASSOCIATION` (bureau).
+La **branche est choisie à la création** (bouton par branche ; création Association
+réservée au bureau) ; un **sous-dossier hérite de la branche de sa racine**
+(services `creer_dossier_membre` / `creer_dossier_commun` / `creer_dossier_association`).
+La même `dossier_detail.html` sert les quatre branches, pilotée par `peut_ecrire`
+(= `est_proprio` / `est_bureau`) + les noms d'URL et `avec_confidentialite`.
 
 **Accès (helpers `apps/espace_membre/views.py`).** L'accès à un document suit
 l'espace de son dossier : `PERSO` → `_peut_voir_dossier_membre` (Perso =
 propriétaire seul, **bureau exclu** ; Bureau = propriétaire + bureau) ; `COMMUN` →
-`_peut_voir_espace_commun` (tout membre) ; `ASSOCIATION`/non classé → logique
-historique par `confidentialite`. **Étanchéité** : la GED bureau
-(`backoffice.ged_racine`/`ged_dossier`) et « Documents de l'association » sont
-scopées à `espace=ASSOCIATION` — dossiers personnels et communs n'y
-apparaissent jamais.
+`_peut_voir_espace_commun` (tout membre) ; `ASSOCIATION`/non classé → par
+`confidentialite` (`_documents_accessibles` : bureau tout, `PUBLIC`→connecté,
+`MEMBRES`→membre, `PRIVE`→déposant). **Étanchéité** : chaque famille d'URL filtre
+son espace (`get_object_or_404(..., espace=…)` → un pk d'un autre espace = 404) ;
+l'écriture Association est gardée par `est_bureau` (POST non-bureau → 404).
 
 ### Back-office (`apps/backoffice`) — bureau
 3ᵉ app métier (sans modèle propre), **interface sur-mesure** (templates sur
@@ -59,8 +63,10 @@ validation numérotée → PDF ; **aperçu** brouillon ; **avoir**), **reçus
 fiscaux** (Cerfa, aperçu avant émission), **adhésions** (par saison + statut +
 montants ; personne choisie ou **créée à la volée**, avec ou sans compte),
 **membres** (fiches ; création avec accès en ligne optionnel ; **ouverture
-d'accès** a posteriori), **GED** (arbre de dossiers, dépôt,
-versionnement), **budget** (mouvements + bilan par catégorie + export Excel),
+d'accès** a posteriori), **fichiers transmis** (agrégat en lecture des dossiers
+que les membres marquent « transmis au bureau » ; la gestion documentaire
+officielle est passée dans la branche **Association** de l'explorateur « Fichiers »),
+**budget** (mouvements + bilan par catégorie + export Excel),
 **gouvernance** (réunions/AG : quorum, ordre du jour, présences avec
 préremplissage des droits de vote, pouvoirs, résolutions avec résultat),
 **réglages** (paramètres de l'association, équipe = groupe « Bureau »). Listes

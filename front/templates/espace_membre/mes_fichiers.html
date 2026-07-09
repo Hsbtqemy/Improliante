@@ -7,9 +7,9 @@
     <span class="page-tete__eyebrow">Espace membre</span>
     <h1>Fichiers</h1>
     <p class="page-tete__sous">
-      Vos fichiers rangés en trois espaces : <strong>Perso</strong> (à vous seul),
-      <strong>Partagé</strong> (toute la troupe) et <strong>Bureau</strong>
-      (transmis au bureau).
+      Vos fichiers rangés en quatre espaces : <strong>Perso</strong> (à vous seul),
+      <strong>Partagé</strong> (toute la troupe), <strong>Bureau</strong>
+      (transmis au bureau) et <strong>Association</strong> (documents officiels).
     </p>
   </header>
 
@@ -33,6 +33,23 @@
         <h2 id="t-bureau" class="ged-section-titre">Bureau <span class="ged-section-note">— transmis au bureau</span></h2>
         {% include "espace_membre/_creer_dossier.html" with branche="bureau" %}
         {% include "espace_membre/_fichiers_dossiers.html" with dossiers=bureau_roots url_nom="espace_membre:dossier_membre" vide_titre="Aucun dossier transmis" vide_txt="Créez un dossier pour transmettre des pièces au bureau (justificatifs…)." %}
+      </section>
+
+      <section aria-labelledby="t-association" class="ged-branche">
+        <h2 id="t-association" class="ged-section-titre">Association <span class="ged-section-note">— documents officiels</span></h2>
+        {% if peut_ecrire_asso %}
+          {# Bureau : arborescence éditable + documents non classés. #}
+          {% include "espace_membre/_creer_dossier.html" with branche="association" %}
+          {% include "espace_membre/_fichiers_dossiers.html" with dossiers=association_roots url_nom="espace_membre:dossier_association" vide_titre="Aucun dossier officiel" vide_txt="Créez un dossier pour classer les documents officiels (statuts, PV d'AG…)." %}
+          {% if association_docs %}
+            <h3 class="ged-section-titre">Documents non classés</h3>
+            {% include "espace_membre/_fichiers_documents.html" with documents=association_docs peut_ecrire=True avec_confidentialite=True url_suppr_doc="espace_membre:supprimer_document_association" url_nouvelle_version="espace_membre:nouvelle_version_association" %}
+          {% endif %}
+        {% else %}
+          {# Membre : liste plate des documents accessibles, sans arborescence. #}
+          <p class="ged-section-note">Comptes-rendus d'AG, statuts, bilan… les documents que le bureau partage avec les membres.</p>
+          {% include "espace_membre/_fichiers_documents.html" with documents=association_docs peut_ecrire=False avec_confidentialite=True %}
+        {% endif %}
       </section>
     </div>
   </div>

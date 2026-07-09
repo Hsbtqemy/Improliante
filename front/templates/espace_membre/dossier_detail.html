@@ -4,7 +4,7 @@
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Espace membre · {% if dossier.espace == 'commun' %}Partagé{% elif branche_bureau %}Bureau{% else %}Perso{% endif %}</span>
+    <span class="page-tete__eyebrow">Espace membre · {% if dossier.espace == 'association' %}Association{% elif dossier.espace == 'commun' %}Partagé{% elif branche_bureau %}Bureau{% else %}Perso{% endif %}</span>
     <h1>{{ dossier.nom }}</h1>
     {% if dossier.description %}<p class="page-tete__sous">{{ dossier.description }}</p>{% endif %}
   </header>

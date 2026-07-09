@@ -19,11 +19,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Count
 
 from apps.budget.models import Adhesion
 
-from .models import ParametresGouvernance, Presence, Resolution, Reunion
+from .models import ParametresGouvernance, Pouvoir, Presence, Resolution, Reunion
 
 _TROIS_DECIMALES = Decimal("0.001")
 
@@ -108,6 +109,59 @@ def mandataires_en_exces(reunion: Reunion) -> dict[int, int]:
         .filter(n__gt=params.max_pouvoirs_par_personne)
     )
     return {row["mandataire"]: row["n"] for row in exces}
+
+
+class ReponseConvocationImpossible(Exception):
+    """Réponse d'un membre à une convocation refusée : réunion close aux réponses,
+    mandataire invalide, ou plafond de pouvoirs atteint."""
+
+
+def _accepte_les_reponses(reunion: Reunion) -> bool:
+    """Un membre ne peut répondre que tant que l'AG est « Convoquée »."""
+    return reunion.statut == Reunion.Statut.CONVOQUEE
+
+
+def enregistrer_presence_membre(reunion: Reunion, membre, statut) -> Presence:
+    """Le membre déclare lui-même sa présence (présent / absent).
+
+    Retire un éventuel pouvoir qu'il avait donné (il n'est plus représenté). Ne
+    touche PAS `peut_voter` : le droit de vote est fixé par le bureau selon
+    l'adhésion à jour, figé à la tenue de l'AG (§8.4)."""
+    if not _accepte_les_reponses(reunion):
+        raise ReponseConvocationImpossible("Cette convocation n'accepte plus de réponse.")
+    with transaction.atomic():
+        presence, _ = Presence.objects.update_or_create(
+            reunion=reunion, membre=membre, defaults={"statut": statut}
+        )
+        Pouvoir.objects.filter(reunion=reunion, mandant=membre).delete()
+    return presence
+
+
+def donner_pouvoir(reunion: Reunion, mandant, mandataire) -> Pouvoir:
+    """Le mandant donne pouvoir au mandataire pour cette réunion.
+
+    Marque le mandant « représenté » et crée/actualise son pouvoir. Vérifie :
+    mandataire différent du mandant, plafond `max_pouvoirs_par_personne`, et
+    réunion encore ouverte aux réponses."""
+    if not _accepte_les_reponses(reunion):
+        raise ReponseConvocationImpossible("Cette convocation n'accepte plus de réponse.")
+    if mandataire == mandant:
+        raise ReponseConvocationImpossible("Vous ne pouvez pas vous donner pouvoir à vous-même.")
+    params = ParametresGouvernance.load()
+    deja_detenus = reunion.pouvoirs.filter(mandataire=mandataire).exclude(mandant=mandant).count()
+    if deja_detenus >= params.max_pouvoirs_par_personne:
+        raise ReponseConvocationImpossible(
+            f"{mandataire} détient déjà le maximum de pouvoirs "
+            f"({params.max_pouvoirs_par_personne})."
+        )
+    with transaction.atomic():
+        Presence.objects.update_or_create(
+            reunion=reunion, membre=mandant, defaults={"statut": Presence.Statut.REPRESENTE}
+        )
+        pouvoir, _ = Pouvoir.objects.update_or_create(
+            reunion=reunion, mandant=mandant, defaults={"mandataire": mandataire}
+        )
+    return pouvoir
 
 
 def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:

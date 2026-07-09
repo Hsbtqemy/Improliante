@@ -25,7 +25,6 @@ urlpatterns = [
     path("espace/evenements/", views.mes_evenements, name="mes_evenements"),
     path("espace/evenements/nouveau/", views.creer_evenement, name="creer_evenement"),
     path("espace/evenements/<int:pk>/", views.editer_evenement, name="editer_evenement"),
-    path("espace/documents/", views.mes_documents, name="mes_documents"),
     path(
         "espace/documents/<int:pk>/telecharger/",
         views.telecharger_document,
@@ -63,6 +62,27 @@ urlpatterns = [
         "espace/commun/doc/<int:pk>/supprimer/",
         views.supprimer_document_commun,
         name="supprimer_document_commun",
+    ),
+    path("espace/association/<int:pk>/", views.dossier_association, name="dossier_association"),
+    path(
+        "espace/association/<int:pk>/editer/",
+        views.editer_dossier_association,
+        name="editer_dossier_association",
+    ),
+    path(
+        "espace/association/<int:pk>/supprimer/",
+        views.supprimer_dossier_association,
+        name="supprimer_dossier_association",
+    ),
+    path(
+        "espace/association/doc/<int:pk>/nouvelle-version/",
+        views.nouvelle_version_association,
+        name="nouvelle_version_association",
+    ),
+    path(
+        "espace/association/doc/<int:pk>/supprimer/",
+        views.supprimer_document_association,
+        name="supprimer_document_association",
     ),
     path("espace/convocations/", views.mes_convocations, name="mes_convocations"),
     path("espace/convocations/<int:pk>/", views.detail_convocation, name="detail_convocation"),

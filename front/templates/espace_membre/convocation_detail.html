@@ -34,6 +34,30 @@
     </section>
   {% endif %}
 
+  {% if peut_repondre %}
+    <section class="reponse-convoc" aria-labelledby="titre-reponse">
+      <h2 id="titre-reponse">Votre réponse</h2>
+      <p class="champ__aide">Vous pouvez modifier votre réponse jusqu'à la tenue de l'assemblée.</p>
+      <form method="post" class="formulaire" id="form-reponse">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <fieldset class="reponse-choix">
+          <legend class="sr-only">{{ form.statut.label }}</legend>
+          {{ form.statut }}
+          {% for erreur in form.statut.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </fieldset>
+        <p class="champ" data-mandataire>
+          <label for="{{ form.mandataire.id_for_label }}">{{ form.mandataire.label }}</label>
+          {{ form.mandataire }}
+          {% for erreur in form.mandataire.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+        <div class="formulaire__actions">
+          <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer ma réponse</button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
   {% if reunion.convocation_texte %}
     <section aria-labelledby="titre-convocation">
       <h2 id="titre-convocation">Convocation</h2>
@@ -78,4 +102,24 @@
   {% endif %}
 
   <p><a href="{% url 'espace_membre:mes_convocations' %}">← Retour aux convocations</a></p>
+{% endblock %}
+
+{% block scripts %}
+  {% if peut_repondre %}
+    <script>
+      // Amélioration progressive : sans JS, le champ « mandataire » reste visible.
+      (function () {
+        var form = document.getElementById("form-reponse");
+        if (!form) return;
+        var bloc = form.querySelector("[data-mandataire]");
+        var radios = form.querySelectorAll('input[name="statut"]');
+        function maj() {
+          var choix = form.querySelector('input[name="statut"]:checked');
+          bloc.hidden = !(choix && choix.value === "represente");
+        }
+        radios.forEach(function (r) { r.addEventListener("change", maj); });
+        maj();
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

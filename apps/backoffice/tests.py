@@ -903,39 +903,50 @@ def test_creer_avoir_sur_brouillon_refuse_par_la_vue(client, db):
     assert not Facture.objects.filter(type_piece=Facture.TypePiece.AVOIR).exists()
 
 
-# --- GED --------------------------------------------------------------------
+# --- Documents : branche Association de l'explorateur unifié (gérée par le bureau) --
+# La GED a fusionné dans l'explorateur « Fichiers » (espace_membre). L'espace
+# ASSOCIATION est éditable par le bureau ; un membre le consulte en lecture seule.
 
 
-def test_ged_reservee_au_bureau(client, db):
-    client.force_login(_membre("lambda"))
-    assert client.get("/bureau/documents/").status_code == 403
+def test_creation_dossier_association_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))  # membre simple, pas bureau
+    reponse = client.post(
+        "/espace/fichiers/",
+        {"form_type": "dossier", "branche": "association", "nom": "Statuts", "description": ""},
+    )
+    assert reponse.status_code == 404  # écriture Association réservée au bureau
+    assert not Dossier.objects.filter(nom="Statuts").exists()
 
 
-def test_creer_dossier_racine(client, db):
-    client.force_login(_staff())
-    client.post("/bureau/documents/", {"form_type": "dossier", "nom": "Statuts", "description": ""})
-    dossier = Dossier.objects.get(nom="Statuts")
-    assert dossier.depth == 1  # dossier racine
-
-
-def test_creer_sous_dossier(client, db):
-    racine = Dossier.add_root(nom="Vie associative")
+def test_bureau_cree_un_dossier_association_racine(client, db):
     client.force_login(_staff())
     client.post(
-        f"/bureau/documents/dossier/{racine.pk}/",
+        "/espace/fichiers/",
+        {"form_type": "dossier", "branche": "association", "nom": "Statuts", "description": ""},
+    )
+    dossier = Dossier.objects.get(nom="Statuts")
+    assert dossier.depth == 1
+    assert dossier.espace == Dossier.Espace.ASSOCIATION
+
+
+def test_bureau_cree_un_sous_dossier_association(client, db):
+    racine = Dossier.add_root(nom="Vie associative")  # espace=ASSOCIATION par défaut
+    client.force_login(_staff())
+    client.post(
+        f"/espace/association/{racine.pk}/",
         {"form_type": "dossier", "nom": "PV d'AG", "description": ""},
     )
     enfant = Dossier.objects.get(nom="PV d'AG")
     assert enfant.depth == 2
-    assert enfant.get_parent().nom == "Vie associative"
+    assert enfant.espace == Dossier.Espace.ASSOCIATION
 
 
-def test_televerser_document_dans_un_dossier(client, db):
+def test_bureau_televerse_un_document_association(client, db):
     bureau = _staff()
     dossier = Dossier.add_root(nom="Documents")
     client.force_login(bureau)
     client.post(
-        f"/bureau/documents/dossier/{dossier.pk}/",
+        f"/espace/association/{dossier.pk}/",
         {
             "form_type": "document",
             "titre": "Statuts 2026",
@@ -950,6 +961,7 @@ def test_televerser_document_dans_un_dossier(client, db):
     doc = Document.objects.get()
     assert doc.dossier == dossier
     assert doc.titre == "Statuts 2026"
+    assert doc.confidentialite == Document.Confidentialite.MEMBRES
     assert doc.cree_par == bureau
     assert doc.courant is True
     assert doc.version == 1
@@ -965,7 +977,7 @@ def test_nouvelle_version_remplace_l_ancienne(client, db):
     )
     client.force_login(_staff())
     client.post(
-        f"/bureau/documents/{ancien.pk}/nouvelle-version/",
+        f"/espace/association/doc/{ancien.pk}/nouvelle-version/",
         {"fichier": SimpleUploadedFile("v2.pdf", b"v2")},
     )
     ancien.refresh_from_db()

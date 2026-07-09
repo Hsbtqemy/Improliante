@@ -1,7 +1,7 @@
 {% comment %}
-Arbre unifié des fichiers du membre, en trois branches : Perso / Partagé / Bureau.
+Arbre unifié des fichiers, en quatre branches : Perso / Partagé / Bureau / Association.
 Panneau latéral permanent sur grand écran, repli sur mobile.
-Attendu : `arbre_perso`, `arbre_partage`, `arbre_bureau`, `dossier_courant_id`.
+Attendu : `arbre_perso`, `arbre_partage`, `arbre_bureau`, `arbre_association`, `dossier_courant_id`.
 {% endcomment %}
 <details class="ged-tree" open>
   <summary class="ged-tree__resume">
@@ -20,5 +20,10 @@ Attendu : `arbre_perso`, `arbre_partage`, `arbre_bureau`, `dossier_courant_id`.
 
     <p class="ged-tree__groupe">Bureau</p>
     {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_bureau url_nom="espace_membre:dossier_membre" %}
+
+    {% if arbre_association %}
+      <p class="ged-tree__groupe">Association</p>
+      {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_association url_nom="espace_membre:dossier_association" %}
+    {% endif %}
   </nav>
 </details>

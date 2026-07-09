@@ -8,8 +8,6 @@ from django import forms
 
 from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
-from apps.documents.models import Document, Dossier
-from apps.documents.validators import valider_fichier_document
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
 
@@ -132,46 +130,6 @@ LigneDevisFormSet = forms.inlineformset_factory(
     extra=1,  # une seule ligne vide ; « + Ajouter une ligne » (JS) pour d'autres
     can_delete=True,
 )
-
-
-# --- GED --------------------------------------------------------------------
-
-
-class DossierForm(forms.ModelForm):
-    """Création d'un dossier (le parent est fourni par la vue, pas ici)."""
-
-    class Meta:
-        model = Dossier
-        fields = ["nom", "description"]
-        widgets = {"description": forms.Textarea(attrs={"rows": 2})}
-
-
-class DocumentForm(forms.ModelForm):
-    """Téléversement d'un document (le dossier et l'auteur sont posés par la vue)."""
-
-    class Meta:
-        model = Document
-        fields = ["titre", "fichier", "confidentialite", "description", "date_validite"]
-        widgets = {
-            "description": forms.Textarea(attrs={"rows": 2}),
-            "date_validite": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["date_validite"].input_formats = ["%Y-%m-%d"]
-
-    def clean_fichier(self):
-        return valider_fichier_document(self.cleaned_data.get("fichier"))
-
-
-class NouvelleVersionForm(forms.Form):
-    """Remplacement d'un document par une nouvelle version (fichier seul)."""
-
-    fichier = forms.FileField(label="Nouveau fichier")
-
-    def clean_fichier(self):
-        return valider_fichier_document(self.cleaned_data.get("fichier"))
 
 
 # --- Budget -----------------------------------------------------------------

@@ -18,6 +18,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.agenda import services as agenda_services
@@ -35,17 +36,21 @@ from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moder
 from apps.documents import services as documents_services
 from apps.documents.models import Document, Dossier
 from apps.documents.services import DossierNonVide
-from apps.gouvernance.models import Reunion
+from apps.gouvernance import services as gouvernance_services
+from apps.gouvernance.models import Presence, Reunion
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 
 from .forms import (
+    DocumentAssociationForm,
     DocumentMembreForm,
     DossierCommunForm,
     EvenementMembreForm,
     LienReseauFormSet,
+    NouvelleVersionForm,
     ProfilMembreForm,
     ProjetMembreForm,
+    ReponseConvocationForm,
 )
 
 
@@ -60,16 +65,71 @@ def _membre_connecte(request):
 
 @login_required
 def tableau_de_bord(request):
-    """Accueil de l'espace membre : rappel de l'adhésion du membre connecté."""
+    """Accueil de l'espace membre : rappels à traiter, prochaines dates, projets.
+
+    Pensé comme un point d'entrée vivant (agenda, créations) plutôt qu'un
+    pense-bête administratif : l'adhésion n'y figure qu'en statut discret."""
     membre = _membre_connecte(request)
-    adhesions = []
+    contexte = {"membre": membre}
     if membre is not None:
-        adhesions = membre.adhesions.select_related("saison").order_by("-saison__date_debut")
-    return render(
-        request,
-        "espace_membre/tableau_de_bord.html",
-        {"membre": membre, "adhesions": adhesions},
-    )
+        maintenant = timezone.now()
+        statut_mod = Spectacle.StatutModeration
+
+        adhesion = membre.adhesions.select_related("saison").order_by("-saison__date_debut").first()
+
+        projets = list(Spectacle.objects.filter(porteurs=membre).order_by("-date_modification")[:6])
+
+        # Prochaines dates de la troupe visibles par un membre ; on marque celles
+        # où le membre intervient.
+        evenements = list(
+            Evenement.objects.filter(
+                statut_moderation=statut_mod.PUBLIE,
+                visibilite__in=[Evenement.Visibilite.PUBLIC, Evenement.Visibilite.MEMBRES],
+                date_debut__gte=maintenant,
+            )
+            .select_related("lieu")
+            .order_by("date_debut")[:4]
+        )
+        mes_dates = set(
+            membre.interventions.filter(evenement__in=evenements).values_list(
+                "evenement_id", flat=True
+            )
+        )
+        for evenement in evenements:
+            evenement.je_participe = evenement.pk in mes_dates
+
+        # « À traiter » : réponses attendues du membre.
+        convocations = list(
+            Reunion.objects.filter(
+                statut=Reunion.Statut.CONVOQUEE,
+                type_reunion__in=[
+                    Reunion.TypeReunion.AG_ORDINAIRE,
+                    Reunion.TypeReunion.AG_EXTRAORDINAIRE,
+                ],
+                date__gte=maintenant,
+            )
+            .exclude(presences__membre=membre)
+            .order_by("date")
+        )
+        projets_a_soumettre = list(
+            Spectacle.objects.filter(
+                porteurs=membre, statut_moderation=statut_mod.BROUILLON
+            ).order_by("titre")
+        )
+        adhesion_en_attente = adhesion is not None and not adhesion.a_jour
+
+        contexte.update(
+            {
+                "adhesion": adhesion,
+                "projets": projets,
+                "evenements": evenements,
+                "convocations": convocations,
+                "projets_a_soumettre": projets_a_soumettre,
+                "adhesion_en_attente": adhesion_en_attente,
+                "rien_a_traiter": not (convocations or projets_a_soumettre or adhesion_en_attente),
+            }
+        )
+    return render(request, "espace_membre/tableau_de_bord.html", contexte)
 
 
 @login_required
@@ -421,13 +481,6 @@ def _documents_accessibles(user):
 
 
 @login_required
-def mes_documents(request):
-    """Liste des documents que le membre connecté a le droit de consulter."""
-    documents = _documents_accessibles(request.user).select_related("dossier")
-    return render(request, "espace_membre/mes_documents.html", {"documents": documents})
-
-
-@login_required
 def telecharger_document(request, pk):
     """Sert un document privé après contrôle des droits. Renvoie 404 (et non
     403) sur un document interdit : on ne révèle pas son existence."""
@@ -441,16 +494,19 @@ def telecharger_document(request, pk):
     )
 
 
-# --- Fichiers du membre : explorateur unifié (Perso / Partagé / Bureau) ----
-# Un seul explorateur, trois branches :
-#   • Perso   : dossiers personnels privés (proprietaire=membre, visibilite=PRIVE) ;
-#   • Partagé : espace commun collaboratif de la troupe (espace=COMMUN) ;
-#   • Bureau  : dossiers transmis au bureau (proprietaire=membre, visibilite=BUREAU).
+# --- Fichiers : explorateur unifié (Perso / Partagé / Bureau / Association) -
+# Un seul explorateur, quatre branches :
+#   • Perso       : dossiers personnels privés (proprietaire=membre, visibilite=PRIVE) ;
+#   • Partagé     : espace commun collaboratif de la troupe (espace=COMMUN) ;
+#   • Bureau      : dossiers transmis au bureau (proprietaire=membre, visibilite=BUREAU) ;
+#   • Association : documents officiels de l'asso (espace=ASSOCIATION) — édition
+#                   réservée au bureau, lecture membre filtrée par confidentialité.
 # Un sous-dossier hérite de la branche de sa racine (cf. services). Anti-accès :
 # get_object_or_404 filtré par branche → un pk forgé d'une autre branche = 404.
 
 PERSO = Dossier.Espace.PERSO
 COMMUN = Dossier.Espace.COMMUN
+ASSOCIATION = Dossier.Espace.ASSOCIATION
 PRIVE = Dossier.Visibilite.PRIVE
 BUREAU = Dossier.Visibilite.BUREAU
 
@@ -461,18 +517,22 @@ def _annoter_nb_docs(queryset):
 
 
 def _qs_branche(membre, branche, *, racines=False):
-    """Queryset des dossiers d'une branche (`perso`/`partage`/`bureau`)."""
+    """Queryset des dossiers d'une branche (`perso`/`partage`/`bureau`/`association`)."""
     base = Dossier.get_root_nodes() if racines else Dossier.objects
     if branche == "partage":
         return base.filter(espace=COMMUN)
+    if branche == "association":
+        return base.filter(espace=ASSOCIATION)
     if membre is None:
         return base.none()
     vis = BUREAU if branche == "bureau" else PRIVE
     return base.filter(espace=PERSO, proprietaire=membre, visibilite=vis)
 
 
-def _arbres_fichiers(membre, dossier_courant_id=None):
-    """Contexte des trois arbres (Perso / Partagé / Bureau) du panneau latéral."""
+def _arbres_fichiers(membre, dossier_courant_id=None, *, avec_association=False):
+    """Contexte des arbres du panneau latéral. L'arbre Association (arborescence
+    des dossiers officiels) n'est exposé qu'au bureau ; un membre n'a qu'une liste
+    plate des documents accessibles (aucun nom de dossier officiel révélé)."""
 
     def annote(branche):
         return Dossier.get_annotated_list_qs(_qs_branche(membre, branche).order_by("path"))
@@ -481,28 +541,40 @@ def _arbres_fichiers(membre, dossier_courant_id=None):
         "arbre_perso": annote("perso"),
         "arbre_partage": annote("partage"),
         "arbre_bureau": annote("bureau"),
+        "arbre_association": annote("association") if avec_association else [],
         "dossier_courant_id": dossier_courant_id,
     }
 
 
 @login_required
 def mes_fichiers(request):
-    """Explorateur des fichiers : trois branches Perso / Partagé / Bureau.
-    POST (`branche` + nom/description) crée un dossier racine dans la branche."""
+    """Explorateur des fichiers : branches Perso / Partagé / Bureau / Association.
+    POST (`branche` + nom/description) crée un dossier racine dans la branche
+    (la création en Association est réservée au bureau)."""
     membre = _membre_connecte(request)
-    if membre is None:
+    peut_ecrire_asso = est_bureau(request.user)
+    # Le bureau (staff/superuser) peut ne pas avoir de fiche membre : on le laisse
+    # tout de même accéder à l'explorateur pour gérer la branche Association.
+    if membre is None and not peut_ecrire_asso:
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
         return redirect("espace_membre:tableau_de_bord")
 
     dossier_form = DossierCommunForm()
     branche = request.POST.get("branche")
     if request.method == "POST" and request.POST.get("form_type") == "dossier":
+        if branche == "association":
+            if not peut_ecrire_asso:
+                raise Http404  # création en Association réservée au bureau
+        elif membre is None:
+            raise Http404  # perso / partagé / bureau exigent une fiche membre
         dossier_form = DossierCommunForm(request.POST)
         if dossier_form.is_valid():
             nom = dossier_form.cleaned_data["nom"]
             desc = dossier_form.cleaned_data["description"]
             if branche == "partage":
                 documents_services.creer_dossier_commun(nom=nom, description=desc)
+            elif branche == "association":
+                documents_services.creer_dossier_association(nom=nom, description=desc)
             else:
                 documents_services.creer_dossier_membre(
                     membre,
@@ -513,14 +585,30 @@ def mes_fichiers(request):
             messages.success(request, "Dossier créé.")
             return redirect("espace_membre:mes_fichiers")
 
+    # Branche Association : le bureau voit l'arborescence (dossiers) + les documents
+    # non classés ; un membre n'a qu'une liste PLATE des documents qu'il peut lire
+    # (filtrés par confidentialité — aucun nom de dossier officiel exposé).
+    if peut_ecrire_asso:
+        association_roots = _annoter_nb_docs(_qs_branche(membre, "association", racines=True))
+        association_docs = (
+            _documents_accessibles(request.user).filter(dossier__isnull=True).order_by("titre")
+        )
+    else:
+        association_roots = Dossier.objects.none()
+        association_docs = (
+            _documents_accessibles(request.user).select_related("dossier").order_by("titre")
+        )
     contexte = {
         "perso_roots": _annoter_nb_docs(_qs_branche(membre, "perso", racines=True)),
         "partage_roots": _annoter_nb_docs(_qs_branche(membre, "partage", racines=True)),
         "bureau_roots": _annoter_nb_docs(_qs_branche(membre, "bureau", racines=True)),
+        "association_roots": association_roots,
+        "association_docs": association_docs,
+        "peut_ecrire_asso": peut_ecrire_asso,
         "dossier_form": dossier_form,
         "branche_active": branche,
     }
-    contexte.update(_arbres_fichiers(membre))
+    contexte.update(_arbres_fichiers(membre, avec_association=peut_ecrire_asso))
     return render(request, "espace_membre/mes_fichiers.html", contexte)
 
 
@@ -581,7 +669,7 @@ def dossier_membre(request, pk):
         "url_suppr_dossier": "espace_membre:supprimer_dossier_membre",
         "peut_ecrire": est_proprio,
     }
-    contexte.update(_arbres_fichiers(membre, dossier.pk))
+    contexte.update(_arbres_fichiers(membre, dossier.pk, avec_association=est_bureau(request.user)))
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
@@ -698,7 +786,7 @@ def dossier_commun(request, pk):
         "url_suppr_dossier": "espace_membre:supprimer_dossier_commun",
         "peut_ecrire": True,
     }
-    contexte.update(_arbres_fichiers(membre, dossier.pk))
+    contexte.update(_arbres_fichiers(membre, dossier.pk, avec_association=est_bureau(request.user)))
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
@@ -761,6 +849,167 @@ def supprimer_document_commun(request, pk):
     return redirect("espace_membre:dossier_commun", pk=dossier_id)
 
 
+# --- Branche « Association » : documents officiels de l'asso ----------------
+# La NAVIGATION dans l'arborescence officielle (dossiers) est réservée au bureau,
+# qui y crée / dépose / versionne / supprime. Un membre n'a PAS accès à l'arbre :
+# il consulte une liste plate des documents accessibles (cf. `mes_fichiers`), sans
+# jamais voir les noms de dossiers. Toute vue ci-dessous → 404 pour un non-bureau
+# (on ne révèle jamais l'existence), et un pk hors espace=ASSOCIATION → 404.
+
+
+@login_required
+def dossier_association(request, pk):
+    """Détail d'un dossier officiel (espace ASSOCIATION) — réservé au bureau
+    (création de sous-dossiers, dépôt, versionnement)."""
+    if not est_bureau(request.user):
+        raise Http404  # les membres consultent via la liste plate, pas l'arbre
+    membre = _membre_connecte(request)
+    dossier = get_object_or_404(Dossier, pk=pk, espace=ASSOCIATION)
+    peut_ecrire = True
+
+    dossier_form = DossierCommunForm()
+    document_form = DocumentAssociationForm()
+    if request.method == "POST":
+        if request.POST.get("form_type") == "dossier":
+            dossier_form = DossierCommunForm(request.POST)
+            if dossier_form.is_valid():
+                documents_services.creer_dossier_association(
+                    nom=dossier_form.cleaned_data["nom"],
+                    description=dossier_form.cleaned_data["description"],
+                    parent=dossier,
+                )
+                messages.success(request, "Sous-dossier créé.")
+                return redirect("espace_membre:dossier_association", pk=dossier.pk)
+        elif request.POST.get("form_type") == "document":
+            document_form = DocumentAssociationForm(request.POST, request.FILES)
+            if document_form.is_valid():
+                documents_services.televerser_fichier(
+                    dossier,
+                    titre=document_form.cleaned_data["titre"],
+                    fichier=document_form.cleaned_data["fichier"],
+                    description=document_form.cleaned_data["description"],
+                    par=request.user,
+                    confidentialite=document_form.cleaned_data["confidentialite"],
+                    date_validite=document_form.cleaned_data.get("date_validite"),
+                )
+                messages.success(request, "Fichier ajouté.")
+                return redirect("espace_membre:dossier_association", pk=dossier.pk)
+
+    # Documents du dossier filtrés par confidentialité (tout pour le bureau).
+    documents = (
+        _documents_accessibles(request.user)
+        .filter(dossier=dossier)
+        .select_related("cree_par")
+        .order_by("titre")
+    )
+    contexte = {
+        "dossier": dossier,
+        "est_proprio": peut_ecrire,
+        "branche_association": True,
+        "branche_bureau": False,
+        "ancetres": dossier.get_ancestors(),
+        "sous_dossiers": _annoter_nb_docs(dossier.get_children()),
+        "documents": documents,
+        "dossier_form": dossier_form,
+        "document_form": document_form,
+        "url_dossier": "espace_membre:dossier_association",
+        "url_suppr_doc": "espace_membre:supprimer_document_association",
+        "url_editer": "espace_membre:editer_dossier_association",
+        "url_suppr_dossier": "espace_membre:supprimer_dossier_association",
+        "url_nouvelle_version": "espace_membre:nouvelle_version_association",
+        "avec_confidentialite": True,
+        "peut_ecrire": peut_ecrire,
+    }
+    contexte.update(_arbres_fichiers(membre, dossier.pk, avec_association=True))
+    return render(request, "espace_membre/dossier_detail.html", contexte)
+
+
+@login_required
+def editer_dossier_association(request, pk):
+    """Renomme / redécrit un dossier officiel — bureau seul (404 sinon)."""
+    if not est_bureau(request.user):
+        raise Http404
+    dossier = get_object_or_404(Dossier, pk=pk, espace=ASSOCIATION)
+    if request.method == "POST":
+        form = DossierCommunForm(request.POST, instance=dossier)
+        if form.is_valid():
+            documents_services.renommer_dossier(
+                dossier,
+                nom=form.cleaned_data["nom"],
+                description=form.cleaned_data["description"],
+            )
+            messages.success(request, "Dossier mis à jour.")
+            return redirect("espace_membre:dossier_association", pk=dossier.pk)
+    else:
+        form = DossierCommunForm(instance=dossier)
+    return render(
+        request,
+        "espace_membre/dossier_form.html",
+        {"form": form, "dossier": dossier, "url_dossier": "espace_membre:dossier_association"},
+    )
+
+
+@login_required
+@require_POST
+def supprimer_dossier_association(request, pk):
+    """Supprime un dossier officiel VIDE — bureau seul."""
+    if not est_bureau(request.user):
+        raise Http404
+    dossier = get_object_or_404(Dossier, pk=pk, espace=ASSOCIATION)
+    parent = dossier.get_parent()
+    try:
+        documents_services.supprimer_dossier_membre(dossier)
+    except DossierNonVide:
+        messages.error(request, "Le dossier doit être vide pour être supprimé.")
+        return redirect("espace_membre:dossier_association", pk=dossier.pk)
+    messages.success(request, "Dossier supprimé.")
+    if parent is not None:
+        return redirect("espace_membre:dossier_association", pk=parent.pk)
+    return redirect("espace_membre:mes_fichiers")
+
+
+@login_required
+@require_POST
+def supprimer_document_association(request, pk):
+    """Supprime un document officiel (dossier ou non classé) — bureau seul."""
+    if not est_bureau(request.user):
+        raise Http404
+    document = get_object_or_404(
+        Document, Q(dossier__espace=ASSOCIATION) | Q(dossier__isnull=True), pk=pk
+    )
+    dossier_id = document.dossier_id
+    documents_services.supprimer_document_membre(document)
+    messages.success(request, "Fichier supprimé.")
+    if dossier_id:
+        return redirect("espace_membre:dossier_association", pk=dossier_id)
+    return redirect("espace_membre:mes_fichiers")
+
+
+@login_required
+@require_POST
+def nouvelle_version_association(request, pk):
+    """Remplace un document officiel par une nouvelle version — bureau seul.
+
+    Couvre aussi les documents non classés (`dossier=None`) — corrige un trou de
+    l'ancienne GED."""
+    if not est_bureau(request.user):
+        raise Http404
+    ancien = get_object_or_404(
+        Document, Q(dossier__espace=ASSOCIATION) | Q(dossier__isnull=True), pk=pk
+    )
+    form = NouvelleVersionForm(request.POST, request.FILES)
+    if form.is_valid():
+        documents_services.remplacer_document(
+            ancien, fichier=form.cleaned_data["fichier"], par=request.user
+        )
+        messages.success(request, "Nouvelle version enregistrée.")
+    else:
+        messages.error(request, "Aucun fichier fourni.")
+    if ancien.dossier_id:
+        return redirect("espace_membre:dossier_association", pk=ancien.dossier_id)
+    return redirect("espace_membre:mes_fichiers")
+
+
 # --- Convocations / comptes-rendus d'AG ------------------------------------
 # Périmètre (anti-IDOR par queryset) : un membre voit les ASSEMBLÉES GÉNÉRALES
 # une fois convoquées ; les réunions de bureau restent réservées au bureau
@@ -795,11 +1044,55 @@ def mes_convocations(request):
     return render(request, "espace_membre/mes_convocations.html", {"reunions": reunions})
 
 
+def _reponse_du_membre(reunion, membre):
+    """Présence et pouvoirs actuels du membre pour cette réunion (ou None)."""
+    if membre is None:
+        return None, None, None
+    ma_presence = reunion.presences.filter(membre=membre).first()
+    pouvoir_donne = reunion.pouvoirs.filter(mandant=membre).select_related("mandataire").first()
+    pouvoir_recu = reunion.pouvoirs.filter(mandataire=membre).select_related("mandant").first()
+    return ma_presence, pouvoir_donne, pouvoir_recu
+
+
 @login_required
 def detail_convocation(request, pk):
-    """Détail d'une convocation : ordre du jour, documents joints, PV, et le
-    statut personnel du membre. 404 hors périmètre de visibilité (anti-IDOR)."""
+    """Détail d'une convocation : ordre du jour, documents, PV, situation du
+    membre, et — tant que l'AG est « Convoquée » — sa réponse (présence /
+    pouvoir). 404 hors périmètre de visibilité (anti-IDOR)."""
     reunion = get_object_or_404(_reunions_visibles(request.user), pk=pk)
+    membre = _membre_connecte(request)
+    peut_repondre = membre is not None and reunion.statut == Reunion.Statut.CONVOQUEE
+
+    ma_presence, pouvoir_donne, pouvoir_recu = _reponse_du_membre(reunion, membre)
+
+    form = None
+    if peut_repondre:
+        if request.method == "POST":
+            form = ReponseConvocationForm(request.POST, membre=membre)
+            if form.is_valid():
+                statut = form.cleaned_data["statut"]
+                try:
+                    if statut == Presence.Statut.REPRESENTE:
+                        gouvernance_services.donner_pouvoir(
+                            reunion, membre, form.cleaned_data["mandataire"]
+                        )
+                    else:
+                        gouvernance_services.enregistrer_presence_membre(reunion, membre, statut)
+                except gouvernance_services.ReponseConvocationImpossible as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, "Votre réponse a été enregistrée.")
+                    return redirect("espace_membre:detail_convocation", pk=reunion.pk)
+        else:
+            initial = {}
+            if pouvoir_donne is not None:
+                initial = {
+                    "statut": Presence.Statut.REPRESENTE,
+                    "mandataire": pouvoir_donne.mandataire_id,
+                }
+            elif ma_presence is not None:
+                initial = {"statut": ma_presence.statut}
+            form = ReponseConvocationForm(membre=membre, initial=initial)
 
     ordre_du_jour = reunion.sujets.order_by("ordre_du_jour", "id")
 
@@ -809,16 +1102,6 @@ def detail_convocation(request, pk):
     compte_rendu = reunion.compte_rendu
     if compte_rendu is not None and not _peut_acceder_document(request.user, compte_rendu):
         compte_rendu = None
-
-    # Statut personnel du membre (présence figée + éventuels pouvoirs).
-    membre = _membre_connecte(request)
-    ma_presence = None
-    pouvoir_donne = None
-    pouvoir_recu = None
-    if membre is not None:
-        ma_presence = reunion.presences.filter(membre=membre).first()
-        pouvoir_donne = reunion.pouvoirs.filter(mandant=membre).select_related("mandataire").first()
-        pouvoir_recu = reunion.pouvoirs.filter(mandataire=membre).select_related("mandant").first()
 
     return render(
         request,
@@ -831,6 +1114,8 @@ def detail_convocation(request, pk):
             "ma_presence": ma_presence,
             "pouvoir_donne": pouvoir_donne,
             "pouvoir_recu": pouvoir_recu,
+            "form": form,
+            "peut_repondre": peut_repondre,
         },
     )
 

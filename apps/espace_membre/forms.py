@@ -9,6 +9,7 @@ from apps.agenda.models import Evenement
 from apps.coeur.models import LienReseau, Membre
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
+from apps.gouvernance.models import Presence
 from apps.spectacles.models import Spectacle
 
 # Format des <input type="datetime-local"> (sans fuseau ni secondes).
@@ -253,3 +254,74 @@ class DocumentMembreForm(forms.ModelForm):
 
     def clean_fichier(self):
         return valider_fichier_document(self.cleaned_data.get("fichier"))
+
+
+class DocumentAssociationForm(forms.ModelForm):
+    """Téléversement d'un document dans la branche Association (bureau).
+
+    Contrairement à la branche perso/partagé, l'audience est portée par le
+    **document** : le bureau fixe la `confidentialite` (public / membres / privé)
+    et une éventuelle date de validité."""
+
+    class Meta:
+        model = Document
+        fields = ["titre", "fichier", "confidentialite", "description", "date_validite"]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 2}),
+            "date_validite": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date_validite"].input_formats = ["%Y-%m-%d"]
+        # Un document officiel est destiné aux membres par défaut (CR d'AG,
+        # statuts, bilan…) ; le bureau choisit « Public » ou « Privé » au besoin.
+        self.fields["confidentialite"].initial = Document.Confidentialite.MEMBRES
+
+    def clean_fichier(self):
+        return valider_fichier_document(self.cleaned_data.get("fichier"))
+
+
+class NouvelleVersionForm(forms.Form):
+    """Remplacement d'un document par une nouvelle version (fichier seul)."""
+
+    fichier = forms.FileField(label="Nouveau fichier")
+
+    def clean_fichier(self):
+        return valider_fichier_document(self.cleaned_data.get("fichier"))
+
+
+class ReponseConvocationForm(forms.Form):
+    """Réponse d'un membre à une convocation d'AG : présence ou pouvoir.
+
+    Les trois choix proposés au membre (« excusé » reste une décision du
+    secrétaire pour le PV, hors libre-service). Le mandataire n'est requis que
+    si le membre choisit de donner pouvoir."""
+
+    CHOIX_STATUT = [
+        (Presence.Statut.PRESENT, "Je serai présent·e"),
+        (Presence.Statut.ABSENT, "Je ne pourrai pas être présent·e"),
+        (Presence.Statut.REPRESENTE, "Je donne pouvoir à…"),
+    ]
+
+    statut = forms.ChoiceField(
+        choices=CHOIX_STATUT, widget=forms.RadioSelect, label="Votre réponse"
+    )
+    mandataire = forms.ModelChoiceField(
+        queryset=Membre.objects.none(),
+        required=False,
+        label="À qui donnez-vous pouvoir ?",
+    )
+
+    def __init__(self, *args, membre=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        autres = Membre.objects.filter(actif=True)
+        if membre is not None:
+            autres = autres.exclude(pk=membre.pk)
+        self.fields["mandataire"].queryset = autres
+
+    def clean(self):
+        donnees = super().clean()
+        if donnees.get("statut") == Presence.Statut.REPRESENTE and not donnees.get("mandataire"):
+            self.add_error("mandataire", "Choisissez le membre à qui vous donnez pouvoir.")
+        return donnees

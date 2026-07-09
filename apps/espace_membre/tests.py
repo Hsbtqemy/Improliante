@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement, ImageEvenement
@@ -65,6 +66,61 @@ def test_le_membre_ne_voit_que_ses_propres_adhesions(client, db):
     corps = client.get("/espace/").content.decode()
     assert "42" in corps
     assert "999" not in corps  # anti-IDOR : pas les données d'un autre membre
+
+
+def _evenement_publie(titre, quand, *, visibilite=Evenement.Visibilite.MEMBRES):
+    return Evenement.objects.create(
+        titre=titre,
+        date_debut=quand,
+        statut_moderation=Moderation.StatutModeration.PUBLIE,
+        visibilite=visibilite,
+    )
+
+
+def test_accueil_montre_les_prochaines_dates(client, db):
+    membre = _membre("alice")
+    _evenement_publie("Générale à venir", timezone.now() + timedelta(days=10))
+    _evenement_publie("Vieux spectacle", timezone.now() - timedelta(days=10))
+    client.force_login(membre.user)
+    corps = client.get("/espace/").content.decode()
+    assert "Générale à venir" in corps
+    assert "Vieux spectacle" not in corps  # date passée, exclue
+
+
+def test_accueil_signale_une_convocation_sans_reponse(client, db):
+    membre = _membre("alice")
+    Reunion.objects.create(
+        titre="AG 2026",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.CONVOQUEE,
+        date=timezone.now() + timedelta(days=20),
+    )
+    client.force_login(membre.user)
+    corps = client.get("/espace/").content.decode()
+    assert "AG 2026" in corps
+    assert "Répondre à la convocation" in corps
+
+
+def test_accueil_convocation_disparait_apres_reponse(client, db):
+    membre = _membre("alice")
+    reunion = Reunion.objects.create(
+        titre="AG 2026",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.CONVOQUEE,
+        date=timezone.now() + timedelta(days=20),
+    )
+    Presence.objects.create(reunion=reunion, membre=membre, statut=Presence.Statut.PRESENT)
+    client.force_login(membre.user)
+    corps = client.get("/espace/").content.decode()
+    assert "Tout est à jour" in corps  # plus rien à traiter
+
+
+def test_accueil_propose_de_soumettre_un_projet_brouillon(client, db):
+    membre = _membre("alice")
+    _projet_de(membre, titre="Création en cours")  # brouillon par défaut
+    client.force_login(membre.user)
+    corps = client.get("/espace/").content.decode()
+    assert "Finaliser et soumettre" in corps
 
 
 # --- Projets du membre : création, soumission, anti-IDOR par objet ---------
@@ -573,19 +629,26 @@ def test_document_prive_servi_au_bureau(client, db):
     assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 200
 
 
-def test_mes_documents_ne_liste_que_les_accessibles(client, db):
+def test_documents_association_lisibles_selon_confidentialite(client, db):
+    """Branche Association (documents non classés) sur l'explorateur : un membre
+    voit les documents publics/membres, jamais un privé d'autrui ni un fichier
+    personnel d'un autre membre."""
     membre = _membre("alice")
-    _document(Document.Confidentialite.PUBLIC, titre="Statuts")
+    _document(Document.Confidentialite.PUBLIC, titre="StatutsPublics")
     _document(Document.Confidentialite.MEMBRES, titre="ConvocationAG")
     _document(
         Document.Confidentialite.PRIVE, titre="ContratConfidentiel", cree_par=_membre("rh").user
     )
+    bob = _membre("bob")
+    perso_bob = _dossier_membre(bob, Visibilite.PRIVE, nom="PersoBob")
+    _fichier(perso_bob, cree_par=bob.user, titre="FichierPersoBob")
 
     client.force_login(membre.user)
-    corps = client.get("/espace/documents/").content.decode()
-    assert "Statuts" in corps
+    corps = client.get("/espace/fichiers/").content.decode()
+    assert "StatutsPublics" in corps
     assert "ConvocationAG" in corps
     assert "ContratConfidentiel" not in corps  # privé d'autrui : masqué
+    assert "FichierPersoBob" not in corps  # fichier perso d'autrui : jamais côté association
 
 
 # --- Mes fichiers : espace fichiers personnel du membre --------------------
@@ -722,22 +785,15 @@ def test_sous_dossier_herite_de_la_branche_du_parent(client, db):
     assert sub.proprietaire == membre
 
 
-def test_dossier_membre_absent_de_la_ged_bureau(client, db):
+def test_dossier_membre_absent_de_la_branche_association(client, db):
+    """Étanchéité : un dossier PERSONNEL n'appartient pas à l'espace Association —
+    son URL Association renvoie 404, et il reste invisible du bureau."""
     alice = _membre("alice")
     dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="DossierMembreAlice")
     client.force_login(_staff())
-    corps = client.get("/bureau/documents/").content.decode()
-    assert "DossierMembreAlice" not in corps
-    assert client.get(f"/bureau/documents/dossier/{dossier.pk}/").status_code == 404
-
-
-def test_documents_association_exclut_les_fichiers_membres(client, db):
-    alice = _membre("alice")
-    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Perso")
-    _fichier(dossier, cree_par=alice.user, titre="FichierPersoAlice")
-    client.force_login(alice.user)
-    corps = client.get("/espace/documents/").content.decode()
-    assert "FichierPersoAlice" not in corps
+    assert client.get(f"/espace/association/{dossier.pk}/").status_code == 404  # mauvais espace
+    corps = client.get("/espace/fichiers/").content.decode()
+    assert "DossierMembreAlice" not in corps  # privé d'un membre : jamais côté bureau
 
 
 def test_upload_extension_interdite_refusee(client, db):
@@ -939,21 +995,12 @@ def test_espace_commun_refuse_sans_fiche_membre(client, db):
     assert client.get(f"/espace/commun/{commun.pk}/").status_code == 302
 
 
-def test_dossier_commun_absent_de_la_ged_bureau(client, db):
+def test_dossier_commun_hors_branche_association(client, db):
+    """Étanchéité : un dossier COMMUN n'est pas dans l'espace Association — son URL
+    Association renvoie 404 (même pour le bureau)."""
     commun = _dossier_commun("DossierCommunX")
     client.force_login(_staff())
-    corps = client.get("/bureau/documents/").content.decode()
-    assert "DossierCommunX" not in corps
-    assert client.get(f"/bureau/documents/dossier/{commun.pk}/").status_code == 404
-
-
-def test_document_commun_exclu_des_documents_association(client, db):
-    membre = _membre("alice")
-    commun = _dossier_commun("Commun")
-    _fichier(commun, titre="FichierCommunX")
-    client.force_login(membre.user)
-    corps = client.get("/espace/documents/").content.decode()
-    assert "FichierCommunX" not in corps
+    assert client.get(f"/espace/association/{commun.pk}/").status_code == 404
 
 
 def test_membre_supprime_un_fichier_commun(client, db):
@@ -1304,3 +1351,126 @@ def test_telecharger_recu_exige_la_connexion(client, db):
     reponse = client.get(f"/espace/recus/{recu.pk}/telecharger/")
     assert reponse.status_code == 302
     assert "/connexion/" in reponse.url
+
+
+# --- Réponse à une convocation (présence / pouvoir en libre-service) -------
+
+
+def _ag_convoquee(titre="AG 2026"):
+    return Reunion.objects.create(
+        titre=titre,
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.CONVOQUEE,
+    )
+
+
+def test_membre_declare_sa_presence_sur_la_convocation(client, db):
+    membre = _membre("alice")
+    reunion = _ag_convoquee()
+    client.force_login(membre.user)
+    reponse = client.post(
+        f"/espace/convocations/{reunion.pk}/", {"statut": Presence.Statut.PRESENT}
+    )
+    assert reponse.status_code == 302
+    assert Presence.objects.get(reunion=reunion, membre=membre).statut == Presence.Statut.PRESENT
+
+
+def test_membre_donne_pouvoir_depuis_la_convocation(client, db):
+    membre = _membre("alice")
+    mandataire = _membre("bob")
+    reunion = _ag_convoquee()
+    client.force_login(membre.user)
+    reponse = client.post(
+        f"/espace/convocations/{reunion.pk}/",
+        {"statut": Presence.Statut.REPRESENTE, "mandataire": mandataire.pk},
+    )
+    assert reponse.status_code == 302
+    assert Pouvoir.objects.filter(reunion=reunion, mandant=membre, mandataire=mandataire).exists()
+    presence = Presence.objects.get(reunion=reunion, membre=membre)
+    assert presence.statut == Presence.Statut.REPRESENTE
+
+
+def test_reponse_impossible_sur_une_ag_tenue(client, db):
+    membre = _membre("alice")
+    reunion = Reunion.objects.create(
+        titre="AG tenue",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.TENUE,
+    )
+    client.force_login(membre.user)
+    reponse = client.post(
+        f"/espace/convocations/{reunion.pk}/", {"statut": Presence.Statut.PRESENT}
+    )
+    assert reponse.status_code == 200  # lecture seule : pas de formulaire
+    assert not Presence.objects.filter(reunion=reunion, membre=membre).exists()
+
+
+def test_reponse_convocation_anti_idor_sur_reunion_bureau(client, db):
+    membre = _membre("alice")
+    reunion = Reunion.objects.create(
+        titre="Bureau",
+        type_reunion=Reunion.TypeReunion.BUREAU,
+        statut=Reunion.Statut.CONVOQUEE,
+    )
+    client.force_login(membre.user)
+    # Réunion de bureau : hors périmètre d'un membre simple -> 404.
+    reponse = client.post(
+        f"/espace/convocations/{reunion.pk}/", {"statut": Presence.Statut.PRESENT}
+    )
+    assert reponse.status_code == 404
+    assert not Presence.objects.filter(reunion=reunion).exists()
+
+
+# --- Branche Association : lecture membre vs écriture bureau ----------------
+
+
+def test_membre_lit_les_documents_association_sans_arborescence(client, db):
+    """Un membre voit les documents officiels accessibles en liste plate (via
+    l'explorateur), sans le nom des dossiers, et n'accède pas à l'arborescence
+    (réservée au bureau : 404)."""
+    membre = _membre("alice")
+    dossier = Dossier.add_root(nom="DossierSecret")  # espace ASSOCIATION par défaut
+    Document.objects.create(
+        titre="StatutsMembres",
+        dossier=dossier,
+        confidentialite=Document.Confidentialite.MEMBRES,
+        fichier=SimpleUploadedFile("s.pdf", b"x"),
+    )
+    client.force_login(membre.user)
+    corps = client.get("/espace/fichiers/").content.decode()
+    assert "StatutsMembres" in corps  # document accessible listé
+    assert "DossierSecret" not in corps  # nom de dossier officiel jamais exposé
+    # La navigation dans un dossier officiel est réservée au bureau.
+    assert client.get(f"/espace/association/{dossier.pk}/").status_code == 404
+
+
+def test_membre_ne_voit_pas_un_document_association_prive(client, db):
+    """Un document « Privé » d'autrui n'est pas listé pour un membre."""
+    membre = _membre("alice")
+    dossier = Dossier.add_root(nom="Confidentiel")
+    Document.objects.create(
+        titre="DocPriveAsso",
+        dossier=dossier,
+        confidentialite=Document.Confidentialite.PRIVE,
+        fichier=SimpleUploadedFile("p.pdf", b"x"),
+        cree_par=_membre("rh").user,
+    )
+    client.force_login(membre.user)
+    corps = client.get("/espace/fichiers/").content.decode()
+    assert "DocPriveAsso" not in corps
+
+
+def test_bureau_supprime_un_dossier_association_vide(client, db):
+    dossier = Dossier.add_root(nom="ASupprimer")
+    client.force_login(_staff())
+    reponse = client.post(f"/espace/association/{dossier.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Dossier.objects.filter(pk=dossier.pk).exists()
+
+
+def test_suppression_association_reservee_au_bureau(client, db):
+    dossier = Dossier.add_root(nom="Protege")
+    client.force_login(_membre("lambda").user)
+    reponse = client.post(f"/espace/association/{dossier.pk}/supprimer/")
+    assert reponse.status_code == 404
+    assert Dossier.objects.filter(pk=dossier.pk).exists()

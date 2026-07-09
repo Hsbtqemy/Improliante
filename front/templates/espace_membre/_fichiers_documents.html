@@ -1,6 +1,9 @@
 {% comment %}
-Documents d'un dossier. `peut_ecrire` → bouton de suppression.
-Attendu : `documents`, `url_suppr_doc` (nom de la vue de suppression), `peut_ecrire`.
+Documents d'un dossier. `peut_ecrire` → suppression. Options branche Association :
+`avec_confidentialite` → colonnes Accès + Version ; `url_nouvelle_version` (+ `peut_ecrire`)
+→ action « Nouvelle version ».
+Attendu : `documents`, `url_suppr_doc`, `peut_ecrire`. Optionnels : `avec_confidentialite`,
+`url_nouvelle_version`.
 {% endcomment %}
 {% if documents %}
   <div class="tableau-wrap">
@@ -8,6 +11,10 @@ Attendu : `documents`, `url_suppr_doc` (nom de la vue de suppression), `peut_ecr
       <thead>
         <tr>
           <th scope="col">Document</th>
+          {% if avec_confidentialite %}
+            <th scope="col">Accès</th>
+            <th scope="col">Version</th>
+          {% endif %}
           <th scope="col">Ajouté le</th>
           <th scope="col">Actions</th>
         </tr>
@@ -22,6 +29,10 @@ Attendu : `documents`, `url_suppr_doc` (nom de la vue de suppression), `peut_ecr
               </span>
               {% if doc.description %}<span class="ged-doc__desc">{{ doc.description }}</span>{% endif %}
             </td>
+            {% if avec_confidentialite %}
+              <td><span class="badge badge--conf-{{ doc.confidentialite }}">{{ doc.get_confidentialite_display }}</span></td>
+              <td>v{{ doc.version }}</td>
+            {% endif %}
             <td class="ged-doc__modif">
               {{ doc.date_creation|date:"d/m/Y" }}
               {% if doc.cree_par %}<span class="ged-doc__desc">par {{ doc.cree_par.get_short_name|default:doc.cree_par.get_username }}</span>{% endif %}
@@ -30,6 +41,16 @@ Attendu : `documents`, `url_suppr_doc` (nom de la vue de suppression), `peut_ecr
               <div class="ged-doc__actions">
                 <a class="lien-bouton" href="{% url 'espace_membre:telecharger_document' pk=doc.pk %}">Télécharger</a>
                 {% if peut_ecrire %}
+                  {% if url_nouvelle_version %}
+                    <details class="ged-version">
+                      <summary class="lien-bouton lien-bouton--discret">Nouvelle version</summary>
+                      <form method="post" action="{% url url_nouvelle_version pk=doc.pk %}" enctype="multipart/form-data" class="ged-version__form">
+                        {% csrf_token %}
+                        <input type="file" name="fichier" required aria-label="Nouveau fichier" />
+                        <button type="submit" class="lien-bouton">Remplacer</button>
+                      </form>
+                    </details>
+                  {% endif %}
                   <form method="post" action="{% url url_suppr_doc pk=doc.pk %}">
                     {% csrf_token %}
                     <button type="submit" class="lien-bouton lien-bouton--discret">Supprimer</button>

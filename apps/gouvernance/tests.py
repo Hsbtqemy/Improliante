@@ -16,7 +16,10 @@ from apps.gouvernance.models import (
     Reunion,
 )
 from apps.gouvernance.services import (
+    ReponseConvocationImpossible,
     calcul_quorum,
+    donner_pouvoir,
+    enregistrer_presence_membre,
     mandataires_en_exces,
     preremplir_droit_de_vote,
     resultat_resolution,
@@ -232,3 +235,64 @@ def test_prerempli_inclut_un_adherent_sans_compte(params, db):
 
     presence.refresh_from_db()
     assert presence.peut_voter is True
+
+
+# --- Réponse d'un membre à sa convocation (présence / pouvoir) -------------
+
+
+def _reunion_convoquee():
+    return Reunion.objects.create(
+        titre="AG",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.CONVOQUEE,
+    )
+
+
+def test_membre_declare_sa_presence(make_membre):
+    reunion = _reunion_convoquee()
+    presence = enregistrer_presence_membre(reunion, make_membre(), Presence.Statut.PRESENT)
+    assert presence.statut == Presence.Statut.PRESENT
+    assert presence.peut_voter is False  # fixé par le bureau, pas à l'auto-déclaration
+
+
+def test_declarer_present_retire_le_pouvoir_donne(make_membre):
+    reunion = _reunion_convoquee()
+    a, b = make_membre(), make_membre()
+    donner_pouvoir(reunion, a, b)
+    enregistrer_presence_membre(reunion, a, Presence.Statut.PRESENT)
+    assert not Pouvoir.objects.filter(reunion=reunion, mandant=a).exists()
+
+
+def test_donner_pouvoir_cree_le_pouvoir_et_marque_represente(make_membre):
+    reunion = _reunion_convoquee()
+    a, b = make_membre(), make_membre()
+    pouvoir = donner_pouvoir(reunion, a, b)
+    assert pouvoir.mandataire == b
+    assert Presence.objects.get(reunion=reunion, membre=a).statut == Presence.Statut.REPRESENTE
+
+
+def test_donner_pouvoir_a_soi_meme_refuse(make_membre):
+    reunion = _reunion_convoquee()
+    a = make_membre()
+    with pytest.raises(ReponseConvocationImpossible):
+        donner_pouvoir(reunion, a, a)
+
+
+def test_donner_pouvoir_refuse_au_dela_du_plafond(params, make_membre):
+    params.max_pouvoirs_par_personne = 1
+    params.save()
+    reunion = _reunion_convoquee()
+    mandataire = make_membre()
+    donner_pouvoir(reunion, make_membre(), mandataire)  # 1er pouvoir : accepté
+    with pytest.raises(ReponseConvocationImpossible):
+        donner_pouvoir(reunion, make_membre(), mandataire)  # 2e : dépasse le plafond
+
+
+def test_pas_de_reponse_si_reunion_non_convoquee(make_membre):
+    reunion = Reunion.objects.create(
+        titre="AG tenue",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.TENUE,
+    )
+    with pytest.raises(ReponseConvocationImpossible):
+        enregistrer_presence_membre(reunion, make_membre(), Presence.Statut.PRESENT)
