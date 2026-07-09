@@ -1,0 +1,20 @@
+{% comment %}
+En-tête de colonne triable (tri serveur). Un clic pose `?tri=<cle>` (ou `-<cle>`
+pour l'ordre décroissant), en conservant les autres paramètres GET (filtres) et
+en réinitialisant la pagination. À inclure avec :
+  {% include "backoffice/_th_tri.html" with cle="nom" libelle="Nom" %}
+Optionnel : `classe` (ex. "montant"). Attend `tri_courant` dans le contexte.
+{% endcomment %}
+{% if tri_courant == cle %}
+  <th scope="col" aria-sort="ascending"{% if classe %} class="{{ classe }}"{% endif %}>
+    <a href="{% querystring tri="-"|add:cle page=None %}">{{ libelle }} <span aria-hidden="true">▲</span></a>
+  </th>
+{% elif tri_courant == "-"|add:cle %}
+  <th scope="col" aria-sort="descending"{% if classe %} class="{{ classe }}"{% endif %}>
+    <a href="{% querystring tri=cle page=None %}">{{ libelle }} <span aria-hidden="true">▼</span></a>
+  </th>
+{% else %}
+  <th scope="col"{% if classe %} class="{{ classe }}"{% endif %}>
+    <a href="{% querystring tri=cle page=None %}">{{ libelle }}</a>
+  </th>
+{% endif %}

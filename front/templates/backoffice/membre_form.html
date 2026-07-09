@@ -1,18 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}Nouveau membre — Back-office{% endblock %}
+{% block title %}{% if membre %}Modifier une fiche{% else %}Nouveau membre{% endif %} — Back-office{% endblock %}
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:liste_membres' %}">← Membres</a></p>
   <header class="page-tete">
     <span class="page-tete__eyebrow">Bureau</span>
-    <h1>Nouveau membre</h1>
+    <h1>{% if membre %}Modifier la fiche{% else %}Nouveau membre{% endif %}</h1>
+    {% if not membre %}
+      <p class="page-tete__sous">
+        Crée la fiche d'une personne (adhérent ou membre). L'accès en ligne est
+        facultatif : cochez « ouvrir un accès » pour générer un lien d'activation.
+      </p>
+    {% endif %}
   </header>
 
   {% if lien_activation %}
     <div class="message message--success" role="status">
-      <p><strong>Compte créé.</strong> Transmettez ce lien d'activation au membre —
-        il y choisira son mot de passe. Le lien est à usage unique et expire.</p>
+      <p><strong>Accès ouvert.</strong> Transmettez ce lien d'activation à la personne —
+        elle y choisira son mot de passe. Le lien est à usage unique et expire.</p>
       <p>
         <label for="lien-activation" class="champ__aide">Lien d'activation</label>
         <input
@@ -27,7 +33,7 @@
       </p>
       <p id="lien-aide" class="champ__aide">
         L'envoi automatique par e-mail n'est pas encore activé : copiez ce lien et
-        transmettez-le au membre (message, e-mail manuel…).
+        transmettez-le à la personne (message, e-mail manuel…).
       </p>
     </div>
   {% endif %}
@@ -52,7 +58,22 @@
     {% endfor %}
 
     <div class="formulaire__actions">
-      <button type="submit" class="lien-bouton lien-bouton--primaire">Créer le compte</button>
+      <button type="submit" class="lien-bouton lien-bouton--primaire">
+        {% if membre %}Enregistrer{% else %}Créer la fiche{% endif %}
+      </button>
+      <a class="lien-bouton" href="{% url 'backoffice:liste_membres' %}">Annuler</a>
     </div>
   </form>
+
+  {% if membre and not membre.a_un_compte %}
+    <section class="bloc-secondaire" aria-labelledby="titre-acces">
+      <h2 id="titre-acces">Accès en ligne</h2>
+      <p>Cette personne n'a pas de compte de connexion. Ouvrez-lui un accès pour
+        générer un lien d'activation (nécessite un e-mail sur la fiche).</p>
+      <form method="post" action="{% url 'backoffice:ouvrir_acces_membre' membre.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton">Ouvrir un accès</button>
+      </form>
+    </section>
+  {% endif %}
 {% endblock %}

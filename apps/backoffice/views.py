@@ -31,9 +31,9 @@ from apps.budget.services import (
     emettre_recu,
     pdf_de_recu,
 )
+from apps.coeur import services as coeur_services
 from apps.coeur.models import Membre, ParametresAssociation, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, bureau_requis
-from apps.coeur.services import creer_compte_membre, jeton_activation
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import (
     TransitionModerationInvalide,
@@ -65,6 +65,7 @@ from apps.gouvernance.services import (
 from apps.spectacles.models import Spectacle
 
 from .forms import (
+    AdhesionForm,
     CategorieForm,
     ClientForm,
     DevisForm,
@@ -73,7 +74,8 @@ from .forms import (
     FactureForm,
     LigneDevisFormSet,
     LigneFactureFormSet,
-    MembreCreationForm,
+    MembreForm,
+    MembreRapideForm,
     NouvelleVersionForm,
     ParametresAssociationForm,
     PouvoirForm,
@@ -95,6 +97,21 @@ def paginer(request, objets, par_page=20):
     `get_page` tolère un numéro absent, non numérique ou hors bornes (renvoie
     la 1re ou la dernière page) — pas d'erreur 500 sur `?page=abc`."""
     return Paginator(objets, par_page).get_page(request.GET.get("page"))
+
+
+def appliquer_tri(request, queryset, tris, defaut_order):
+    """Trie `queryset` selon `?tri=<clé>` (préfixe « - » = décroissant).
+
+    `tris` est une **whitelist** {clé: [champs ORM]} (jamais de champ arbitraire
+    depuis l'URL). Une clé absente/inconnue applique `defaut_order`. Renvoie
+    `(queryset trié, tri_courant)`, où `tri_courant` est la clé signée active
+    (« nom » / « -nom ») ou "" si tri par défaut — pour l'affichage des en-têtes."""
+    demande = request.GET.get("tri", "")
+    cle = demande.lstrip("-")
+    if cle in tris:
+        sens = "-" if demande.startswith("-") else ""
+        return queryset.order_by(*[f"{sens}{champ}" for champ in tris[cle]]), demande
+    return queryset.order_by(*defaut_order), ""
 
 
 @bureau_requis
@@ -170,14 +187,23 @@ def equipe_bureau(request):
 # --- Membres (création de comptes par le bureau) ---------------------------
 
 
+_TRIS_MEMBRES = {"nom": ["nom", "prenom"], "email": ["email"]}
+
+
 @bureau_requis
 def liste_membres(request):
-    """Liste des membres (comptes) + accès à la création."""
-    membres = Membre.objects.select_related("user").order_by(
-        "user__last_name", "user__first_name", "user__username"
-    )
+    """Liste des personnes (membres/adhérents) + accès à la création.
+
+    Inclut les personnes sans compte de connexion (adhérents seuls). Triable
+    par nom ou e-mail (clic sur l'en-tête, `?tri=`)."""
+    membres = Membre.objects.select_related("user")
+    membres, tri = appliquer_tri(request, membres, _TRIS_MEMBRES, ["nom", "prenom"])
     page = paginer(request, membres)
-    return render(request, "backoffice/membres_liste.html", {"membres": page, "page": page})
+    return render(
+        request,
+        "backoffice/membres_liste.html",
+        {"membres": page, "page": page, "tri_courant": tri},
+    )
 
 
 @bureau_requis
@@ -207,44 +233,84 @@ def basculer_mise_en_avant_membre(request, pk):
     return redirect("backoffice:liste_membres")
 
 
+def _lien_activation(request, uidb64, token):
+    """URL absolue du lien d'activation (le membre y choisit son mot de passe)."""
+    return request.build_absolute_uri(reverse("espace_membre:activer_compte", args=[uidb64, token]))
+
+
 @bureau_requis
 def creer_membre(request):
-    """Crée un compte membre (Utilisateur + Membre) et produit un lien
-    d'activation à transmettre au nouveau membre : il y choisit son mot de
-    passe. Aucun mot de passe n'est manipulé par le bureau."""
+    """Crée la fiche d'une personne (adhérent/membre).
+
+    L'accès en ligne est optionnel : si le bureau coche « ouvrir un accès », un
+    compte est créé et un lien d'activation est produit (la personne y choisit
+    son mot de passe — le bureau ne manipule aucun mot de passe)."""
     lien_activation = None
     if request.method == "POST":
-        form = MembreCreationForm(request.POST)
+        form = MembreForm(request.POST)
         if form.is_valid():
-            try:
-                membre = creer_compte_membre(
-                    first_name=form.cleaned_data["prenom"],
-                    last_name=form.cleaned_data["nom"],
-                    email=form.cleaned_data["email"],
-                    role_public=form.cleaned_data["role_public"],
-                    telephone=form.cleaned_data["telephone"],
-                )
-            except IntegrityError:
-                # Course : l'e-mail est passé libre à la validation mais a été
-                # pris entre-temps (contrainte d'unicité DB). Message propre.
-                form.add_error("email", "Un compte existe déjà avec cet e-mail.")
-            else:
-                uidb64, token = jeton_activation(membre.user)
-                lien_activation = request.build_absolute_uri(
-                    reverse("espace_membre:activer_compte", args=[uidb64, token])
-                )
-                messages.success(
-                    request,
-                    f"Compte créé pour {membre}. Transmettez-lui le lien d'activation ci-dessous.",
-                )
-                form = MembreCreationForm()  # formulaire vierge pour un éventuel suivant
+            membre = coeur_services.creer_membre(
+                prenom=form.cleaned_data["prenom"],
+                nom=form.cleaned_data["nom"],
+                email=form.cleaned_data["email"],
+                role_public=form.cleaned_data["role_public"],
+                telephone=form.cleaned_data["telephone"],
+            )
+            if form.cleaned_data.get("ouvrir_acces"):
+                try:
+                    uidb64, token = coeur_services.ouvrir_compte(membre)
+                except coeur_services.OuvertureCompteImpossible as exc:
+                    messages.error(request, str(exc))
+                else:
+                    lien_activation = _lien_activation(request, uidb64, token)
+            messages.success(request, f"Fiche créée pour {membre}.")
+            form = MembreForm()  # formulaire vierge pour un éventuel suivant
     else:
-        form = MembreCreationForm()
+        form = MembreForm()
 
     return render(
         request,
         "backoffice/membre_form.html",
         {"form": form, "lien_activation": lien_activation},
+    )
+
+
+@bureau_requis
+def editer_membre(request, pk):
+    """Édite l'identité d'une personne. Si elle a un compte, l'identité est
+    recopiée vers le compte (l'identifiant de connexion reste inchangé)."""
+    membre = get_object_or_404(Membre, pk=pk)
+    form = MembreForm(request.POST or None, instance=membre, edition=True)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        coeur_services.synchroniser_compte(membre)
+        messages.success(request, "Fiche mise à jour.")
+        return redirect("backoffice:liste_membres")
+    return render(request, "backoffice/membre_form.html", {"form": form, "membre": membre})
+
+
+@bureau_requis
+@require_POST
+def ouvrir_acces_membre(request, pk):
+    """Ouvre un accès en ligne pour une personne sans compte : crée le compte et
+    produit le lien d'activation à lui transmettre."""
+    membre = get_object_or_404(Membre, pk=pk)
+    lien_activation = None
+    try:
+        uidb64, token = coeur_services.ouvrir_compte(membre)
+    except coeur_services.OuvertureCompteImpossible as exc:
+        messages.error(request, str(exc))
+    else:
+        lien_activation = _lien_activation(request, uidb64, token)
+        messages.success(
+            request,
+            f"Accès ouvert pour {membre}. Transmettez-lui le lien d'activation ci-dessous.",
+        )
+    form = MembreForm(instance=membre, edition=True)
+    return render(
+        request,
+        "backoffice/membre_form.html",
+        {"form": form, "membre": membre, "lien_activation": lien_activation},
     )
 
 
@@ -316,25 +382,14 @@ def _appliquer_decision(request, fiche, *, libelle: str) -> None:
 
 @bureau_requis
 def liste_recus(request):
-    """Reçus émis + adhésions éligibles à un reçu (raccourci de pré-remplissage)."""
+    """Registre des reçus fiscaux émis (dons + cotisations).
+
+    L'émission depuis une adhésion se fait désormais depuis l'écran Adhésions
+    (bouton « Émettre un reçu ») ; ici, on saisit un reçu manuel (don) et on
+    consulte/télécharge tous les reçus."""
     recus = RecuFiscal.objects.select_related("membre").all()
-    adhesions_eligibles = (
-        Adhesion.objects.filter(
-            statut__in=[Adhesion.Statut.PAYEE, Adhesion.Statut.EXONEREE],
-            montant_verse__gt=0,
-        )
-        # Une adhésion déjà pourvue d'un reçu n'est plus proposée (un versement
-        # = un seul reçu Cerfa) : évite d'émettre un doublon depuis la liste.
-        .filter(recus_fiscaux__isnull=True)
-        .select_related("membre", "saison")
-        .order_by("-saison__date_debut", "membre")
-    )
     page = paginer(request, recus)
-    return render(
-        request,
-        "backoffice/recus_liste.html",
-        {"recus": page, "page": page, "adhesions": adhesions_eligibles},
-    )
+    return render(request, "backoffice/recus_liste.html", {"recus": page, "page": page})
 
 
 @bureau_requis
@@ -817,16 +872,129 @@ def fichiers_membres(request):
     Lecture seule : les dossiers privés des membres ne sont jamais exposés ici."""
     dossiers = (
         Dossier.objects.filter(visibilite=Dossier.Visibilite.BUREAU, proprietaire__isnull=False)
-        .select_related("proprietaire__user")
+        .select_related("proprietaire")
         .prefetch_related(
             Prefetch(
                 "documents",
                 queryset=Document.objects.filter(courant=True).order_by("titre"),
             )
         )
-        .order_by("proprietaire__user__last_name", "proprietaire__user__first_name", "nom")
+        .order_by("proprietaire__nom", "proprietaire__prenom", "nom")
     )
     return render(request, "backoffice/fichiers_membres.html", {"dossiers": dossiers})
+
+
+# --- Adhésions --------------------------------------------------------------
+
+_TRIS_ADHESIONS = {
+    "personne": ["membre__nom", "membre__prenom"],
+    "saison": ["saison__date_debut", "saison__nom"],
+    "statut": ["statut"],
+    "attendu": ["montant_attendu"],
+    "verse": ["montant_verse"],
+}
+
+
+@bureau_requis
+def liste_adhesions(request):
+    """Adhésions, filtrables par saison et par statut, triables par colonne.
+
+    Comble le manque d'un écran dédié : jusqu'ici les adhésions ne se géraient
+    que dans l'admin Django."""
+    adhesions = Adhesion.objects.select_related(
+        "membre", "membre__user", "saison"
+    ).prefetch_related("recus_fiscaux")
+    saison = _saison_demandee(request)
+    if saison is not None:
+        adhesions = adhesions.filter(saison=saison)
+    statut = request.GET.get("statut")
+    if statut in Adhesion.Statut.values:
+        adhesions = adhesions.filter(statut=statut)
+    else:
+        statut = ""
+    adhesions, tri = appliquer_tri(
+        request,
+        adhesions,
+        _TRIS_ADHESIONS,
+        ["-saison__date_debut", "membre__nom", "membre__prenom"],
+    )
+    page = paginer(request, adhesions)
+    return render(
+        request,
+        "backoffice/adhesions_liste.html",
+        {
+            "adhesions": page,
+            "page": page,
+            "saisons": Saison.objects.all(),
+            "saison_courante": saison,
+            "statuts": Adhesion.Statut.choices,
+            "statut_courant": statut,
+            "tri_courant": tri,
+        },
+    )
+
+
+def _personne_saisie(post):
+    """Vrai si au moins un champ « nouvelle personne » du formulaire est renseigné."""
+    return any((post.get(f"nouveau-{champ}") or "").strip() for champ in ("prenom", "nom", "email"))
+
+
+def _editer_adhesion(request, *, adhesion):
+    """Création/édition d'une adhésion. À la création, la personne peut être
+    choisie parmi l'existant OU créée à la volée (sans compte)."""
+    creation = adhesion is None
+    form = AdhesionForm(request.POST or None, instance=adhesion, membre_optionnel=creation)
+    form_personne = MembreRapideForm(request.POST or None, prefix="nouveau") if creation else None
+
+    if request.method == "POST" and form.is_valid():
+        membre = form.cleaned_data.get("membre")
+        nouvelle_personne = creation and _personne_saisie(request.POST)
+        if creation and bool(membre) == nouvelle_personne:
+            # Il faut exactement une source de personne : ni les deux, ni aucune.
+            form.add_error(
+                "membre",
+                "Choisissez une personne existante OU renseignez une nouvelle personne.",
+            )
+        elif nouvelle_personne and not form_personne.is_valid():
+            pass  # les erreurs s'affichent sous le bloc « nouvelle personne »
+        else:
+            objet = form.save(commit=False)
+            if nouvelle_personne:
+                objet.membre = form_personne.save()
+            try:
+                with transaction.atomic():
+                    objet.save()
+            except IntegrityError:
+                form.add_error(None, "Cette personne a déjà une adhésion pour cette saison.")
+            else:
+                messages.success(request, "Adhésion enregistrée.")
+                return redirect("backoffice:liste_adhesions")
+
+    return render(
+        request,
+        "backoffice/adhesion_form.html",
+        {"form": form, "form_personne": form_personne, "adhesion": adhesion},
+    )
+
+
+@bureau_requis
+def creer_adhesion(request):
+    return _editer_adhesion(request, adhesion=None)
+
+
+@bureau_requis
+def editer_adhesion(request, pk):
+    return _editer_adhesion(request, adhesion=get_object_or_404(Adhesion, pk=pk))
+
+
+@bureau_requis
+@require_POST
+def supprimer_adhesion(request, pk):
+    """Supprime une adhésion (les reçus/transactions liés sont simplement détachés)."""
+    adhesion = get_object_or_404(Adhesion, pk=pk)
+    adhesion.delete()
+    messages.success(request, "Adhésion supprimée.")
+    return redirect("backoffice:liste_adhesions")
 
 
 # --- Budget -----------------------------------------------------------------

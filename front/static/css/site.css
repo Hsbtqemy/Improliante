@@ -921,13 +921,24 @@ th.montant {
   background: #dbeafe;
   color: #1e3a8a;
 }
-.badge--envoye {
+.badge--envoye,
+.badge--en_attente {
   background: #fff3cd;
   color: #5c4400;
 }
 .badge--annulee {
   background: #f8d7da;
   color: #7a1220;
+}
+/* Adhésions : payée = bleu (déjà défini), exonérée = vert, en attente = ambre */
+.badge--exoneree {
+  background: #d8f0e0;
+  color: #14532d;
+}
+/* Personne sans compte de connexion (liste des membres) */
+.badge--sans-compte {
+  background: #eee;
+  color: #444;
 }
 
 /* Encadré « total » (vue détail facture / devis) */
@@ -1495,6 +1506,40 @@ html.anim-reduites * {
   color: #5c4400;
 }
 
+/* Filtres de liste (adhésions, budget…) : libellés + selects en ligne */
+.filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin: 1rem 0;
+}
+.filtres .champ {
+  margin: 0;
+}
+
+/* Bloc « nouvelle personne » (création d'adhésion à la volée) */
+.bloc-personne {
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 0.5rem 0.9rem;
+  margin: 0 0 1rem;
+}
+.bloc-personne > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.bloc-personne[open] > summary {
+  margin-bottom: 0.6rem;
+}
+
+/* Section secondaire d'une fiche (ex. « ouvrir un accès ») */
+.bloc-secondaire {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bordure);
+}
+
 /* Pagination */
 .pagination {
   display: flex;
@@ -1942,6 +1987,17 @@ summary.lien-bouton::-webkit-details-marker {
   text-decoration: none;
 }
 .tableau td a:hover {
+  text-decoration: underline;
+}
+/* En-têtes de colonnes triables (tri serveur au clic) */
+.tableau th a {
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tableau th a:hover,
+.tableau th a:focus-visible,
+.tableau th[aria-sort] a {
   text-decoration: underline;
 }
 

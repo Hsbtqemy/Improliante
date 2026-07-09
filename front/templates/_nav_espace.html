@@ -33,6 +33,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:liste_devis' %}" {% if vn == 'backoffice:liste_devis' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg><span>Devis</span></a></li>
         <li><a href="{% url 'backoffice:liste_factures' %}" {% if vn == 'backoffice:liste_factures' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg><span>Factures</span></a></li>
+        <li><a href="{% url 'backoffice:liste_adhesions' %}" {% if vn == 'backoffice:liste_adhesions' or vn == 'backoffice:creer_adhesion' or vn == 'backoffice:editer_adhesion' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-adhesion"></use></svg><span>Adhésions</span></a></li>
         <li><a href="{% url 'backoffice:liste_recus' %}" {% if vn == 'backoffice:liste_recus' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Reçus fiscaux</span></a></li>
         <li><a href="{% url 'backoffice:liste_clients' %}" {% if vn == 'backoffice:liste_clients' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg><span>Clients</span></a></li>
         <li><a href="{% url 'backoffice:budget_transactions' %}" {% if vn == 'backoffice:budget_transactions' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg><span>Budget</span></a></li>
@@ -43,7 +44,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
       <h2 class="nav-espace__titre">Vie associative</h2>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:gouvernance_reunions' %}" {% if vn == 'backoffice:gouvernance_reunions' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-ruban"></use></svg><span>Gouvernance</span></a></li>
-        <li><a href="{% url 'backoffice:liste_membres' %}" {% if vn == 'backoffice:liste_membres' or vn == 'backoffice:creer_membre' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg><span>Membres</span></a></li>
+        <li><a href="{% url 'backoffice:liste_membres' %}" {% if vn == 'backoffice:liste_membres' or vn == 'backoffice:creer_membre' or vn == 'backoffice:editer_membre' or vn == 'backoffice:ouvrir_acces_membre' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg><span>Membres</span></a></li>
         <li><a href="{% url 'backoffice:equipe_bureau' %}" {% if vn == 'backoffice:equipe_bureau' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-badge"></use></svg><span>Équipe du bureau</span></a></li>
       </ul>
     </section>

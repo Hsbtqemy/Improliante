@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{% if adhesion %}Modifier une adhésion{% else %}Nouvelle adhésion{% endif %} — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:liste_adhesions' %}">← Adhésions</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>{% if adhesion %}Modifier l'adhésion{% else %}Nouvelle adhésion{% endif %}</h1>
+  </header>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+
+      {% if field.name == 'membre' and form_personne %}
+        <details class="bloc-personne">
+          <summary>Créer une nouvelle personne (sans compte)</summary>
+          <p class="champ__aide">
+            Laissez « Personne » vide et renseignez ces champs pour créer une nouvelle
+            personne, sans accès en ligne. Un accès pourra lui être ouvert plus tard.
+          </p>
+          {% for pf in form_personne %}
+            <p class="champ">
+              <label for="{{ pf.id_for_label }}">{{ pf.label }}</label>
+              {{ pf }}
+              {% for erreur in pf.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+            </p>
+          {% endfor %}
+          {% if form_personne.non_field_errors %}
+            <div class="erreurs" role="alert">{{ form_personne.non_field_errors }}</div>
+          {% endif %}
+        </details>
+      {% endif %}
+    {% endfor %}
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <a class="lien-bouton" href="{% url 'backoffice:liste_adhesions' %}">Annuler</a>
+    </div>
+  </form>
+{% endblock %}

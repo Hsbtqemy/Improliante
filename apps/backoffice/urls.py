@@ -14,6 +14,12 @@ urlpatterns = [
     path("bureau/equipe/", views.equipe_bureau, name="equipe_bureau"),
     path("bureau/membres/", views.liste_membres, name="liste_membres"),
     path("bureau/membres/nouveau/", views.creer_membre, name="creer_membre"),
+    path("bureau/membres/<int:pk>/", views.editer_membre, name="editer_membre"),
+    path(
+        "bureau/membres/<int:pk>/ouvrir-acces/",
+        views.ouvrir_acces_membre,
+        name="ouvrir_acces_membre",
+    ),
     path(
         "bureau/membres/<int:pk>/visibilite/",
         views.basculer_visibilite_membre,
@@ -23,6 +29,14 @@ urlpatterns = [
         "bureau/membres/<int:pk>/a-la-une/",
         views.basculer_mise_en_avant_membre,
         name="basculer_mise_en_avant_membre",
+    ),
+    path("bureau/adhesions/", views.liste_adhesions, name="liste_adhesions"),
+    path("bureau/adhesions/nouvelle/", views.creer_adhesion, name="creer_adhesion"),
+    path("bureau/adhesions/<int:pk>/", views.editer_adhesion, name="editer_adhesion"),
+    path(
+        "bureau/adhesions/<int:pk>/supprimer/",
+        views.supprimer_adhesion,
+        name="supprimer_adhesion",
     ),
     path("bureau/moderation/", views.file_moderation, name="file_moderation"),
     path("bureau/moderation/projet/<int:pk>/", views.moderer_projet, name="moderer_projet"),

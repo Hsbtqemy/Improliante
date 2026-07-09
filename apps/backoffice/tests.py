@@ -118,7 +118,7 @@ def test_bureau_cree_un_compte_membre(client, db):
     from apps.coeur.roles import est_bureau
 
     client.force_login(_staff())
-    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre())
+    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre(ouvrir_acces="on"))
     assert reponse.status_code == 200  # page réaffichée avec le lien d'activation
 
     user = Utilisateur.objects.get(email="camille.martin@example.org")
@@ -129,6 +129,18 @@ def test_bureau_cree_un_compte_membre(client, db):
     assert est_bureau(user) is False  # un nouveau membre n'a PAS l'accès bureau
 
 
+def test_bureau_cree_une_personne_sans_compte(client, db):
+    """Par défaut (case décochée), on crée une fiche adhérent SANS compte."""
+    client.force_login(_staff())
+    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre())
+    assert reponse.status_code == 200
+    membre = Membre.objects.get(email="camille.martin@example.org")
+    assert membre.a_un_compte is False  # aucun compte de connexion
+    assert membre.nom_complet == "Camille Martin"
+    assert Utilisateur.objects.filter(email="camille.martin@example.org").count() == 0
+    assert reponse.context["lien_activation"] is None
+
+
 def test_creation_membre_refuse_un_email_deja_pris(client, db):
     Utilisateur.objects.create_user(
         username="camille.martin@example.org",
@@ -136,7 +148,7 @@ def test_creation_membre_refuse_un_email_deja_pris(client, db):
         password="x",
     )
     client.force_login(_staff())
-    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre())
+    reponse = client.post("/bureau/membres/nouveau/", _donnees_nouveau_membre(ouvrir_acces="on"))
     assert reponse.status_code == 200
     assert reponse.context["lien_activation"] is None  # rien de créé
     assert Utilisateur.objects.filter(email="camille.martin@example.org").count() == 1
@@ -401,9 +413,10 @@ def test_pas_de_second_recu_pour_une_meme_adhesion(client, db):
     assert client.post("/bureau/recus/nouveau/", donnees).status_code == 302
     assert RecuFiscal.objects.filter(adhesion=adhesion).count() == 1
 
-    # L'adhésion n'est plus proposée comme éligible.
-    page = client.get(RECUS)
-    assert adhesion not in list(page.context["adhesions"])
+    # Dans l'écran Adhésions, elle affiche « Reçu émis », plus « Émettre un reçu ».
+    corps = client.get("/bureau/adhesions/").content.decode()
+    assert "Reçu émis" in corps
+    assert "Émettre un reçu" not in corps
 
 
 def test_montant_negatif_est_refuse(client, db):
@@ -1260,3 +1273,229 @@ def test_preremplir_droits_de_vote(client, db):
     )
     presence = Presence.objects.get(reunion=reunion, membre=membre)
     assert presence.peut_voter is True  # membre à jour → droit de vote
+
+
+# --- Adhésions (écran back-office) -----------------------------------------
+
+
+def _donnees_adhesion(**extra):
+    donnees = {
+        "statut": Adhesion.Statut.PAYEE,
+        "montant_attendu": "30",
+        "montant_verse": "30",
+        "date": "",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_adhesions_reservees_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/adhesions/").status_code == 403
+
+
+def test_creer_adhesion_pour_une_personne_existante(client, db):
+    membre = _membre("alice").membre
+    saison = Saison.objects.create(nom="2025-2026")
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/adhesions/nouvelle/", _donnees_adhesion(membre=membre.pk, saison=saison.pk)
+    )
+    assert reponse.status_code == 302
+    adhesion = Adhesion.objects.get(membre=membre, saison=saison)
+    assert adhesion.statut == Adhesion.Statut.PAYEE
+    assert adhesion.montant_verse == Decimal("30")
+
+
+def test_creer_adhesion_avec_nouvelle_personne_sans_compte(client, db):
+    """Création à la volée : la personne est créée sans compte, puis rattachée."""
+    saison = Saison.objects.create(nom="2025-2026")
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/adhesions/nouvelle/",
+        _donnees_adhesion(saison=saison.pk, **{"nouveau-prenom": "Théo", "nouveau-nom": "Bon"}),
+    )
+    assert reponse.status_code == 302
+    membre = Membre.objects.get(nom="Bon")
+    assert membre.a_un_compte is False
+    assert Adhesion.objects.filter(membre=membre, saison=saison).exists()
+
+
+def test_creer_adhesion_exige_une_personne(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    client.force_login(_staff())
+    reponse = client.post("/bureau/adhesions/nouvelle/", _donnees_adhesion(saison=saison.pk))
+    assert reponse.status_code == 200  # réaffiché avec une erreur
+    assert Adhesion.objects.count() == 0
+
+
+def test_adhesion_unique_par_membre_et_saison(client, db):
+    membre = _membre("alice").membre
+    saison = Saison.objects.create(nom="2025-2026")
+    Adhesion.objects.create(membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE)
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/adhesions/nouvelle/", _donnees_adhesion(membre=membre.pk, saison=saison.pk)
+    )
+    assert reponse.status_code == 200  # doublon refusé
+    assert Adhesion.objects.filter(membre=membre, saison=saison).count() == 1
+
+
+def test_editer_adhesion_change_le_statut(client, db):
+    membre = _membre("alice").membre
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.EN_ATTENTE
+    )
+    client.force_login(_staff())
+    reponse = client.post(
+        f"/bureau/adhesions/{adhesion.pk}/",
+        _donnees_adhesion(membre=membre.pk, saison=saison.pk, statut=Adhesion.Statut.PAYEE),
+    )
+    assert reponse.status_code == 302
+    adhesion.refresh_from_db()
+    assert adhesion.statut == Adhesion.Statut.PAYEE
+
+
+def test_supprimer_adhesion(client, db):
+    membre = _membre("alice").membre
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(membre=membre, saison=saison)
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/adhesions/{adhesion.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Adhesion.objects.filter(pk=adhesion.pk).exists()
+
+
+def test_liste_membres_signale_les_personnes_sans_compte(client, db):
+    Membre.objects.create(prenom="Sans", nom="Compte")  # adhérent sans compte
+    client.force_login(_staff())
+    corps = client.get("/bureau/membres/").content.decode()
+    assert "Sans compte" in corps
+
+
+def test_ouvrir_acces_membre_cree_le_compte(client, db):
+    membre = Membre.objects.create(prenom="Neo", nom="Phyte", email="neo@example.org")
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/membres/{membre.pk}/ouvrir-acces/")
+    assert reponse.status_code == 200
+    membre.refresh_from_db()
+    assert membre.a_un_compte is True
+    assert reponse.context["lien_activation"]
+
+
+def test_ouvrir_acces_reserve_au_bureau_et_en_post(client, db):
+    membre = Membre.objects.create(prenom="Neo", nom="Phyte", email="neo@example.org")
+    url = f"/bureau/membres/{membre.pk}/ouvrir-acces/"
+    client.force_login(_staff())
+    assert client.get(url).status_code == 405  # require_POST
+    client.force_login(_membre("lambda"))
+    assert client.post(url).status_code == 403  # pas bureau
+
+
+def test_liste_adhesions_s_affiche(client, db):
+    membre = Membre.objects.create(prenom="Zoé", nom="Nadal")
+    saison = Saison.objects.create(nom="2025-2026")
+    Adhesion.objects.create(membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE)
+    client.force_login(_staff())
+    reponse = client.get("/bureau/adhesions/")
+    assert reponse.status_code == 200
+    corps = reponse.content.decode()
+    assert "2025-2026" in corps
+    assert "Nadal Zoé" in corps  # nom de famille en premier
+
+
+def test_creer_adhesion_formulaire_s_affiche(client, db):
+    client.force_login(_staff())
+    reponse = client.get("/bureau/adhesions/nouvelle/")
+    assert reponse.status_code == 200
+    assert "nouvelle personne" in reponse.content.decode().lower()  # bloc à la volée
+
+
+def test_editer_membre_propose_d_ouvrir_un_acces(client, db):
+    membre = Membre.objects.create(prenom="Ed", nom="Iteur", email="ed@example.org")
+    client.force_login(_staff())
+    reponse = client.get(f"/bureau/membres/{membre.pk}/")
+    assert reponse.status_code == 200
+    assert "Ouvrir un accès" in reponse.content.decode()  # section personne sans compte
+
+
+# --- Tri des listes par en-tête de colonne ---------------------------------
+
+
+def test_liste_membres_triable_par_email(client, db):
+    Membre.objects.create(prenom="A", nom="Zed", email="z@example.org")
+    Membre.objects.create(prenom="B", nom="Abbe", email="a@example.org")
+    client.force_login(_staff())
+    reponse = client.get("/bureau/membres/?tri=email")
+    assert [m.email for m in reponse.context["membres"]] == ["a@example.org", "z@example.org"]
+    assert reponse.context["tri_courant"] == "email"
+
+
+def test_liste_membres_tri_descendant(client, db):
+    Membre.objects.create(nom="Abbe")
+    Membre.objects.create(nom="Zed")
+    client.force_login(_staff())
+    reponse = client.get("/bureau/membres/?tri=-nom")
+    assert [m.nom for m in reponse.context["membres"]] == ["Zed", "Abbe"]
+
+
+def test_liste_membres_tri_inconnu_retombe_sur_le_defaut(client, db):
+    """Clé de tri hors whitelist → tri par défaut (nom), pas d'injection ORM."""
+    Membre.objects.create(nom="Zed")
+    Membre.objects.create(nom="Abbe")
+    client.force_login(_staff())
+    reponse = client.get("/bureau/membres/", {"tri": "; DROP TABLE"})
+    assert [m.nom for m in reponse.context["membres"]] == ["Abbe", "Zed"]
+    assert reponse.context["tri_courant"] == ""
+
+
+def test_liste_adhesions_triable_par_montant_verse(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    haut = Membre.objects.create(nom="Haut")
+    bas = Membre.objects.create(nom="Bas")
+    Adhesion.objects.create(membre=haut, saison=saison, montant_verse=Decimal("50"))
+    Adhesion.objects.create(membre=bas, saison=saison, montant_verse=Decimal("10"))
+    client.force_login(_staff())
+    reponse = client.get("/bureau/adhesions/?tri=verse")
+    assert [a.montant_verse for a in reponse.context["adhesions"]] == [
+        Decimal("10"),
+        Decimal("50"),
+    ]
+
+
+def test_liste_adhesions_tri_et_filtre_se_combinent(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    m1 = Membre.objects.create(nom="Un")
+    m2 = Membre.objects.create(nom="Deux")
+    Adhesion.objects.create(membre=m1, saison=saison, statut=Adhesion.Statut.PAYEE)
+    Adhesion.objects.create(membre=m2, saison=saison, statut=Adhesion.Statut.EN_ATTENTE)
+    client.force_login(_staff())
+    reponse = client.get("/bureau/adhesions/?statut=payee&tri=personne")
+    adhesions = list(reponse.context["adhesions"])
+    assert len(adhesions) == 1 and adhesions[0].membre == m1  # filtre conservé
+
+
+# --- Pont adhésion -> reçu fiscal (dans l'écran Adhésions) -----------------
+
+
+def test_adhesion_eligible_propose_d_emettre_un_recu(client, db):
+    membre = _membre("alice").membre
+    saison = Saison.objects.create(nom="2025-2026")
+    Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE, montant_verse=Decimal("30")
+    )
+    client.force_login(_staff())
+    corps = client.get("/bureau/adhesions/").content.decode()
+    assert "Émettre un reçu" in corps
+
+
+def test_adhesion_en_attente_ne_propose_pas_de_recu(client, db):
+    membre = _membre("alice").membre
+    saison = Saison.objects.create(nom="2025-2026")
+    Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.EN_ATTENTE, montant_verse=Decimal("0")
+    )
+    client.force_login(_staff())
+    corps = client.get("/bureau/adhesions/").content.decode()
+    assert "Émettre un reçu" not in corps

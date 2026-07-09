@@ -8,8 +8,8 @@
     <span class="page-tete__eyebrow">Bureau</span>
     <h1>Membres</h1>
     <p class="page-tete__sous">
-      Comptes des membres de l'association. La création génère un lien d'activation
-      à transmettre au membre (il y choisit son mot de passe).
+      Personnes connues de l'association (membres, adhérents). L'accès en ligne est
+      facultatif : une personne peut exister sans compte de connexion.
     </p>
   </header>
 
@@ -23,8 +23,8 @@
     <table class="tableau">
       <thead>
         <tr>
-          <th scope="col">Nom</th>
-          <th scope="col">E-mail</th>
+          {% include "backoffice/_th_tri.html" with cle="nom" libelle="Nom" %}
+          {% include "backoffice/_th_tri.html" with cle="email" libelle="E-mail" %}
           <th scope="col">Compte</th>
           <th scope="col">Actif</th>
           <th scope="col">Site public</th>
@@ -34,10 +34,12 @@
       <tbody>
         {% for membre in membres %}
           <tr>
-            <td>{{ membre }}</td>
-            <td>{{ membre.user.email|default:"—" }}</td>
+            <td><a href="{% url 'backoffice:editer_membre' membre.pk %}">{{ membre.nom_liste }}</a></td>
+            <td>{{ membre.email|default:"—" }}</td>
             <td>
-              {% if membre.user.has_usable_password %}
+              {% if not membre.a_un_compte %}
+                <span class="badge badge--sans-compte">Sans compte</span>
+              {% elif membre.user.has_usable_password %}
                 <span class="badge badge--publie">Activé</span>
               {% else %}
                 <span class="badge">En attente d'activation</span>

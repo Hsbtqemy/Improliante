@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Adhésions — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Adhésions</h1>
+    <p class="page-tete__sous">
+      Adhésions par saison. Une personne peut adhérer sans avoir de compte de
+      connexion — créez-la à la volée au moment de saisir l'adhésion.
+    </p>
+  </header>
+
+  <p>
+    <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_adhesion' %}">
+      + Nouvelle adhésion
+    </a>
+  </p>
+
+  <form method="get" class="filtres" role="search">
+    <p class="champ">
+      <label for="filtre-saison">Saison</label>
+      <select id="filtre-saison" name="saison" onchange="this.form.submit()">
+        <option value="">Toutes les saisons</option>
+        {% for saison in saisons %}
+          <option value="{{ saison.pk }}" {% if saison_courante and saison.pk == saison_courante.pk %}selected{% endif %}>{{ saison }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <p class="champ">
+      <label for="filtre-statut">Statut</label>
+      <select id="filtre-statut" name="statut" onchange="this.form.submit()">
+        <option value="">Tous les statuts</option>
+        {% for valeur, libelle in statuts %}
+          <option value="{{ valeur }}" {% if valeur == statut_courant %}selected{% endif %}>{{ libelle }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <noscript><button type="submit" class="lien-bouton">Filtrer</button></noscript>
+  </form>
+
+  {% if adhesions %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
+          <tr>
+            {% include "backoffice/_th_tri.html" with cle="personne" libelle="Personne" %}
+            {% include "backoffice/_th_tri.html" with cle="saison" libelle="Saison" %}
+            {% include "backoffice/_th_tri.html" with cle="statut" libelle="Statut" %}
+            {% include "backoffice/_th_tri.html" with cle="attendu" libelle="Attendu" classe="montant" %}
+            {% include "backoffice/_th_tri.html" with cle="verse" libelle="Versé" classe="montant" %}
+            <th scope="col">Reçu fiscal</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for adhesion in adhesions %}
+            <tr>
+              <td><a href="{% url 'backoffice:editer_adhesion' adhesion.pk %}">{{ adhesion.membre.nom_liste }}</a></td>
+              <td>{{ adhesion.saison }}</td>
+              <td><span class="badge badge--{{ adhesion.statut }}">{{ adhesion.get_statut_display }}</span></td>
+              <td class="montant">{{ adhesion.montant_attendu|floatformat:2 }} €</td>
+              <td class="montant">{{ adhesion.montant_verse|floatformat:2 }} €</td>
+              <td>
+                {% with recus=adhesion.recus_fiscaux.all %}
+                  {% if recus %}
+                    {% for recu in recus %}
+                      <a href="{% url 'backoffice:telecharger_recu' recu.pk %}">Reçu émis ({{ recu.numero }})</a>
+                    {% endfor %}
+                  {% elif adhesion.a_jour and adhesion.montant_verse %}
+                    <a class="bouton-texte" href="{% url 'backoffice:creer_recu' %}?adhesion={{ adhesion.pk }}">Émettre un reçu</a>
+                  {% else %}
+                    <span class="ged-doc__desc">—</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                <a href="{% url 'backoffice:editer_adhesion' adhesion.pk %}">Modifier</a>
+                <form method="post" action="{% url 'backoffice:supprimer_adhesion' adhesion.pk %}" style="display: inline" onsubmit="return confirm('Supprimer cette adhésion ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="bouton-texte">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "backoffice/_pagination.html" %}
+  {% else %}
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-membres"></use></svg></div>
+      <p class="etat-vide__titre">Aucune adhésion</p>
+      <p>Enregistrez une première adhésion pour la saison en cours.</p>
+      <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_adhesion' %}">Nouvelle adhésion</a></p>
+    </div>
+  {% endif %}
+{% endblock %}

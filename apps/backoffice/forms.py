@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from django import forms
 
-from apps.budget.models import Categorie, RecuFiscal, Saison, Transaction
+from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
@@ -324,36 +324,85 @@ class ResolutionForm(forms.ModelForm):
         self.fields["sujet"].required = False
 
 
-class MembreCreationForm(forms.Form):
-    """Création d'un compte membre par le bureau (Utilisateur + Membre).
+class MembreForm(forms.ModelForm):
+    """Fiche d'une personne (adhérent / membre), pour la création et l'édition.
 
-    L'e-mail sert d'identifiant de connexion : il doit être unique. Le mot de
-    passe n'est PAS saisi ici — le membre le définit via un lien d'activation
-    (cf. `apps.coeur.services`). Formulaire volontairement `forms.Form` (et non
-    ModelForm) car il couvre deux modèles."""
+    L'identité vit sur la fiche ; le compte de connexion est facultatif. À la
+    création, cocher « ouvrir un accès » crée le compte et le lien d'activation
+    (le membre y choisit son mot de passe). En édition, l'ouverture d'accès passe
+    par un bouton dédié : la case est retirée."""
 
-    prenom = forms.CharField(label="Prénom", max_length=150)
-    nom = forms.CharField(label="Nom", max_length=150)
-    email = forms.EmailField(
-        label="E-mail",
-        help_text="Sert d'identifiant de connexion. Doit être unique.",
-    )
-    role_public = forms.CharField(
-        label="Rôle public",
-        max_length=200,
+    ouvrir_acces = forms.BooleanField(
+        label="Ouvrir un accès en ligne maintenant",
         required=False,
-        help_text="Ex. « Comédienne, mise en scène » — affiché sur la fiche publique si visible.",
+        help_text="Crée un compte de connexion et un lien d'activation. Nécessite un e-mail.",
     )
-    telephone = forms.CharField(label="Téléphone", max_length=32, required=False)
+
+    class Meta:
+        model = Membre
+        fields = ["prenom", "nom", "email", "telephone", "role_public"]
+
+    def __init__(self, *args, edition=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if edition:
+            self.fields.pop("ouvrir_acces")
 
     def clean_email(self) -> str:
-        # Normalisation en minuscules : l'e-mail sert d'identifiant, on évite
-        # les doublons ne différant que par la casse et on canonise le stockage.
-        email = self.cleaned_data["email"].strip().lower()
-        # L'e-mail est aussi l'identifiant (username) : on vérifie les deux.
-        existe = Utilisateur.objects.filter(username__iexact=email).exists() or (
-            Utilisateur.objects.filter(email__iexact=email).exists()
-        )
-        if existe:
-            raise forms.ValidationError("Un compte existe déjà avec cet e-mail.")
-        return email
+        # L'e-mail sert d'identifiant de connexion : on le canonise en minuscules.
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean(self):
+        donnees = super().clean()
+        if donnees.get("ouvrir_acces"):
+            email = donnees.get("email", "")
+            if not email:
+                self.add_error("email", "Un e-mail est nécessaire pour ouvrir un accès.")
+            elif Utilisateur.objects.filter(username__iexact=email).exists():
+                self.add_error("email", "Un compte existe déjà avec cet e-mail.")
+        return donnees
+
+
+class MembreRapideForm(forms.ModelForm):
+    """Création express d'une personne (sans compte) depuis l'écran Adhésions."""
+
+    class Meta:
+        model = Membre
+        fields = ["prenom", "nom", "email"]
+
+    def clean_email(self) -> str:
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean(self):
+        donnees = super().clean()
+        if not (donnees.get("prenom") or donnees.get("nom")):
+            raise forms.ValidationError("Indiquez au moins un prénom ou un nom.")
+        return donnees
+
+
+class AdhesionForm(forms.ModelForm):
+    """Adhésion d'une personne pour une saison (statut + montants attendu/versé)."""
+
+    class Meta:
+        model = Adhesion
+        fields = ["membre", "saison", "statut", "montant_attendu", "montant_verse", "date"]
+        widgets = {"date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+
+    def __init__(self, *args, membre_optionnel=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date"].input_formats = ["%Y-%m-%d"]
+        if membre_optionnel:
+            # Création à la volée possible : la personne peut être créée dans la
+            # foulée, donc « membre » n'est pas obligatoire ici (arbitré en vue).
+            self.fields["membre"].required = False
+
+    def clean_montant_attendu(self) -> Decimal:
+        return self._montant_positif_ou_nul("montant_attendu")
+
+    def clean_montant_verse(self) -> Decimal:
+        return self._montant_positif_ou_nul("montant_verse")
+
+    def _montant_positif_ou_nul(self, champ) -> Decimal:
+        montant = self.cleaned_data.get(champ)
+        if montant is not None and montant < 0:
+            raise forms.ValidationError("Le montant ne peut pas être négatif.")
+        return montant

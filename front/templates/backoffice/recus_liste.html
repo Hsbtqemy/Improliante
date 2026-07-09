@@ -6,9 +6,14 @@
   <header class="page-tete">
     <span class="page-tete__eyebrow">Bureau</span>
     <h1>Reçus fiscaux</h1>
+    <p class="page-tete__sous">
+      Registre de tous les reçus émis (dons et cotisations), à numérotation
+      continue. Pour un reçu d'adhésion, passez par l'écran
+      <a href="{% url 'backoffice:liste_adhesions' %}">Adhésions</a>.
+    </p>
   </header>
 
-  <p><a class="lien-bouton" href="{% url 'backoffice:creer_recu' %}">Émettre un reçu (saisie manuelle)</a></p>
+  <p><a class="lien-bouton" href="{% url 'backoffice:creer_recu' %}">Émettre un reçu de don (saisie manuelle)</a></p>
 
   <section aria-labelledby="titre-emis">
     <h2 id="titre-emis">Reçus émis ({{ recus.paginator.count }})</h2>
@@ -46,34 +51,9 @@
       <div class="etat-vide">
         <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-ruban"></use></svg></div>
         <p class="etat-vide__titre">Aucun reçu émis</p>
-        <p>Émettez un reçu fiscal manuellement ou depuis une adhésion éligible.</p>
+        <p>Émettez un reçu de don manuellement, ou depuis une adhésion (écran
+          <a href="{% url 'backoffice:liste_adhesions' %}">Adhésions</a>).</p>
         <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_recu' %}">Émettre un reçu</a></p>
-      </div>
-    {% endif %}
-  </section>
-
-  <section aria-labelledby="titre-eligibles">
-    <h2 id="titre-eligibles">Adhésions éligibles</h2>
-    <p class="carte-projet__meta">Pré-remplir un reçu à partir d'une adhésion réglée ou exonérée.</p>
-    {% if adhesions %}
-      <ul class="liste-projets">
-        {% for adhesion in adhesions %}
-          <li class="carte-projet">
-            <p class="carte-projet__meta">
-              <strong>{{ adhesion.membre }}</strong> · {{ adhesion.saison }}
-              · {{ adhesion.montant_verse|floatformat:2 }} € · {{ adhesion.get_statut_display }}
-            </p>
-            <a class="lien-bouton" href="{% url 'backoffice:creer_recu' %}?adhesion={{ adhesion.pk }}">
-              Émettre un reçu
-            </a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <div class="etat-vide">
-        <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-membres"></use></svg></div>
-        <p class="etat-vide__titre">Aucune adhésion éligible</p>
-        <p>Les adhésions réglées ou exonérées apparaîtront ici pour émettre un reçu.</p>
       </div>
     {% endif %}
   </section>

@@ -17,7 +17,7 @@
       <section class="ged-transmis">
         <h2 class="ged-section-titre">
           {{ d.nom }}
-          <span class="ged-doc__desc">— {{ d.proprietaire.user.get_full_name|default:d.proprietaire.user.get_username }}</span>
+          <span class="ged-doc__desc">— {{ d.proprietaire }}</span>
         </h2>
         {% with documents=d.documents.all %}
           {% if documents %}
