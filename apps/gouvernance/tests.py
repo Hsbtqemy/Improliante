@@ -214,3 +214,21 @@ def test_prerempli_reserve_sans_saison_leve_erreur(params):
     params.save()
     with pytest.raises(ValueError):
         preremplir_droit_de_vote(_reunion())
+
+
+def test_prerempli_inclut_un_adherent_sans_compte(params, db):
+    """Un adhérent SANS compte de connexion, mais à jour, vote quand même en AG :
+    le droit de vote est indexé par membre (pas par compte)."""
+    params.vote_reserve_aux_membres_a_jour = True
+    params.save()
+    saison = Saison.objects.create(nom="2025-2026")
+    reunion = _reunion()
+    adherent = Membre.objects.create(prenom="Sans", nom="Compte")  # aucun user
+    assert adherent.a_un_compte is False
+    Adhesion.objects.create(membre=adherent, saison=saison, statut=Adhesion.Statut.PAYEE)
+    presence = _presence(reunion, adherent, Presence.Statut.PRESENT, peut_voter=False)
+
+    preremplir_droit_de_vote(reunion, saison)
+
+    presence.refresh_from_db()
+    assert presence.peut_voter is True

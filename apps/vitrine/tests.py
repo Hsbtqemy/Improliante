@@ -120,7 +120,7 @@ def test_ical_exclut_les_non_publics(client, db):
 
 def _membre(nom, *, visible=True):
     user = Utilisateur.objects.create(username=nom.lower(), last_name=nom)
-    return Membre.objects.create(user=user, visible_sur_site=visible)
+    return Membre.objects.create(user=user, nom=nom, visible_sur_site=visible)
 
 
 def test_association_montre_uniquement_les_membres_visibles(client, db):

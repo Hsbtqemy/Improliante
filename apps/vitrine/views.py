@@ -162,7 +162,7 @@ def association(request):
         .prefetch_related(
             Prefetch("spectacles_portes", queryset=projets_en_cours, to_attr="projets_en_cours")
         )
-        .order_by("user__last_name", "user__first_name")
+        .order_by("nom", "prenom")
     )
     return render(
         request,

@@ -76,6 +76,18 @@ def test_donnees_depuis_adhesion(db):
     assert str(membre) in donnees["donateur_nom"]
 
 
+def test_donnees_depuis_adhesion_adherent_sans_compte(db):
+    """Un adhérent sans compte de connexion peut recevoir un reçu : le nom du
+    donateur vient de la fiche (identité propre, pas d'un compte)."""
+    membre = Membre.objects.create(prenom="Nina", nom="Roche")  # aucun user
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE, montant_verse=Decimal("20")
+    )
+    donnees = donnees_depuis_adhesion(adhesion)
+    assert donnees["donateur_nom"] == "Nina Roche"
+
+
 def test_assurer_pdf_rend_une_seule_fois(db, monkeypatch):
     appels = []
 

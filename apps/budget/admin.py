@@ -23,7 +23,7 @@ class CategorieAdmin(admin.ModelAdmin):
 class AdhesionAdmin(admin.ModelAdmin):
     list_display = ("membre", "saison", "statut", "montant_attendu", "montant_verse")
     list_filter = ("statut", "saison")
-    search_fields = ("membre__user__last_name", "membre__user__first_name")
+    search_fields = ("membre__nom", "membre__prenom", "membre__email")
     autocomplete_fields = ("membre", "saison")
 
 

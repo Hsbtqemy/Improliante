@@ -35,18 +35,30 @@ class Utilisateur(AbstractUser):
 
 
 class Membre(models.Model):
-    """Profil associatif d'une personne, rattaché à un compte `Utilisateur`.
+    """Fiche d'une personne connue de l'association (adhérent, comédien…).
 
-    Tout `Utilisateur` n'est pas forcément un `Membre` (ex. compte technique) ;
-    à l'inverse, l'espace membre s'appuie sur `request.user.membre` (règle
+    `Membre` porte l'identité (prénom, nom, e-mail) ; le compte de connexion
+    (`user`) est **optionnel** : un adhérent peut exister sans accès en ligne.
+    À l'inverse, tout `Utilisateur` n'est pas forcément un `Membre` (compte
+    technique). L'espace membre s'appuie sur `request.user.membre` (règle
     anti-IDOR : toujours filtrer par le membre connecté).
     """
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="membre",
         verbose_name="compte utilisateur",
+        null=True,
+        blank=True,
+        help_text="Compte de connexion, si la personne a un accès en ligne (facultatif).",
+    )
+    prenom = models.CharField("prénom", max_length=150, blank=True)
+    nom = models.CharField("nom", max_length=150, blank=True)
+    email = models.EmailField(
+        "e-mail",
+        blank=True,
+        help_text="Sert d'identifiant de connexion si un accès en ligne est ouvert.",
     )
     telephone = models.CharField("téléphone", max_length=32, blank=True)
     role_public = models.CharField(
@@ -89,10 +101,33 @@ class Membre(models.Model):
     class Meta:
         verbose_name = "membre"
         verbose_name_plural = "membres"
-        ordering = ["user__last_name", "user__first_name"]
+        ordering = ["nom", "prenom"]
+
+    @property
+    def nom_complet(self) -> str:
+        """Prénom + nom saisis sur la fiche (chaîne vide si aucun des deux)."""
+        return f"{self.prenom} {self.nom}".strip()
+
+    @property
+    def nom_liste(self) -> str:
+        """Identité « nom prénom » (nom de famille d'abord), pour les listes triées."""
+        if self.nom or self.prenom:
+            return f"{self.nom} {self.prenom}".strip()
+        return str(self)
+
+    @property
+    def a_un_compte(self) -> bool:
+        """Vrai si la personne a un compte de connexion rattaché."""
+        return self.user_id is not None
 
     def __str__(self) -> str:
-        return self.user.get_full_name() or self.user.get_username()
+        if self.nom_complet:
+            return self.nom_complet
+        if self.email:
+            return self.email
+        if self.user_id:
+            return self.user.get_username()
+        return "Nouveau membre"
 
 
 class LienReseau(models.Model):

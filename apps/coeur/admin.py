@@ -24,10 +24,10 @@ class MembreAdmin(admin.ModelAdmin):
     list_display = ("__str__", "actif", "visible_sur_site", "mis_en_avant", "date_adhesion")
     list_filter = ("actif", "visible_sur_site", "mis_en_avant")
     search_fields = (
-        "user__first_name",
-        "user__last_name",
+        "prenom",
+        "nom",
+        "email",
         "user__username",
-        "user__email",
     )
     autocomplete_fields = ("user", "photo")
     readonly_fields = ("date_creation", "date_modification")

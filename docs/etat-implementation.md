@@ -56,7 +56,10 @@ apparaissent jamais.
 rapides), **modération** (valider/refuser projets et événements, fixer la
 visibilité), **devis** (→ transformation en facture), **factures** (brouillon →
 validation numérotée → PDF ; **aperçu** brouillon ; **avoir**), **reçus
-fiscaux** (Cerfa, aperçu avant émission), **GED** (arbre de dossiers, dépôt,
+fiscaux** (Cerfa, aperçu avant émission), **adhésions** (par saison + statut +
+montants ; personne choisie ou **créée à la volée**, avec ou sans compte),
+**membres** (fiches ; création avec accès en ligne optionnel ; **ouverture
+d'accès** a posteriori), **GED** (arbre de dossiers, dépôt,
 versionnement), **budget** (mouvements + bilan par catégorie + export Excel),
 **gouvernance** (réunions/AG : quorum, ordre du jour, présences avec
 préremplissage des droits de vote, pouvoirs, résolutions avec résultat),
@@ -77,6 +80,10 @@ orchestrent et rendent le retour utilisateur). Points d'entrée notables :
 - `apps/facturation/services.py` : `valider_facture` (numéro légal),
   `creer_avoir`, `transformer_en_facture`, `numeroter_devis`, rendus PDF.
 - `apps/budget/services.py` : `emettre_recu`, `bilan_par_categorie`, PDF Cerfa.
+- `apps/coeur/services.py` : `creer_membre` (fiche seule, sans compte),
+  `ouvrir_compte` (crée l'`Utilisateur` + lien d'activation), `synchroniser_compte`
+  (recopie l'identité vers le compte sans toucher l'identifiant), `creer_compte_membre`
+  (raccourci fiche + accès).
 - `apps/documents/services.py` : `remplacer_document` (versionnement) ;
   `creer_dossier_membre`, `televerser_fichier_membre`, `modifier_dossier_membre`,
   `supprimer_dossier_membre`, `supprimer_document_membre` (espace « Mes fichiers »).
@@ -125,6 +132,17 @@ Les devis sont numérotés plus souplement (préfixe `D`, sans criticité légal
 `brouillon → proposé → publié / refusé` (mixin `apps.common.models.Moderation`),
 réutilisé pour spectacles et événements. Le membre propose ; le bureau
 valide/refuse (avec motif). Transitions gardées dans le service.
+
+### Membre = personne, compte optionnel
+`coeur.Membre` porte l'**identité** (`prenom`, `nom`, `email`) et le compte de
+connexion (`user`, `OneToOne` nullable, `SET_NULL`) est **facultatif** : un
+**adhérent peut exister sans accès en ligne**. `Membre.__str__` = `nom_complet`
+puis e-mail puis identifiant du compte (jamais d'erreur si `user` est nul) ;
+`a_un_compte` = présence d'un compte. Le tri et la recherche se font sur
+`nom`/`prenom` (plus sur `user__…`). Le droit de vote en AG est indexé par
+`membre_id`, donc un adhérent sans compte **vote quand même**. Limite assumée :
+`synchroniser_compte` ne re-synchronise pas l'identifiant de connexion
+(`username`) quand l'e-mail change (la connexion reste stable).
 
 ### Configuration paramétrable (jamais en dur)
 Singletons éditables en admin : `coeur.ParametresAssociation` (identité légale

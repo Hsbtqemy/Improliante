@@ -40,6 +40,80 @@ def membres_en_vedette(nombre: int = NB_VEDETTE) -> list[Membre]:
     return vedette
 
 
+class OuvertureCompteImpossible(Exception):
+    """Ouverture d'un accès en ligne impossible : le membre a déjà un compte,
+    n'a pas d'e-mail, ou l'e-mail est déjà pris comme identifiant de connexion."""
+
+
+@transaction.atomic
+def creer_membre(
+    *,
+    prenom: str,
+    nom: str,
+    email: str = "",
+    role_public: str = "",
+    telephone: str = "",
+) -> Membre:
+    """Crée une fiche `Membre` (personne) SANS compte de connexion.
+
+    L'identité (prénom, nom, e-mail) vit sur la fiche. Le compte — l'accès en
+    ligne — est facultatif et s'ajoute ensuite via `ouvrir_compte`."""
+    return Membre.objects.create(
+        prenom=prenom,
+        nom=nom,
+        email=email,
+        role_public=role_public,
+        telephone=telephone,
+    )
+
+
+@transaction.atomic
+def ouvrir_compte(membre: Membre) -> tuple[str, str]:
+    """Ouvre un accès en ligne pour un membre existant.
+
+    Crée l'`Utilisateur` (identifiant = e-mail, mot de passe INUTILISABLE),
+    recopie l'identité de la fiche vers le compte, le rattache au membre, et
+    renvoie `(uidb64, token)` pour le lien d'activation (le membre définit son
+    mot de passe lui-même). Lève `OuvertureCompteImpossible` si le membre a déjà
+    un compte, n'a pas d'e-mail, ou si l'e-mail est déjà pris comme identifiant."""
+    if membre.a_un_compte:
+        raise OuvertureCompteImpossible("Ce membre a déjà un compte de connexion.")
+    email = (membre.email or "").strip()
+    if not email:
+        raise OuvertureCompteImpossible(
+            "Un e-mail est nécessaire pour ouvrir un accès (il sert d'identifiant)."
+        )
+    if Utilisateur.objects.filter(username=email).exists():
+        raise OuvertureCompteImpossible(
+            "Cet e-mail est déjà utilisé comme identifiant de connexion."
+        )
+    user = Utilisateur(
+        username=email,
+        email=email,
+        first_name=membre.prenom,
+        last_name=membre.nom,
+    )
+    user.set_unusable_password()
+    user.save()
+    membre.user = user
+    membre.save(update_fields=["user", "date_modification"])
+    return jeton_activation(user)
+
+
+def synchroniser_compte(membre: Membre) -> None:
+    """Recopie l'identité de la fiche vers le compte lié, s'il existe.
+
+    L'identifiant de connexion (`username`) n'est **pas** modifié : il reste
+    stable même si l'e-mail de la fiche change (on ne casse pas la connexion)."""
+    if not membre.a_un_compte:
+        return
+    user = membre.user
+    user.first_name = membre.prenom
+    user.last_name = membre.nom
+    user.email = membre.email
+    user.save(update_fields=["first_name", "last_name", "email"])
+
+
 @transaction.atomic
 def creer_compte_membre(
     *,
@@ -49,21 +123,20 @@ def creer_compte_membre(
     role_public: str = "",
     telephone: str = "",
 ) -> Membre:
-    """Crée l'utilisateur (mot de passe inutilisable) et sa fiche membre.
+    """Raccourci : crée la fiche ET ouvre l'accès en ligne dans la foulée.
 
-    L'identifiant de connexion est l'e-mail. Le compte est actif mais ne peut
-    pas encore servir à se connecter tant que le membre n'a pas défini son mot
-    de passe via le lien d'activation. L'unicité de l'e-mail doit être vérifiée
-    en amont (formulaire)."""
-    user = Utilisateur(
-        username=email,
+    Conservé pour les appels historiques ; équivaut à `creer_membre` suivi de
+    `ouvrir_compte`. Le lien d'activation se récupère via `jeton_activation`.
+    L'unicité de l'e-mail doit être vérifiée en amont (formulaire)."""
+    membre = creer_membre(
+        prenom=first_name,
+        nom=last_name,
         email=email,
-        first_name=first_name,
-        last_name=last_name,
+        role_public=role_public,
+        telephone=telephone,
     )
-    user.set_unusable_password()
-    user.save()
-    return Membre.objects.create(user=user, role_public=role_public, telephone=telephone)
+    ouvrir_compte(membre)
+    return membre
 
 
 def jeton_activation(user: Utilisateur) -> tuple[str, str]:
