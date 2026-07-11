@@ -7,6 +7,7 @@ from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
 from apps.coeur.models import LienReseau, Membre
+from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
 from apps.gouvernance.models import Presence
@@ -14,83 +15,6 @@ from apps.spectacles.models import Spectacle
 
 # Format des <input type="datetime-local"> (sans fuseau ni secondes).
 _FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
-
-# Taille maximale d'une image téléversée (5 Mio). Le type « réel » est validé
-# par `ImageField` (Pillow décode le fichier) ; on borne ici le poids.
-TAILLE_MAX_IMAGE = 5 * 1024 * 1024
-
-
-class ImagesFicheFormMixin(forms.Form):
-    """Champs et validations communs pour gérer l'affiche + la galerie d'une
-    fiche (projet ou événement).
-
-    Les images ne sont pas des champs du modèle : elles créent des `Media`
-    (avec `alt` OBLIGATOIRE, accessibilité) traités par la vue via le service
-    du domaine. L'affiche peut être remplacée ou retirée ; on n'ajoute qu'une
-    image de galerie à la fois (une par soumission), ce qui garantit un `alt`
-    par image. La suppression d'images existantes se fait par cases à cocher
-    lues directement dans la vue (liste dynamique), bornées à la fiche éditée.
-    """
-
-    affiche_fichier = forms.ImageField(
-        label="Affiche (image principale)",
-        required=False,
-        help_text="Image mise en avant sur la fiche publique (JPG/PNG).",
-    )
-    affiche_alt = forms.CharField(
-        label="Texte alternatif de l'affiche",
-        required=False,
-        max_length=255,
-        help_text="Décrit l'affiche pour les lecteurs d'écran (obligatoire si vous ajoutez une affiche).",
-    )
-    retirer_affiche = forms.BooleanField(label="Retirer l'affiche actuelle", required=False)
-
-    galerie_fichier = forms.ImageField(
-        label="Ajouter une image à la galerie",
-        required=False,
-    )
-    galerie_alt = forms.CharField(
-        label="Texte alternatif de cette image",
-        required=False,
-        max_length=255,
-        help_text="Obligatoire si vous ajoutez une image.",
-    )
-
-    def champs_descriptifs(self):
-        """Champs textuels du modèle, pour un rendu séparé des champs image."""
-        return [self[nom] for nom in self.Meta.fields]
-
-    def champ_affiche(self):
-        """Champs de saisie de l'affiche (fichier + alt) pour le template."""
-        return [self["affiche_fichier"], self["affiche_alt"]]
-
-    def champ_galerie(self):
-        """Champs d'ajout d'une image de galerie (fichier + alt)."""
-        return [self["galerie_fichier"], self["galerie_alt"]]
-
-    @staticmethod
-    def _valider_taille(fichier) -> None:
-        if fichier and fichier.size > TAILLE_MAX_IMAGE:
-            raise forms.ValidationError("Image trop volumineuse (5 Mio maximum).")
-
-    def clean_affiche_fichier(self):
-        fichier = self.cleaned_data.get("affiche_fichier")
-        self._valider_taille(fichier)
-        return fichier
-
-    def clean_galerie_fichier(self):
-        fichier = self.cleaned_data.get("galerie_fichier")
-        self._valider_taille(fichier)
-        return fichier
-
-    def clean(self):
-        """`alt` obligatoire dès qu'une image est fournie (accessibilité)."""
-        cleaned = super().clean()
-        if cleaned.get("affiche_fichier") and not (cleaned.get("affiche_alt") or "").strip():
-            self.add_error("affiche_alt", "Le texte alternatif de l'affiche est obligatoire.")
-        if cleaned.get("galerie_fichier") and not (cleaned.get("galerie_alt") or "").strip():
-            self.add_error("galerie_alt", "Le texte alternatif de l'image est obligatoire.")
-        return cleaned
 
 
 class ProjetMembreForm(ImagesFicheFormMixin, forms.ModelForm):

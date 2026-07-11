@@ -28,6 +28,14 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
     </section>
 
     <section class="nav-espace__groupe">
+      <h2 class="nav-espace__titre">Programmation</h2>
+      <ul class="nav-espace__liste">
+        <li><a href="{% url 'backoffice:liste_evenements' %}" {% if vn == 'backoffice:liste_evenements' or vn == 'backoffice:creer_evenement' or vn == 'backoffice:editer_evenement' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Événements</span></a></li>
+        <li><a href="{% url 'backoffice:liste_projets' %}" {% if vn == 'backoffice:liste_projets' or vn == 'backoffice:creer_projet' or vn == 'backoffice:editer_projet' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Projets</span></a></li>
+      </ul>
+    </section>
+
+    <section class="nav-espace__groupe">
       <h2 class="nav-espace__titre">Finances</h2>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:liste_devis' %}" {% if vn == 'backoffice:liste_devis' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg><span>Devis</span></a></li>

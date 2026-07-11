@@ -1,0 +1,50 @@
+{% comment %}
+Affiche + galerie d'une fiche (projet ou événement). Attend `fiche` (ou None) et
+`form` (sous-classe de `ImagesFicheFormMixin`). Le retrait des images se fait par
+les cases `name="supprimer_image"` (lues par `appliquer_images`).
+{% endcomment %}
+<fieldset class="formulaire__images">
+  <legend>Images</legend>
+
+  <h3>Affiche</h3>
+  {% if fiche and fiche.affiche and fiche.affiche.fichier %}
+    <figure class="apercu-image">
+      <img src="{{ fiche.affiche.fichier.url }}" alt="{{ fiche.affiche.alt }}" width="160" />
+    </figure>
+    <p class="champ champ--case">
+      <label>{{ form.retirer_affiche }} {{ form.retirer_affiche.label }}</label>
+    </p>
+  {% endif %}
+  {% for champ in form.champ_affiche %}
+    <p class="champ">
+      <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+      {{ champ }}
+      {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+      {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+    </p>
+  {% endfor %}
+
+  <h3>Galerie</h3>
+  {% if fiche and fiche.images.all %}
+    <ul class="galerie-edition">
+      {% for image in fiche.images.all %}
+        <li class="galerie-edition__item">
+          <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120" />
+          <label class="champ--case">
+            <input type="checkbox" name="supprimer_image" value="{{ image.pk }}" /> Retirer
+          </label>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="champ__aide">Aucune image dans la galerie pour l'instant.</p>
+  {% endif %}
+  {% for champ in form.champ_galerie %}
+    <p class="champ">
+      <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+      {{ champ }}
+      {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+      {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+    </p>
+  {% endfor %}
+</fieldset>

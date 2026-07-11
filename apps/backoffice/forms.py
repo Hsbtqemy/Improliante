@@ -6,10 +6,16 @@ from decimal import Decimal
 
 from django import forms
 
+from apps.agenda.models import Evenement, Intervention
 from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
+from apps.common.fiches import ImagesFicheFormMixin
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
+from apps.spectacles.models import LigneDistribution, Spectacle
+
+# Format des <input type="datetime-local"> (sans fuseau ni secondes).
+_FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
 
 
 def _restreindre_signataires_actifs(form):
@@ -364,3 +370,87 @@ class AdhesionForm(forms.ModelForm):
         if montant is not None and montant < 0:
             raise forms.ValidationError("Le montant ne peut pas être négatif.")
         return montant
+
+
+# --- Programmation : événements & projets (gestion directe par le bureau) ----
+
+
+class EvenementBureauForm(ImagesFicheFormMixin, forms.ModelForm):
+    """Création / édition d'un événement par le bureau.
+
+    Superset du formulaire membre : expose en plus `visibilite`, le `lieu` (fiche)
+    et un `spectacle` non restreint aux projets d'un membre. Le statut de
+    modération est piloté par les boutons de la vue (« Publier » / « brouillon »)."""
+
+    class Meta:
+        model = Evenement
+        fields = [
+            "titre",
+            "description",
+            "date_debut",
+            "date_fin",
+            "lieu",
+            "lieu_texte",
+            "visibilite",
+            "spectacle",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "date_debut": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+            "date_fin": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for champ in ("date_debut", "date_fin"):
+            self.fields[champ].input_formats = _FORMATS_DATETIME_LOCAL
+        self.fields["spectacle"].required = False
+        self.fields["lieu"].required = False
+
+
+class ProjetBureauForm(ImagesFicheFormMixin, forms.ModelForm):
+    """Création / édition d'un projet/spectacle par le bureau.
+
+    Superset du formulaire membre : `type_portage` complet (dont « association »)
+    et `porteurs`. La mise en scène se saisit comme une ligne de distribution
+    (rôle libre), pas comme un champ dédié. Statut de modération piloté par la vue."""
+
+    class Meta:
+        model = Spectacle
+        fields = [
+            "titre",
+            "synopsis",
+            "note_intention",
+            "type_portage",
+            "statut_projet",
+            "genre",
+            "public_vise",
+            "duree_minutes",
+            "porteurs",
+        ]
+        widgets = {
+            "synopsis": forms.Textarea(attrs={"rows": 4}),
+            "note_intention": forms.Textarea(attrs={"rows": 4}),
+            # Cases à cocher plutôt que le <select multiple> par défaut : ajout /
+            # retrait évidents, accessible et confortable sur mobile.
+            "porteurs": forms.CheckboxSelectMultiple,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["porteurs"].required = False
+
+
+# Intervenants d'un événement (membre + rôle) et distribution d'un projet
+# (membre OU nom externe + rôle) — édités via formsets inline, comme les lignes
+# de facture. La validation modèle (unicité / « membre XOR nom_externe ») remonte.
+InterventionFormSet = forms.inlineformset_factory(
+    Evenement, Intervention, fields=["membre", "role"], extra=1, can_delete=True
+)
+LigneDistributionFormSet = forms.inlineformset_factory(
+    Spectacle, LigneDistribution, fields=["membre", "nom_externe", "role"], extra=1, can_delete=True
+)

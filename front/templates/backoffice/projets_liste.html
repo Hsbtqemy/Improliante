@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Projets — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Programmation</span>
+    <h1>Projets & spectacles</h1>
+    <p class="page-tete__sous">Créez et modifiez directement les projets de la compagnie (tous statuts).</p>
+  </header>
+
+  <p><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_projet' %}">+ Nouveau projet</a></p>
+
+  <form method="get" class="filtres" role="search">
+    <p class="champ">
+      <label for="f-statut">Modération</label>
+      <select id="f-statut" name="statut_moderation" onchange="this.form.submit()">
+        <option value="">Tous</option>
+        {% for v, lib in statuts %}<option value="{{ v }}" {% if v == statut_courant %}selected{% endif %}>{{ lib }}</option>{% endfor %}
+      </select>
+    </p>
+    <p class="champ">
+      <label for="f-proj">Statut projet</label>
+      <select id="f-proj" name="statut_projet" onchange="this.form.submit()">
+        <option value="">Tous</option>
+        {% for v, lib in statuts_projet %}<option value="{{ v }}" {% if v == statut_projet_courant %}selected{% endif %}>{{ lib }}</option>{% endfor %}
+      </select>
+    </p>
+    <p class="champ">
+      <label for="f-port">Portage</label>
+      <select id="f-port" name="type_portage" onchange="this.form.submit()">
+        <option value="">Tous</option>
+        {% for v, lib in portages %}<option value="{{ v }}" {% if v == portage_courant %}selected{% endif %}>{{ lib }}</option>{% endfor %}
+      </select>
+    </p>
+    <noscript><button type="submit" class="lien-bouton">Filtrer</button></noscript>
+  </form>
+
+  {% if projets %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
+          <tr>
+            {% include "backoffice/_th_tri.html" with cle="titre" libelle="Titre" %}
+            <th scope="col">Portage</th>
+            <th scope="col">Statut projet</th>
+            <th scope="col">Modération</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in projets %}
+            <tr>
+              <td><a href="{% url 'backoffice:editer_projet' p.pk %}">{{ p.titre }}</a></td>
+              <td>{{ p.get_type_portage_display }}</td>
+              <td>{{ p.get_statut_projet_display }}</td>
+              <td><span class="badge badge--{{ p.statut_moderation }}">{{ p.get_statut_moderation_display }}</span></td>
+              <td>
+                <a href="{% url 'backoffice:editer_projet' p.pk %}">Modifier</a>
+                <form method="post" action="{% url 'backoffice:supprimer_projet' p.pk %}" style="display: inline" onsubmit="return confirm('Supprimer ce projet ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="bouton-texte">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "backoffice/_pagination.html" %}
+  {% else %}
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-etoile"></use></svg></div>
+      <p class="etat-vide__titre">Aucun projet</p>
+      <p>Créez un premier projet/spectacle.</p>
+      <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_projet' %}">Nouveau projet</a></p>
+    </div>
+  {% endif %}
+{% endblock %}

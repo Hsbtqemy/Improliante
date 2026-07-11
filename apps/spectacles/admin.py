@@ -27,7 +27,6 @@ class SpectacleAdmin(admin.ModelAdmin):
     search_fields = ("titre", "synopsis")
     autocomplete_fields = (
         "porteurs",
-        "metteur_en_scene",
         "affiche",
         "cree_par",
         "valide_par",

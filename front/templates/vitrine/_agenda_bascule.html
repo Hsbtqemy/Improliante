@@ -1,11 +1,12 @@
 {% comment %}Bascule liste / calendrier + export iCal (attend `vue`).{% endcomment %}
-<div class="agenda-bascule">
-  <span id="label-affichage">Affichage :</span>
-  <a href="?vue=liste"
-     {% if vue == "liste" %}aria-current="true"{% endif %}
-     aria-describedby="label-affichage">Liste</a>
-  <a href="?vue=calendrier"
-     {% if vue == "calendrier" %}aria-current="true"{% endif %}
-     aria-describedby="label-affichage">Calendrier</a>
-  <a class="agenda-ical" href="{% url 'vitrine:agenda_ical' %}">Exporter (.ics)</a>
+<div class="agenda-barre">
+  <div class="agenda-bascule" role="group" aria-label="Affichage de l'agenda">
+    <a href="?vue=liste" class="agenda-bascule__opt" {% if vue == "liste" %}aria-current="true"{% endif %}>
+      <svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg> Liste
+    </a>
+    <a href="?vue=calendrier" class="agenda-bascule__opt" {% if vue == "calendrier" %}aria-current="true"{% endif %}>
+      <svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg> Calendrier
+    </a>
+  </div>
+  <a class="lien-bouton lien-bouton--discret agenda-ical" href="{% url 'vitrine:agenda_ical' %}">Exporter (.ics)</a>
 </div>

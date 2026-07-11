@@ -58,7 +58,12 @@ l'écriture Association est gardée par `est_bureau` (POST non-bureau → 404).
 3ᵉ app métier (sans modèle propre), **interface sur-mesure** (templates sur
 `base.html`, pas l'admin Django) : **tableau de bord** (compteurs + accès
 rapides), **modération** (valider/refuser projets et événements, fixer la
-visibilité), **devis** (→ transformation en facture), **factures** (brouillon →
+visibilité), **programmation** (gestion directe des **événements** et **projets** :
+liste, création avec **publication immédiate** possible, édition de n'importe
+quelle fiche même publiée, intervenants/distribution via formsets, porteurs en
+cases à cocher, suppression — complète la modération ; la **mise en scène** n'a pas
+de champ dédié : c'est une **ligne de distribution** au rôle libre « Mise en scène »),
+**devis** (→ transformation en facture), **factures** (brouillon →
 validation numérotée → PDF ; **aperçu** brouillon ; **avoir**), **reçus
 fiscaux** (Cerfa, aperçu avant émission), **adhésions** (par saison + statut +
 montants ; personne choisie ou **créée à la volée**, avec ou sans compte),
@@ -82,7 +87,10 @@ filtrables et paginées.
 ### Couche services
 La logique métier vit dans un `services.py`, **pas dans les vues** (qui
 orchestrent et rendent le retour utilisateur). Points d'entrée notables :
-- `apps/common/moderation.py` : `soumettre_a_moderation`, `valider`, `refuser`.
+- `apps/common/moderation.py` : `soumettre_a_moderation`, `valider`, `refuser` ;
+  `publier` (publication directe par le bureau, depuis n'importe quel état).
+- `apps/common/fiches.py` : `ImagesFicheFormMixin` + `appliquer_images` — briques
+  affiche/galerie mutualisées entre l'espace membre et le back-office (programmation).
 - `apps/facturation/services.py` : `valider_facture` (numéro légal),
   `creer_avoir`, `transformer_en_facture`, `numeroter_devis`, rendus PDF.
 - `apps/budget/services.py` : `emettre_recu`, `bilan_par_categorie`, PDF Cerfa.

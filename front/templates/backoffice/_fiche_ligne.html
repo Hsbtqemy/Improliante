@@ -1,0 +1,24 @@
+{% comment %}
+Une ligne de formset inline (un intervenant / une ligne de distribution).
+`ligne` = un form du formset (ou `empty_form` pour le gabarit JS). La case DELETE
+est rendue à part : sans JS, c'est une case « Retirer » cochable (suppression à
+l'enregistrement) ; avec JS, elle est masquée au profit d'un bouton « × » qui la
+coche et masque la ligne (voir front/static/js/formset.js).
+{% endcomment %}
+<li class="fiche-ligne">
+  {% for hidden in ligne.hidden_fields %}{{ hidden }}{% endfor %}
+  {% for field in ligne.visible_fields %}
+    {% if field.name == "DELETE" %}
+      <span class="fiche-ligne__suppr" data-formset-delete>
+        <label>{{ field }} Retirer</label>
+      </span>
+    {% else %}
+      <span class="fiche-ligne__champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </span>
+    {% endif %}
+  {% endfor %}
+  {% for erreur in ligne.non_field_errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+</li>

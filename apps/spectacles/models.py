@@ -51,20 +51,10 @@ class Spectacle(Horodatage, Moderation):
         default=StatutProjet.EN_CREATION,
     )
 
-    metteur_en_scene = models.ForeignKey(
-        "coeur.Membre",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="mises_en_scene",
-        verbose_name="metteur·euse en scène (membre)",
-    )
-    metteur_en_scene_externe = models.CharField(
-        "metteur·euse en scène (externe)",
-        max_length=200,
-        blank=True,
-        help_text="Si la mise en scène n'est pas assurée par un membre.",
-    )
+    # La mise en scène n'est pas un champ dédié : c'est une ligne de distribution
+    # comme une autre (membre OU nom externe + rôle « Mise en scène » en texte
+    # libre). Voir LigneDistribution ci-dessous — plus souple (co-mise en scène,
+    # dramaturgie, chorégraphie…) et sans doublon avec la distribution.
 
     affiche = models.ForeignKey(
         "medias.Media",

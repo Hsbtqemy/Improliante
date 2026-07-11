@@ -11,7 +11,7 @@ from django.utils import timezone
 from apps.agenda.models import Evenement
 from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.medias.models import Media
-from apps.spectacles.models import ImageSpectacle, Spectacle
+from apps.spectacles.models import ImageSpectacle, LigneDistribution, Spectacle
 from apps.vitrine.models import MessageContact
 from apps.vitrine.views import handle_bluesky
 
@@ -183,8 +183,8 @@ def test_membre_detail_liste_ses_projets(client, db):
 
 
 def test_membre_detail_separe_spectacles_et_collaborations(client, db):
-    """Un spectacle porté va dans « Spectacles » ; une mise en scène / distribution
-    sans être porteur va dans « Collaborations »."""
+    """Un spectacle porté va dans « Spectacles » ; une simple ligne de distribution
+    (ex. mise en scène) sans être porteur va dans « Collaborations »."""
     membre = _membre("Artiste", visible=True)
     porte = Spectacle.objects.create(
         titre="SpectaclePorte", statut_moderation=Spectacle.StatutModeration.PUBLIE
@@ -193,8 +193,8 @@ def test_membre_detail_separe_spectacles_et_collaborations(client, db):
     collab = Spectacle.objects.create(
         titre="SpectacleCollab",
         statut_moderation=Spectacle.StatutModeration.PUBLIE,
-        metteur_en_scene=membre,
     )
+    LigneDistribution.objects.create(spectacle=collab, membre=membre, role="Mise en scène")
 
     reponse = client.get(f"/membres/{membre.pk}/")
     corps = reponse.content.decode()

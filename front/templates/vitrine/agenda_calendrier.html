@@ -3,47 +3,62 @@
 {% block title %}Agenda — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Agenda</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">L'Improliante</span>
+    <h1>Agenda</h1>
+    <p class="page-tete__sous">Les prochaines dates de la compagnie.</p>
+  </header>
   {% include "vitrine/_agenda_bascule.html" %}
 
   <nav class="calendrier-nav" aria-label="Navigation par mois">
-    <a href="?vue=calendrier&amp;annee={{ mois_precedent.year }}&amp;mois={{ mois_precedent.month }}">
-      ← Mois précédent
-    </a>
-    <strong>{{ premier_du_mois|date:"F Y" }}</strong>
-    <a href="?vue=calendrier&amp;annee={{ mois_suivant.year }}&amp;mois={{ mois_suivant.month }}">
-      Mois suivant →
-    </a>
+    <a class="lien-bouton lien-bouton--discret" href="?vue=calendrier&amp;annee={{ mois_precedent.year }}&amp;mois={{ mois_precedent.month }}">← Mois précédent</a>
+    <strong class="calendrier-nav__mois">{{ premier_du_mois|date:"F Y" }}</strong>
+    <a class="lien-bouton lien-bouton--discret" href="?vue=calendrier&amp;annee={{ mois_suivant.year }}&amp;mois={{ mois_suivant.month }}">Mois suivant →</a>
   </nav>
 
-  <table class="calendrier">
-    <caption class="sr-only">Calendrier de {{ premier_du_mois|date:"F Y" }}</caption>
-    <thead>
-      <tr>
-        {% for jour in jours_semaine %}<th scope="col">{{ jour }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for semaine in grille %}
+  <div class="tableau-wrap">
+    <table class="calendrier">
+      <caption class="sr-only">Calendrier de {{ premier_du_mois|date:"F Y" }}</caption>
+      <thead>
         <tr>
-          {% for jour in semaine %}
-            <td class="{% if not jour.dans_le_mois %}hors-mois{% endif %}">
-              <span class="calendrier-jour">{{ jour.date.day }}</span>
-              {% if jour.evenements %}
-                <ul>
-                  {% for evenement in jour.evenements %}
-                    <li>
-                      <a href="{% if evenement.spectacle_id %}{% url 'vitrine:spectacle' evenement.spectacle.pk %}{% else %}{% url 'vitrine:agenda' %}{% endif %}">
-                        {{ evenement.date_debut|date:"H:i" }} {{ evenement.titre }}
-                      </a>
-                    </li>
-                  {% endfor %}
-                </ul>
-              {% endif %}
-            </td>
-          {% endfor %}
+          {% for jour in jours_semaine %}<th scope="col">{{ jour }}</th>{% endfor %}
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for semaine in grille %}
+          <tr>
+            {% for jour in semaine %}
+              <td class="{% if not jour.dans_le_mois %}hors-mois {% endif %}{% if jour.date.weekday >= 5 %}weekend {% endif %}{% if jour.date == aujourdhui %}est-aujourdhui {% endif %}{% if jour.evenements %}a-evenements{% endif %}">
+                <span class="calendrier-jour"{% if jour.date == aujourdhui %} aria-label="Aujourd'hui"{% endif %}>{{ jour.date.day }}</span>
+                {% if jour.evenements %}
+                  <ul class="calendrier-evts">
+                    {% for e in jour.evenements %}
+                      {% if forloop.counter <= 3 %}
+                        <li>
+                          <a class="calendrier-carte{% if e.affiche and e.affiche.fichier %} calendrier-carte--img{% endif %}"
+                             href="{% if e.spectacle_id %}{% url 'vitrine:spectacle' e.spectacle.pk %}{% else %}{% url 'vitrine:agenda' %}{% endif %}"
+                             title="{{ e.date_debut|date:'G\hi' }} — {{ e.titre }}{% if e.lieu_texte or e.lieu_id %} · {{ e.lieu_texte|default:e.lieu.nom }}{% endif %}">
+                            {% if e.affiche and e.affiche.fichier %}
+                              <img class="calendrier-carte__img" src="{{ e.affiche.fichier.url }}" alt="" loading="lazy" />
+                            {% endif %}
+                            <span class="calendrier-carte__txt">
+                              <span class="calendrier-carte__h">{{ e.date_debut|date:"G\hi" }}</span>
+                              <span class="calendrier-carte__titre">{{ e.titre }}</span>
+                            </span>
+                          </a>
+                        </li>
+                      {% endif %}
+                    {% endfor %}
+                    {% if jour.evenements|length > 3 %}
+                      <li class="calendrier-plus">+{{ jour.evenements|length|add:"-3" }} autre{{ jour.evenements|length|add:"-3"|pluralize }}</li>
+                    {% endif %}
+                  </ul>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endblock %}

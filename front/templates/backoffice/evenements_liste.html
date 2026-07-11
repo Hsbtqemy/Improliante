@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Événements — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Programmation</span>
+    <h1>Événements</h1>
+    <p class="page-tete__sous">Créez et modifiez directement les événements de l'agenda (tous statuts).</p>
+  </header>
+
+  <p><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_evenement' %}">+ Nouvel événement</a></p>
+
+  <form method="get" class="filtres" role="search">
+    <p class="champ">
+      <label for="f-statut">Statut</label>
+      <select id="f-statut" name="statut_moderation" onchange="this.form.submit()">
+        <option value="">Tous les statuts</option>
+        {% for v, lib in statuts %}<option value="{{ v }}" {% if v == statut_courant %}selected{% endif %}>{{ lib }}</option>{% endfor %}
+      </select>
+    </p>
+    <p class="champ">
+      <label for="f-vis">Visibilité</label>
+      <select id="f-vis" name="visibilite" onchange="this.form.submit()">
+        <option value="">Toutes</option>
+        {% for v, lib in visibilites %}<option value="{{ v }}" {% if v == visibilite_courant %}selected{% endif %}>{{ lib }}</option>{% endfor %}
+      </select>
+    </p>
+    <noscript><button type="submit" class="lien-bouton">Filtrer</button></noscript>
+  </form>
+
+  {% if evenements %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
+          <tr>
+            {% include "backoffice/_th_tri.html" with cle="titre" libelle="Titre" %}
+            {% include "backoffice/_th_tri.html" with cle="date" libelle="Date" %}
+            <th scope="col">Visibilité</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in evenements %}
+            <tr>
+              <td><a href="{% url 'backoffice:editer_evenement' e.pk %}">{{ e.titre }}</a></td>
+              <td>{{ e.date_debut|date:"j M Y, H:i" }}</td>
+              <td>{{ e.get_visibilite_display }}</td>
+              <td><span class="badge badge--{{ e.statut_moderation }}">{{ e.get_statut_moderation_display }}</span></td>
+              <td>
+                <a href="{% url 'backoffice:editer_evenement' e.pk %}">Modifier</a>
+                <form method="post" action="{% url 'backoffice:supprimer_evenement' e.pk %}" style="display: inline" onsubmit="return confirm('Supprimer cet événement ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="bouton-texte">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "backoffice/_pagination.html" %}
+  {% else %}
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-calendrier"></use></svg></div>
+      <p class="etat-vide__titre">Aucun événement</p>
+      <p>Créez un premier événement pour l'agenda.</p>
+      <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_evenement' %}">Nouvel événement</a></p>
+    </div>
+  {% endif %}
+{% endblock %}

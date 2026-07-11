@@ -9,7 +9,7 @@ from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
-from apps.agenda.models import Evenement
+from apps.agenda.models import Evenement, Intervention
 from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Signataire, Utilisateur
@@ -18,7 +18,7 @@ from apps.common.models import Moderation
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
-from apps.spectacles.models import Spectacle
+from apps.spectacles.models import LigneDistribution, Spectacle
 
 Statut = Moderation.StatutModeration
 FILE = "/bureau/moderation/"
@@ -1511,3 +1511,218 @@ def test_adhesion_en_attente_ne_propose_pas_de_recu(client, db):
     client.force_login(_staff())
     corps = client.get("/bureau/adhesions/").content.decode()
     assert "Émettre un reçu" not in corps
+
+
+# --- Programmation : gestion directe des événements & projets (bureau) ------
+
+
+def _donnees_evenement(**extra):
+    donnees = {
+        "titre": "Générale",
+        "description": "",
+        "date_debut": "2026-09-01T20:30",
+        "date_fin": "",
+        "lieu": "",
+        "lieu_texte": "Théâtre X",
+        "visibilite": Evenement.Visibilite.PUBLIC,
+        "spectacle": "",
+        "affiche_alt": "",
+        "galerie_alt": "",
+        "lignes-TOTAL_FORMS": "0",
+        "lignes-INITIAL_FORMS": "0",
+        "lignes-MIN_NUM_FORMS": "0",
+        "lignes-MAX_NUM_FORMS": "1000",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def _donnees_projet(**extra):
+    donnees = {
+        "titre": "Nouveau spectacle",
+        "synopsis": "",
+        "note_intention": "",
+        "type_portage": Spectacle.TypePortage.ASSOCIATION,
+        "statut_projet": Spectacle.StatutProjet.EN_CREATION,
+        "genre": "",
+        "public_vise": "",
+        "duree_minutes": "",
+        "affiche_alt": "",
+        "galerie_alt": "",
+        "lignes-TOTAL_FORMS": "0",
+        "lignes-INITIAL_FORMS": "0",
+        "lignes-MIN_NUM_FORMS": "0",
+        "lignes-MAX_NUM_FORMS": "1000",
+    }
+    donnees.update(extra)
+    return donnees
+
+
+def test_programmation_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/evenements/").status_code == 403
+    assert client.get("/bureau/projets/").status_code == 403
+    assert client.get("/bureau/evenements/nouveau/").status_code == 403
+
+
+def test_bureau_cree_un_evenement_publie(client, db):
+    bureau = _staff()
+    client.force_login(bureau)
+    reponse = client.post("/bureau/evenements/nouveau/", _donnees_evenement(action="publier"))
+    assert reponse.status_code == 302
+    evenement = Evenement.objects.get(titre="Générale")
+    assert evenement.statut_moderation == Evenement.StatutModeration.PUBLIE
+    assert evenement.valide_par == bureau
+    assert evenement.date_publication is not None
+    assert evenement.visibilite == Evenement.Visibilite.PUBLIC
+    assert evenement.cree_par == bureau
+
+
+def test_bureau_cree_un_evenement_en_brouillon(client, db):
+    client.force_login(_staff())
+    client.post("/bureau/evenements/nouveau/", _donnees_evenement(action="brouillon"))
+    assert Evenement.objects.get().statut_moderation == Evenement.StatutModeration.BROUILLON
+
+
+def test_bureau_edite_un_evenement_publie_sans_le_depublier(client, db):
+    evenement = Evenement.objects.create(
+        titre="Ancien titre",
+        date_debut=make_aware(datetime(2026, 9, 1, 20, 30)),
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+        visibilite=Evenement.Visibilite.PUBLIC,
+    )
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/evenements/{evenement.pk}/",
+        _donnees_evenement(titre="Titre corrigé", action="publier"),
+    )
+    evenement.refresh_from_db()
+    assert evenement.titre == "Titre corrigé"
+    assert evenement.statut_moderation == Evenement.StatutModeration.PUBLIE
+
+
+def test_bureau_ajoute_un_intervenant(client, db):
+    membre = _membre("alice").membre
+    client.force_login(_staff())
+    client.post(
+        "/bureau/evenements/nouveau/",
+        _donnees_evenement(
+            action="publier",
+            **{
+                "lignes-TOTAL_FORMS": "1",
+                "lignes-0-membre": str(membre.pk),
+                "lignes-0-role": "Comédienne",
+            },
+        ),
+    )
+    evenement = Evenement.objects.get()
+    assert Intervention.objects.filter(evenement=evenement, membre=membre).exists()
+
+
+def test_bureau_supprime_un_evenement(client, db):
+    evenement = _evenement_propose("À supprimer")
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/evenements/{evenement.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Evenement.objects.filter(pk=evenement.pk).exists()
+
+
+def test_liste_evenements_filtre_par_statut(client, db):
+    Evenement.objects.create(
+        titre="Zebre",
+        date_debut=make_aware(datetime(2026, 9, 1, 20, 30)),
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+        visibilite=Evenement.Visibilite.PUBLIC,
+    )
+    Evenement.objects.create(
+        titre="Alpha",
+        date_debut=make_aware(datetime(2026, 10, 1, 20, 30)),
+        statut_moderation=Evenement.StatutModeration.BROUILLON,
+        visibilite=Evenement.Visibilite.MEMBRES,
+    )
+    client.force_login(_staff())
+    corps = client.get("/bureau/evenements/?statut_moderation=publie").content.decode()
+    assert "Zebre" in corps
+    assert "Alpha" not in corps
+
+
+def test_bureau_cree_un_projet_association(client, db):
+    """Le bureau n'est pas restreint : `type_portage=association` (interdit au membre)."""
+    client.force_login(_staff())
+    client.post("/bureau/projets/nouveau/", _donnees_projet(action="publier"))
+    projet = Spectacle.objects.get()
+    assert projet.type_portage == Spectacle.TypePortage.ASSOCIATION
+    assert projet.statut_moderation == Spectacle.StatutModeration.PUBLIE
+
+
+def test_bureau_ajoute_une_ligne_de_distribution(client, db):
+    membre = _membre("alice").membre
+    client.force_login(_staff())
+    client.post(
+        "/bureau/projets/nouveau/",
+        _donnees_projet(
+            action="brouillon",
+            **{
+                "lignes-TOTAL_FORMS": "1",
+                "lignes-0-membre": str(membre.pk),
+                "lignes-0-nom_externe": "",
+                "lignes-0-role": "Mise en scène",
+            },
+        ),
+    )
+    projet = Spectacle.objects.get()
+    assert LigneDistribution.objects.filter(spectacle=projet, membre=membre).exists()
+
+
+def test_distribution_refuse_membre_et_nom_externe(client, db):
+    membre = _membre("alice").membre
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/projets/nouveau/",
+        _donnees_projet(
+            action="brouillon",
+            **{
+                "lignes-TOTAL_FORMS": "1",
+                "lignes-0-membre": str(membre.pk),
+                "lignes-0-nom_externe": "Jean Externe",
+                "lignes-0-role": "Rôle",
+            },
+        ),
+    )
+    assert reponse.status_code == 200  # formset invalide → rien créé
+    assert Spectacle.objects.count() == 0
+
+
+def test_formulaire_evenement_bureau_s_affiche(client, db):
+    client.force_login(_staff())
+    reponse = client.get("/bureau/evenements/nouveau/")
+    assert reponse.status_code == 200
+    assert "Intervenants" in reponse.content.decode()  # formset rendu
+
+
+def test_liste_projets_bureau_s_affiche(client, db):
+    _projet_propose("Mon spectacle")
+    client.force_login(_staff())
+    corps = client.get("/bureau/projets/").content.decode()
+    assert "Mon spectacle" in corps
+
+
+def test_bureau_ajoute_plusieurs_intervenants(client, db):
+    alice = _membre("alice").membre
+    bob = _membre("bob").membre
+    client.force_login(_staff())
+    client.post(
+        "/bureau/evenements/nouveau/",
+        _donnees_evenement(
+            action="publier",
+            **{
+                "lignes-TOTAL_FORMS": "2",
+                "lignes-0-membre": str(alice.pk),
+                "lignes-0-role": "Comédienne",
+                "lignes-1-membre": str(bob.pk),
+                "lignes-1-role": "Technique",
+            },
+        ),
+    )
+    evenement = Evenement.objects.get()
+    assert Intervention.objects.filter(evenement=evenement).count() == 2

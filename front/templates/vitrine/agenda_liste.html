@@ -3,27 +3,65 @@
 {% block title %}Agenda — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Agenda</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">L'Improliante</span>
+    <h1>Agenda</h1>
+    <p class="page-tete__sous">Les prochaines dates de la compagnie.</p>
+  </header>
   {% include "vitrine/_agenda_bascule.html" %}
 
-  {% if evenements %}
-    <ul class="agenda-liste">
-      {% for evenement in evenements %}
-        <li>
-          <time datetime="{{ evenement.date_debut|date:'c' }}">
-            {{ evenement.date_debut|date:"l j F Y, H:i" }}
-          </time>
-          — <strong>{{ evenement.titre }}</strong>
-          {% if evenement.lieu_texte or evenement.lieu_id %}
-            <span class="agenda-lieu">· {{ evenement.lieu_texte|default:evenement.lieu.nom }}</span>
-          {% endif %}
-          {% if evenement.spectacle_id %}
-            (<a href="{% url 'vitrine:spectacle' evenement.spectacle.pk %}">{{ evenement.spectacle.titre }}</a>)
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
+  {% if groupes %}
+    {% for groupe in groupes %}
+      <section class="agenda-mois" aria-labelledby="mois-{{ forloop.counter }}">
+        <h2 id="mois-{{ forloop.counter }}" class="agenda-mois__titre">{{ groupe.mois|date:"F Y" }}</h2>
+        <ul class="agenda-cartes">
+          {% for e in groupe.evenements %}
+            <li class="agenda-carte{% if e.spectacle_id %} agenda-carte--lien{% endif %}">
+              <div class="agenda-carte__date" aria-hidden="true">
+                <span class="agenda-carte__jsem">{{ e.date_debut|date:"D" }}</span>
+                <span class="agenda-carte__jour">{{ e.date_debut|date:"j" }}</span>
+              </div>
+              <div class="agenda-carte__corps">
+                {% if e.jour_relatif %}<span class="agenda-tag">{{ e.jour_relatif }}</span>{% endif %}
+                <h3 class="agenda-carte__titre">
+                  {% if e.spectacle_id %}
+                    <a class="agenda-carte__lien" href="{% url 'vitrine:spectacle' e.spectacle.pk %}">{{ e.titre }}</a>
+                  {% else %}{{ e.titre }}{% endif %}
+                </h3>
+                <p class="agenda-carte__meta">
+                  <span>
+                    <svg class="ico" aria-hidden="true"><use href="#ico-horloge"></use></svg>
+                    <span class="sr-only">Le </span>{{ e.date_debut|date:"l j F" }}, {{ e.date_debut|date:"G\hi" }}{% if e.date_fin %} – {{ e.date_fin|date:"G\hi" }}{% endif %}
+                  </span>
+                  {% firstof e.lieu_texte e.lieu.nom as lieu_nom %}
+                  {% if lieu_nom %}
+                    <span><svg class="ico" aria-hidden="true"><use href="#ico-lieu"></use></svg> {{ lieu_nom }}</span>
+                  {% endif %}
+                </p>
+                {% if e.spectacle_id and e.spectacle.titre != e.titre %}
+                  <p class="agenda-carte__spectacle">↳ {{ e.spectacle.titre }}</p>
+                {% endif %}
+                {% if e.description %}
+                  <p class="agenda-carte__desc">{{ e.description|truncatewords:28 }}</p>
+                {% endif %}
+              </div>
+              {% if e.affiche and e.affiche.fichier %}
+                <div class="agenda-carte__affiche">
+                  <img src="{{ e.affiche.fichier.url }}" alt="{{ e.affiche.alt }}" loading="lazy" />
+                </div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
   {% else %}
-    <p>Aucun événement à venir pour le moment.</p>
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-calendrier"></use></svg>
+      </div>
+      <p class="etat-vide__titre">Aucun événement à venir</p>
+      <p>Revenez bientôt : les prochaines dates seront annoncées ici.</p>
+    </div>
   {% endif %}
 {% endblock %}

@@ -153,8 +153,9 @@ Spectacle / Projet
 ├── statut_projet     : en création / en répétition / à l'affiche / archivé
 ├── statut_modération : brouillon / proposé / publié / refusé
 ├── créé_par / validé_par
-├── metteur_en_scène  → Membre ou texte
 ├── distribution      → LigneDistribution (membre OU nom externe, avec rôle)
+│                       la mise en scène est une ligne comme une autre
+│                       (rôle « Mise en scène ») — pas de champ dédié
 ├── affiche           → Media (alt obligatoire)
 ├── galerie           → Media (plusieurs)
 ├── durée, genre, public visé

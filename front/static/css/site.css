@@ -1184,33 +1184,188 @@ th.montant {
 }
 
 /* Agenda */
-.agenda-bascule {
+/* Barre agenda : bascule (contrôle segmenté) + export */
+.agenda-barre {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
-  margin-block: 1rem;
+  margin-block: 1.25rem;
 }
-.agenda-bascule a {
-  padding: 0.4rem 0.75rem;
+.agenda-bascule {
+  display: inline-flex;
+  padding: 0.2rem;
   border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.agenda-bascule__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
   text-decoration: none;
   color: var(--couleur-texte);
+  font-weight: 600;
+  font-size: 0.95rem;
 }
-.agenda-bascule a[aria-current="true"] {
+.agenda-bascule__opt[aria-current="true"] {
   background: var(--couleur-primaire);
   color: #fff;
-  border-color: var(--couleur-primaire);
 }
-.agenda-liste {
+.agenda-bascule__opt .ico {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Groupes par mois */
+.agenda-mois {
+  margin-top: 1.75rem;
+}
+.agenda-mois__titre {
+  font-size: 1.05rem;
+  text-transform: capitalize;
+  color: var(--couleur-primaire);
+  border-bottom: 2px solid var(--couleur-primaire-clair);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+
+/* Cartes d'événement (vue liste) */
+.agenda-cartes {
   list-style: none;
+  margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
-.agenda-liste li {
-  padding-block: 0.6rem;
-  border-bottom: 1px solid var(--bordure);
+.agenda-carte {
+  position: relative;
+  display: flex;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  box-shadow: var(--ombre);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
+.agenda-carte--lien:hover {
+  transform: translateY(-2px);
+  border-color: var(--couleur-primaire);
+  box-shadow: var(--ombre-forte);
+}
+/* Carte entière cliquable (vers le spectacle) — lien étiré */
+.agenda-carte__lien {
+  color: inherit;
+  text-decoration: none;
+}
+.agenda-carte__lien::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.agenda-carte--lien:hover .agenda-carte__titre {
+  text-decoration: underline;
+}
+/* Étiquette « Aujourd'hui / Demain » */
+.agenda-tag {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--couleur-primaire);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.agenda-carte__date {
+  flex: 0 0 3.75rem;
+  align-self: flex-start;
+  text-align: center;
+  line-height: 1.1;
+  border-radius: var(--rayon);
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+  padding: 0.4rem 0;
+}
+.agenda-carte__jsem {
+  display: block;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+.agenda-carte__jour {
+  display: block;
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+.agenda-carte__corps {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.agenda-carte__titre {
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+}
+.agenda-carte__titre a {
+  text-decoration: none;
+}
+.agenda-carte__titre a:hover {
+  text-decoration: underline;
+}
+.agenda-carte__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin: 0 0 0.35rem;
+  color: var(--couleur-muet);
+  font-size: 0.92rem;
+}
+.agenda-carte__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.agenda-carte__meta .ico {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+.agenda-carte__spectacle {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+.agenda-carte__desc {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+}
+.agenda-carte__affiche {
+  flex: 0 0 5.5rem;
+  align-self: flex-start;
+}
+.agenda-carte__affiche img {
+  display: block;
+  width: 5.5rem;
+  height: 7.5rem;
+  object-fit: cover;
+  border-radius: var(--rayon);
+}
+@media (max-width: 34rem) {
+  .agenda-carte__affiche {
+    display: none;
+  }
+}
+
+/* Calendrier */
 .calendrier-nav {
   display: flex;
   flex-wrap: wrap;
@@ -1219,35 +1374,106 @@ th.montant {
   gap: 0.5rem;
   margin-block: 1rem;
 }
+.calendrier-nav__mois {
+  text-transform: capitalize;
+  font-size: 1.1rem;
+}
 .calendrier {
   width: 100%;
-  border-collapse: collapse;
+  min-width: 34rem;
+  border-collapse: separate;
+  border-spacing: 4px;
   table-layout: fixed;
 }
-.calendrier th,
-.calendrier td {
-  border: 1px solid var(--bordure);
-  padding: 0.35rem;
-  vertical-align: top;
-  font-size: 0.9rem;
-}
-.calendrier td {
-  height: 5rem;
-}
-.calendrier .hors-mois {
-  background: #fafafa;
+.calendrier th {
+  padding: 0.3rem;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  font-weight: 700;
   color: var(--couleur-muet);
 }
-.calendrier td ul {
+.calendrier td {
+  height: 5.5rem;
+  padding: 0.3rem;
+  vertical-align: top;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+.calendrier .hors-mois {
+  background: transparent;
+  border-style: dashed;
+  color: var(--couleur-muet);
+}
+.calendrier .weekend {
+  background: var(--couleur-primaire-clair);
+}
+.calendrier .hors-mois.weekend {
+  background: transparent;
+}
+.calendrier .est-aujourdhui {
+  border-color: var(--couleur-primaire);
+  box-shadow: inset 0 0 0 1px var(--couleur-primaire);
+}
+.calendrier-jour {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.est-aujourdhui .calendrier-jour {
+  min-width: 1.4rem;
+  padding: 0 0.25rem;
+  text-align: center;
+  background: var(--couleur-primaire);
+  color: #fff;
+  border-radius: 999px;
+}
+.calendrier-evts {
   list-style: none;
   margin: 0.25rem 0 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
-.calendrier td li {
+.calendrier-carte {
+  display: block;
+  overflow: hidden;
+  border-radius: 0.3rem;
   background: var(--couleur-primaire-clair);
-  border-radius: 0.2rem;
-  padding: 0.1rem 0.25rem;
-  margin-bottom: 0.15rem;
+  color: var(--couleur-primaire);
+  font-size: 0.74rem;
+  line-height: 1.15;
+  text-decoration: none;
+}
+.calendrier-carte:hover {
+  background: var(--couleur-primaire);
+  color: #fff;
+}
+.calendrier-carte__img {
+  display: block;
+  width: 100%;
+  height: 2.75rem;
+  object-fit: cover;
+}
+.calendrier-carte__txt {
+  display: block;
+  padding: 0.12rem 0.32rem;
+}
+.calendrier-carte__h {
+  font-weight: 700;
+}
+.calendrier-carte__titre {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calendrier-plus {
+  font-size: 0.72rem;
+  color: var(--couleur-muet);
+  padding: 0.05rem 0.3rem;
 }
 
 /* Galerie */
@@ -2298,6 +2524,94 @@ summary.lien-bouton::-webkit-details-marker {
   flex-direction: column;
   gap: 0.25rem;
   align-items: flex-start;
+}
+
+/* Formset inline (intervenants d'un événement / distribution d'un projet) */
+.formulaire__formset {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-alt);
+}
+.formulaire__formset legend {
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+.fiche-lignes {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.fiche-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: end;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+.fiche-ligne[hidden] {
+  display: none;
+}
+.fiche-ligne__champ {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+/* Case « Retirer » native (visible seulement sans JS ; masquée par formset.js). */
+.fiche-ligne__suppr {
+  align-self: center;
+  margin-left: auto;
+}
+.fiche-ligne__suppr label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--couleur-muet);
+}
+/* Bouton « × » injecté par formset.js à la place de la case « Retirer ». */
+.fiche-ligne__retirer {
+  margin-left: auto;
+  align-self: center;
+  flex: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--bordure);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--couleur-muet);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.fiche-ligne__retirer:hover,
+.fiche-ligne__retirer:focus-visible {
+  border-color: var(--couleur-primaire);
+  background: var(--couleur-primaire-clair);
+  color: var(--couleur-primaire);
+}
+/* Porteurs d'un projet (back-office) : cases à cocher en grille compacte plutôt
+   qu'une longue colonne. Le <div id="id_porteurs"> est généré par le widget
+   CheckboxSelectMultiple de Django (un <div><label> par membre). */
+#id_porteurs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.15rem 1rem;
+  margin-top: 0.3rem;
+}
+#id_porteurs label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 400;
 }
 
 /* --- Galerie des membres : panneaux extensibles (accordéon) ------------- */

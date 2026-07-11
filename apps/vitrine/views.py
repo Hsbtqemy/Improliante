@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, timedelta
+from itertools import groupby
 
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -96,17 +97,42 @@ def agenda(request):
         contexte = _contexte_calendrier(request)
         template = "vitrine/agenda_calendrier.html"
     else:
-        contexte = {
-            "evenements": _evenements_publics()
-            .filter(date_debut__gte=timezone.now())
-            .order_by("date_debut")
-        }
+        contexte = {"groupes": _agenda_par_mois(request)}
         template = "vitrine/agenda_liste.html"
 
     reponse = render(request, template, {**contexte, "vue": vue})
     if choix_explicite:
         reponse.set_cookie("agenda_vue", vue, max_age=60 * 60 * 24 * 365, samesite="Lax")
     return reponse
+
+
+def _agenda_par_mois(request) -> list[dict]:
+    """Événements publics à venir, regroupés par mois (pour la vue liste).
+
+    Chaque événement reçoit un `jour_relatif` (« Aujourd'hui » / « Demain » / "")
+    pour signaler les dates imminentes."""
+    aujourdhui = timezone.localdate()
+    demain = aujourdhui + timedelta(days=1)
+    evenements = list(
+        _evenements_publics()
+        .filter(date_debut__gte=timezone.now())
+        .select_related("affiche", "spectacle", "lieu")
+        .order_by("date_debut")
+    )
+    for evenement in evenements:
+        jour = timezone.localtime(evenement.date_debut).date()
+        evenement.jour_relatif = (
+            "Aujourd'hui" if jour == aujourdhui else "Demain" if jour == demain else ""
+        )
+
+    def cle_mois(evenement):
+        local = timezone.localtime(evenement.date_debut)
+        return local.year, local.month
+
+    return [
+        {"mois": date(annee, mois, 1), "evenements": list(evs)}
+        for (annee, mois), evs in groupby(evenements, key=cle_mois)
+    ]
 
 
 def _contexte_calendrier(request) -> dict:
@@ -120,8 +146,10 @@ def _contexte_calendrier(request) -> dict:
         annee, mois = aujourdhui.year, aujourdhui.month
 
     premier, dernier = bornes_grille(annee, mois)
-    evenements = _evenements_publics().filter(
-        date_debut__date__gte=premier, date_debut__date__lte=dernier
+    evenements = (
+        _evenements_publics()
+        .filter(date_debut__date__gte=premier, date_debut__date__lte=dernier)
+        .select_related("spectacle", "affiche")
     )
     premier_du_mois = date(annee, mois, 1)
     dernier_jour = calendar.monthrange(annee, mois)[1]
@@ -131,6 +159,7 @@ def _contexte_calendrier(request) -> dict:
         "mois_precedent": premier_du_mois - timedelta(days=1),
         "mois_suivant": date(annee, mois, dernier_jour) + timedelta(days=1),
         "jours_semaine": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+        "aujourdhui": aujourdhui,
     }
 
 
@@ -196,7 +225,7 @@ def detail_membre(request, pk: int):
     publies = Spectacle.objects.filter(statut_moderation=_PUBLIE)
     spectacles_portes = publies.filter(porteurs=membre).distinct().order_by("titre")
     collaborations = (
-        publies.filter(Q(metteur_en_scene=membre) | Q(distribution__membre=membre))
+        publies.filter(distribution__membre=membre)
         .exclude(porteurs=membre)
         .distinct()
         .order_by("titre")

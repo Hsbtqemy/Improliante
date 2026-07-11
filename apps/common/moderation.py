@@ -66,6 +66,21 @@ def valider(fiche: Moderation, *, par) -> None:
     fiche.save()
 
 
+def publier(fiche: Moderation, *, par) -> None:
+    """Publie directement une fiche (action du bureau), quel que soit son état.
+
+    Contrairement à `valider` (réservé au flux « proposé → publié »), le bureau
+    peut publier une fiche qu'il crée ou édite depuis n'importe quel statut. Pose
+    les champs de publication mais **ne sauvegarde pas** : l'appelant fait le
+    `save()` (compose avec `form.save(commit=False)`). La date de publication
+    n'est posée que la première fois (une republication ne la réécrit pas)."""
+    fiche.statut_moderation = Moderation.StatutModeration.PUBLIE
+    fiche.valide_par = par
+    if fiche.date_publication is None:
+        fiche.date_publication = timezone.now()
+    fiche.motif_refus = ""
+
+
 def refuser(fiche: Moderation, *, par, motif: str) -> None:
     """Refuse une fiche `proposée` avec un motif (action du bureau).
 

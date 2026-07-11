@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if fiche %}Modifier « {{ fiche.titre }} »{% else %}Nouvel événement{% endif %} — Back-office{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:liste_evenements' %}">← Événements</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Programmation</span>
+    <h1>{% if fiche %}Modifier l'événement{% else %}Nouvel événement{% endif %}</h1>
+    {% if fiche %}
+      <p class="page-tete__sous">
+        Statut : <span class="badge badge--{{ fiche.statut_moderation }}">{{ fiche.get_statut_moderation_display }}</span>
+      </p>
+    {% endif %}
+  </header>
+
+  <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% for field in form.champs_descriptifs %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+
+    {% include "backoffice/_images_fiche.html" %}
+    {% include "backoffice/_fiche_formset.html" with titre="Intervenants" %}
+
+    <div class="formulaire__actions">
+      <button type="submit" name="action" value="publier" class="lien-bouton lien-bouton--primaire">Publier</button>
+      <button type="submit" name="action" value="brouillon" class="lien-bouton">Enregistrer en brouillon</button>
+      <a class="lien-bouton" href="{% url 'backoffice:liste_evenements' %}">Annuler</a>
+    </div>
+  </form>
+
+  {% if fiche %}
+    <section class="bloc-secondaire" aria-labelledby="t-suppr">
+      <h2 id="t-suppr">Supprimer</h2>
+      <form method="post" action="{% url 'backoffice:supprimer_evenement' fiche.pk %}" onsubmit="return confirm('Supprimer définitivement cet événement ?');">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton lien-bouton--discret">Supprimer l'événement</button>
+      </form>
+    </section>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/formset.js' %}"></script>
+{% endblock %}

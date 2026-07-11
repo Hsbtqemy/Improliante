@@ -1,0 +1,22 @@
+{% comment %}
+Formset inline (intervenants d'un événement / distribution d'un projet). Attend
+`formset` et `titre`. Chaque ligne est rendue par `_fiche_ligne.html`. Le bouton
+« + Ajouter » (JS) clone `empty_form` sans rechargement ; sans JS, une ligne vide
+reste disponible et l'ajout multiple se fait en enregistrant.
+{% endcomment %}
+<fieldset class="formulaire__formset" data-formset="{{ formset.prefix }}">
+  <legend>{{ titre }}</legend>
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}<div class="erreurs" role="alert">{{ formset.non_form_errors }}</div>{% endif %}
+  <ul class="fiche-lignes" data-formset-rows>
+    {% for ligne in formset %}
+      {% include "backoffice/_fiche_ligne.html" %}
+    {% endfor %}
+  </ul>
+  <p class="formulaire__formset-actions">
+    <button type="button" class="lien-bouton lien-bouton--discret" data-formset-add>+ Ajouter une ligne</button>
+  </p>
+  <script type="text/template" data-formset-empty>
+    {% include "backoffice/_fiche_ligne.html" with ligne=formset.empty_form %}
+  </script>
+</fieldset>

@@ -31,6 +31,7 @@ from apps.coeur.services import (
     retirer_photo_membre,
     utilisateur_depuis_uidb64,
 )
+from apps.common.fiches import appliquer_images
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
 from apps.documents import services as documents_services
@@ -184,34 +185,6 @@ def mes_projets(request):
     )
 
 
-def _appliquer_images(fiche, form, request, service):
-    """Applique à la fiche (projet ou événement) les opérations d'images.
-
-    `service` est le module du domaine (`spectacles.services` ou
-    `agenda.services`) exposant `definir_affiche`, `retirer_affiche`,
-    `ajouter_image_galerie` et `retirer_images_galerie`.
-
-    Affiche : remplacée si un fichier est fourni, sinon retirée si la case est
-    cochée. Galerie : ajout d'une image (si fournie) puis retrait des images
-    cochées. Le retrait est borné à la fiche côté service (anti-IDOR)."""
-    donnees = form.cleaned_data
-    if donnees.get("affiche_fichier"):
-        service.definir_affiche(
-            fiche, donnees["affiche_fichier"], donnees["affiche_alt"], cree_par=request.user
-        )
-    elif donnees.get("retirer_affiche"):
-        service.retirer_affiche(fiche)
-
-    if donnees.get("galerie_fichier"):
-        service.ajouter_image_galerie(
-            fiche, donnees["galerie_fichier"], donnees["galerie_alt"], cree_par=request.user
-        )
-
-    a_retirer = [i for i in request.POST.getlist("supprimer_image") if i.isdigit()]
-    if a_retirer:
-        service.retirer_images_galerie(fiche, a_retirer)
-
-
 @login_required
 def creer_projet(request):
     """Création d'un projet par un membre : enregistré en brouillon, puis
@@ -230,7 +203,7 @@ def creer_projet(request):
             projet.cree_par = request.user
             projet.save()  # pk nécessaire avant d'ajouter le M2M porteurs
             projet.porteurs.add(membre)
-            _appliquer_images(projet, form, request, spectacles_services)
+            appliquer_images(projet, form, request, spectacles_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet créé et soumis à validation du bureau.")
@@ -270,7 +243,7 @@ def editer_projet(request, pk):
         form = ProjetMembreForm(request.POST, request.FILES, instance=projet)
         if form.is_valid():
             form.save()
-            _appliquer_images(projet, form, request, spectacles_services)
+            appliquer_images(projet, form, request, spectacles_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet soumis à validation du bureau.")
@@ -320,7 +293,7 @@ def creer_evenement(request):
             evenement = form.save(commit=False)
             evenement.cree_par = request.user
             evenement.save()
-            _appliquer_images(evenement, form, request, agenda_services)
+            appliquer_images(evenement, form, request, agenda_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(evenement)
                 messages.success(request, "Événement créé et soumis à validation du bureau.")
@@ -355,7 +328,7 @@ def editer_evenement(request, pk):
         form = EvenementMembreForm(request.POST, request.FILES, instance=evenement, membre=membre)
         if form.is_valid():
             form.save()
-            _appliquer_images(evenement, form, request, agenda_services)
+            appliquer_images(evenement, form, request, agenda_services)
             if request.POST.get("action") == "soumettre":
                 soumettre_a_moderation(evenement)
                 messages.success(request, "Événement soumis à validation du bureau.")

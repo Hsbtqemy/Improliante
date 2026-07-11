@@ -21,6 +21,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
 from apps.budget.services import (
@@ -34,9 +35,11 @@ from apps.budget.services import (
 from apps.coeur import services as coeur_services
 from apps.coeur.models import Membre, ParametresAssociation, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, bureau_requis
+from apps.common.fiches import appliquer_images
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import (
     TransitionModerationInvalide,
+    publier,
     refuser,
     valider,
 )
@@ -61,6 +64,7 @@ from apps.gouvernance.services import (
     preremplir_droit_de_vote,
     resultat_resolution,
 )
+from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 
 from .forms import (
@@ -68,14 +72,18 @@ from .forms import (
     CategorieForm,
     ClientForm,
     DevisForm,
+    EvenementBureauForm,
     FactureForm,
+    InterventionFormSet,
     LigneDevisFormSet,
+    LigneDistributionFormSet,
     LigneFactureFormSet,
     MembreForm,
     MembreRapideForm,
     ParametresAssociationForm,
     PouvoirForm,
     PresenceForm,
+    ProjetBureauForm,
     RecuFiscalForm,
     ResolutionForm,
     ReunionForm,
@@ -371,6 +379,194 @@ def _appliquer_decision(request, fiche, *, libelle: str) -> None:
         messages.error(request, str(exc))
     except ValueError as exc:
         messages.error(request, str(exc))
+
+
+# --- Programmation : événements & projets (gestion directe par le bureau) ----
+# Le bureau crée directement (publication immédiate possible), édite n'importe
+# quelle fiche (tous statuts, sans filtre de propriété) et gère intervenants /
+# distribution. Complète la modération (validation/refus des propositions membres).
+
+
+def _editer_fiche_programmation(
+    request, *, fiche, form_cls, formset_cls, service, gabarit, url_edit, renumeroter=False
+):
+    """Création/édition bureau d'une fiche à modération (événement ou projet).
+
+    En-tête (form) + images (`appliquer_images`) + intervenants/distribution
+    (formset inline). Publication pilotée par le bouton : « publier » →
+    `publier(...)` ; « brouillon » → statut brouillon ; en édition sans bouton,
+    on conserve le statut courant."""
+    form = form_cls(request.POST or None, request.FILES or None, instance=fiche)
+    formset = formset_cls(request.POST or None, instance=fiche, prefix="lignes")
+    if request.method == "POST" and form.is_valid() and formset.is_valid():
+        with transaction.atomic():
+            objet = form.save(commit=False)
+            if fiche.pk is None:
+                objet.cree_par = request.user
+            action = request.POST.get("action")
+            if action == "publier":
+                publier(objet, par=request.user)
+            elif action == "brouillon":
+                objet.statut_moderation = objet.StatutModeration.BROUILLON
+            objet.save()
+            form.save_m2m()
+            formset.instance = objet
+            formset.save()
+            if renumeroter:
+                _renumeroter_lignes(formset)
+            appliquer_images(objet, form, request, service)
+        messages.success(request, "Fiche enregistrée.")
+        return redirect(url_edit, pk=objet.pk)
+    return render(
+        request, gabarit, {"form": form, "formset": formset, "fiche": fiche if fiche.pk else None}
+    )
+
+
+_TRIS_EVENEMENTS = {"titre": ["titre"], "date": ["date_debut"]}
+
+
+@bureau_requis
+def liste_evenements(request):
+    """Tous les événements (tous statuts), filtrables et triables."""
+    evenements = Evenement.objects.select_related("spectacle", "lieu")
+    statut = request.GET.get("statut_moderation")
+    if statut in Evenement.StatutModeration.values:
+        evenements = evenements.filter(statut_moderation=statut)
+    else:
+        statut = ""
+    visibilite = request.GET.get("visibilite")
+    if visibilite in Evenement.Visibilite.values:
+        evenements = evenements.filter(visibilite=visibilite)
+    else:
+        visibilite = ""
+    evenements, tri = appliquer_tri(request, evenements, _TRIS_EVENEMENTS, ["-date_debut"])
+    page = paginer(request, evenements)
+    return render(
+        request,
+        "backoffice/evenements_liste.html",
+        {
+            "evenements": page,
+            "page": page,
+            "tri_courant": tri,
+            "statuts": Evenement.StatutModeration.choices,
+            "statut_courant": statut,
+            "visibilites": Evenement.Visibilite.choices,
+            "visibilite_courant": visibilite,
+        },
+    )
+
+
+@bureau_requis
+def creer_evenement(request):
+    return _editer_fiche_programmation(
+        request,
+        fiche=Evenement(),
+        form_cls=EvenementBureauForm,
+        formset_cls=InterventionFormSet,
+        service=agenda_services,
+        gabarit="backoffice/evenement_form.html",
+        url_edit="backoffice:editer_evenement",
+    )
+
+
+@bureau_requis
+def editer_evenement(request, pk):
+    return _editer_fiche_programmation(
+        request,
+        fiche=get_object_or_404(Evenement, pk=pk),
+        form_cls=EvenementBureauForm,
+        formset_cls=InterventionFormSet,
+        service=agenda_services,
+        gabarit="backoffice/evenement_form.html",
+        url_edit="backoffice:editer_evenement",
+    )
+
+
+@bureau_requis
+@require_POST
+def supprimer_evenement(request, pk):
+    evenement = get_object_or_404(Evenement, pk=pk)
+    evenement.delete()
+    messages.success(request, "Événement supprimé.")
+    return redirect("backoffice:liste_evenements")
+
+
+_TRIS_PROJETS = {"titre": ["titre"]}
+
+
+@bureau_requis
+def liste_projets(request):
+    """Tous les projets/spectacles (tous statuts), filtrables et triables."""
+    projets = Spectacle.objects.all()
+    statut = request.GET.get("statut_moderation")
+    if statut in Spectacle.StatutModeration.values:
+        projets = projets.filter(statut_moderation=statut)
+    else:
+        statut = ""
+    statut_projet = request.GET.get("statut_projet")
+    if statut_projet in Spectacle.StatutProjet.values:
+        projets = projets.filter(statut_projet=statut_projet)
+    else:
+        statut_projet = ""
+    portage = request.GET.get("type_portage")
+    if portage in Spectacle.TypePortage.values:
+        projets = projets.filter(type_portage=portage)
+    else:
+        portage = ""
+    projets, tri = appliquer_tri(request, projets, _TRIS_PROJETS, ["titre"])
+    page = paginer(request, projets)
+    return render(
+        request,
+        "backoffice/projets_liste.html",
+        {
+            "projets": page,
+            "page": page,
+            "tri_courant": tri,
+            "statuts": Spectacle.StatutModeration.choices,
+            "statut_courant": statut,
+            "statuts_projet": Spectacle.StatutProjet.choices,
+            "statut_projet_courant": statut_projet,
+            "portages": Spectacle.TypePortage.choices,
+            "portage_courant": portage,
+        },
+    )
+
+
+@bureau_requis
+def creer_projet(request):
+    return _editer_fiche_programmation(
+        request,
+        fiche=Spectacle(),
+        form_cls=ProjetBureauForm,
+        formset_cls=LigneDistributionFormSet,
+        service=spectacles_services,
+        gabarit="backoffice/projet_form.html",
+        url_edit="backoffice:editer_projet",
+        renumeroter=True,
+    )
+
+
+@bureau_requis
+def editer_projet(request, pk):
+    return _editer_fiche_programmation(
+        request,
+        fiche=get_object_or_404(Spectacle, pk=pk),
+        form_cls=ProjetBureauForm,
+        formset_cls=LigneDistributionFormSet,
+        service=spectacles_services,
+        gabarit="backoffice/projet_form.html",
+        url_edit="backoffice:editer_projet",
+        renumeroter=True,
+    )
+
+
+@bureau_requis
+@require_POST
+def supprimer_projet(request, pk):
+    projet = get_object_or_404(Spectacle, pk=pk)
+    projet.delete()
+    messages.success(request, "Projet supprimé.")
+    return redirect("backoffice:liste_projets")
 
 
 # --- Reçus fiscaux ----------------------------------------------------------
