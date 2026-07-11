@@ -23,7 +23,14 @@ from django.views.decorators.http import require_POST
 
 from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
-from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
+from apps.budget.models import (
+    Adhesion,
+    Categorie,
+    RecuFiscal,
+    Saison,
+    SoldeTresorerie,
+    Transaction,
+)
 from apps.budget.services import (
     assurer_pdf_recu,
     bilan_par_categorie,
@@ -31,6 +38,8 @@ from apps.budget.services import (
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
+    resume_cotisations,
+    tresorerie,
 )
 from apps.coeur import services as coeur_services
 from apps.coeur.models import Membre, ParametresAssociation, Utilisateur
@@ -54,6 +63,7 @@ from apps.facturation.services import (
     numeroter_devis,
     pdf_de_devis,
     pdf_de_facture,
+    resume_facturation,
     transformer_en_facture,
     valider_facture,
 )
@@ -88,6 +98,7 @@ from .forms import (
     ResolutionForm,
     ReunionForm,
     SaisonForm,
+    SoldeTresorerieForm,
     SujetOrdreDuJourForm,
     TransactionForm,
 )
@@ -138,6 +149,25 @@ def tableau_de_bord(request):
         ).count(),
     }
     return render(request, "backoffice/tableau_de_bord.html", contexte)
+
+
+@bureau_requis
+def finances(request):
+    """Hub Finances : chiffres clés + porte d'entrée vers les sections.
+
+    Agrège la facturation (devis/factures) et le budget (cotisations, reçus,
+    bilan) de la **saison courante** (`Saison.objects.first()` — la plus récente
+    par date de début). Les écrans spécialisés restent les points de gestion ;
+    ce hub ne fait que donner la vue d'ensemble et router."""
+    saison = Saison.objects.first()
+    contexte = {
+        "saison": saison,
+        "facturation": resume_facturation(),
+        "cotisations": resume_cotisations(saison),
+        "bilan": bilan_par_categorie(saison)["totaux"] if saison else None,
+        "tresorerie": tresorerie(saison),
+    }
+    return render(request, "backoffice/finances.html", contexte)
 
 
 # --- Paramètres & équipe ----------------------------------------------------
@@ -653,23 +683,49 @@ def servir_recu(recu: RecuFiscal):
 
 
 @bureau_requis
-def liste_factures(request):
-    """Liste des factures (brouillons et validées), filtrable par statut."""
-    factures = Facture.objects.select_related("client").all()
+def facturation(request):
+    """Écran commercial unifié : **devis, factures et avoirs** sous un seul toit,
+    via des onglets (`?onglet=`). Les avoirs sont les factures de type « avoir »
+    (jusqu'ici noyées dans la liste des factures). Écran de **lecture** : la
+    création, l'édition, la validation (numérotation légale), le PDF et l'avoir
+    gardent leurs vues dédiées, atteintes depuis les lignes."""
+    onglet = request.GET.get("onglet", "factures")
     statut = request.GET.get("statut")
-    if statut in Facture.Statut.values:
-        factures = factures.filter(statut=statut)
-    page = paginer(request, factures)
+
+    if onglet == "devis":
+        objets = Devis.objects.select_related("client").all()
+        statuts = Devis.Statut.choices
+        if statut in Devis.Statut.values:
+            objets = objets.filter(statut=statut)
+    else:
+        if onglet not in ("factures", "avoirs"):
+            onglet = "factures"
+        type_piece = Facture.TypePiece.AVOIR if onglet == "avoirs" else Facture.TypePiece.FACTURE
+        objets = Facture.objects.select_related("client").filter(type_piece=type_piece)
+        statuts = Facture.Statut.choices
+        if statut in Facture.Statut.values:
+            objets = objets.filter(statut=statut)
+
+    page = paginer(request, objets)
     return render(
         request,
-        "backoffice/factures_liste.html",
+        "backoffice/facturation.html",
         {
-            "factures": page,
+            "onglet": onglet,
+            "objets": page,
             "page": page,
-            "statuts": Facture.Statut.choices,
+            "statuts": statuts,
             "statut_courant": statut,
         },
     )
+
+
+@bureau_requis
+def liste_factures(request):
+    """Redirection vers l'onglet Factures de l'écran unifié (compat. anciens liens)."""
+    params = request.GET.urlencode()
+    cible = f"{reverse('backoffice:facturation')}?onglet=factures"
+    return redirect(f"{cible}&{params}" if params else cible)
 
 
 @bureau_requis
@@ -844,10 +900,10 @@ _ACTIONS_STATUT_DEVIS = {
 
 @bureau_requis
 def liste_devis(request):
-    """Liste des devis."""
-    devis = Devis.objects.select_related("client").all()
-    page = paginer(request, devis)
-    return render(request, "backoffice/devis_liste.html", {"devis": page, "page": page})
+    """Redirection vers l'onglet Devis de l'écran unifié (compat. anciens liens)."""
+    params = request.GET.urlencode()
+    cible = f"{reverse('backoffice:facturation')}?onglet=devis"
+    return redirect(f"{cible}&{params}" if params else cible)
 
 
 @bureau_requis
@@ -1092,7 +1148,17 @@ def _saison_demandee(request, defaut_premiere=False):
 
 @bureau_requis
 def budget_transactions(request):
-    """Liste des mouvements, filtrable par saison, type, statut et catégorie."""
+    """Liste des mouvements, filtrable par saison, type, statut et catégorie.
+
+    Porte aussi le **solde de trésorerie de référence** (repère global saisi par
+    le trésorier) : POST du panneau → mise à jour du singleton, puis retour à la
+    même vue (filtres conservés)."""
+    form_tresorerie = SoldeTresorerieForm(request.POST or None, instance=SoldeTresorerie.charger())
+    if request.method == "POST" and form_tresorerie.is_valid():
+        form_tresorerie.save()
+        messages.success(request, "Solde de trésorerie mis à jour.")
+        return redirect(request.get_full_path())
+
     saison = _saison_demandee(request)
     transactions = Transaction.objects.select_related("categorie", "saison").order_by(
         "-date", "-id"
@@ -1125,6 +1191,8 @@ def budget_transactions(request):
             "type_courant": type_flux,
             "statut_courant": statut,
             "categorie_courante": categorie_pk,
+            "form_tresorerie": form_tresorerie,
+            "tresorerie": tresorerie(saison),
         },
     )
 

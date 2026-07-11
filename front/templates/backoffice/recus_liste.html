@@ -4,7 +4,7 @@
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Bureau · Finances</span>
     <h1>Reçus fiscaux</h1>
     <p class="page-tete__sous">
       Registre de tous les reçus émis (dons et cotisations), à numérotation
@@ -12,6 +12,8 @@
       <a href="{% url 'backoffice:liste_adhesions' %}">Adhésions</a>.
     </p>
   </header>
+
+  {% include "backoffice/_cotisations_nav.html" with actif='recus' %}
 
   <p><a class="lien-bouton" href="{% url 'backoffice:creer_recu' %}">Émettre un reçu de don (saisie manuelle)</a></p>
 

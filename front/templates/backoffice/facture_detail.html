@@ -60,7 +60,7 @@
     {% if facture.type_piece != "avoir" %}
       <a class="lien-bouton" href="{% url 'backoffice:apercu_facture' pk=facture.pk %}" target="_blank">Aperçu</a>
     {% endif %}
-    <a class="lien-bouton" href="{% url 'backoffice:liste_factures' %}">Retour à la liste</a>
+    <a class="lien-bouton" href="{% url 'backoffice:facturation' %}?onglet=factures">Retour à la liste</a>
   </p>
 
   {% if facture.type_piece != "avoir" %}

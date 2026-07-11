@@ -14,13 +14,14 @@ from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.db.models import Count, Sum
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from apps.coeur.models import ParametresAssociation
 from apps.common import pdf
 
-from .models import CompteurRecu, RecuFiscal, Transaction
+from .models import Adhesion, CompteurRecu, RecuFiscal, SoldeTresorerie, Transaction
 
 
 @transaction.atomic
@@ -150,6 +151,56 @@ def bilan_par_categorie(saison) -> dict:
     _completer_soldes(totaux)
 
     return {"lignes": resultat, "totaux": totaux}
+
+
+def tresorerie(saison) -> dict:
+    """Trésorerie de référence + prévision, pour la gestion (pas la compta).
+
+    Part du **solde en banque pointé** (singleton `SoldeTresorerie`, saisi par le
+    trésorier) et y applique le **reste à réaliser** de la saison selon le budget
+    prévisionnel :
+
+        prévisionnelle = solde pointé + (recettes prévues − réalisées)
+                                       − (dépenses prévues − réalisées)
+
+    Tout est un repère à rapprocher des comptes réels. Sans saison, on ne projette
+    pas (reste à réaliser nul)."""
+    solde = SoldeTresorerie.charger()
+    if saison is not None:
+        totaux = bilan_par_categorie(saison)["totaux"]
+        # « Reste à réaliser » = ce qui est budgété mais pas encore réalisé, donc
+        # jamais négatif : si le réalisé dépasse déjà le prévu, il ne reste rien.
+        reste_a_encaisser = max(_ZERO, totaux["recette_prevu"] - totaux["recette_realise"])
+        reste_a_decaisser = max(_ZERO, totaux["depense_prevu"] - totaux["depense_realise"])
+    else:
+        reste_a_encaisser = _ZERO
+        reste_a_decaisser = _ZERO
+    return {
+        "solde_pointe": solde.montant,
+        "date_pointage": solde.date_pointage,
+        "note": solde.note,
+        "reste_a_encaisser": reste_a_encaisser,
+        "reste_a_decaisser": reste_a_decaisser,
+        "previsionnelle": solde.montant + reste_a_encaisser - reste_a_decaisser,
+    }
+
+
+def resume_cotisations(saison) -> dict:
+    """Chiffres clés cotisations + reçus fiscaux pour le hub Finances.
+
+    Les adhésions sont bornées à la `saison` ; les reçus fiscaux (sans lien
+    direct à la saison) sont comptés toutes périodes confondues."""
+    adhesions = Adhesion.objects.filter(saison=saison) if saison else Adhesion.objects.none()
+    montants = adhesions.aggregate(verse=Sum("montant_verse"), attendu=Sum("montant_attendu"))
+    recus = RecuFiscal.objects.aggregate(nb=Count("id"), montant=Sum("montant"))
+    return {
+        "adhesions_nb": adhesions.count(),
+        "adhesions_en_attente": adhesions.filter(statut=Adhesion.Statut.EN_ATTENTE).count(),
+        "verse": montants["verse"] or _ZERO,
+        "attendu": montants["attendu"] or _ZERO,
+        "recus_nb": recus["nb"] or 0,
+        "recus_montant": recus["montant"] or _ZERO,
+    }
 
 
 _ENTETES_BILAN = [

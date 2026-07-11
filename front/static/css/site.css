@@ -1848,12 +1848,6 @@ html.anim-reduites * {
 }
 
 /* Espace membre : actions, projets, badges de statut */
-.espace-actions {
-  margin-block: 1rem 2rem;
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
 .liste-projets {
   list-style: none;
   padding: 0;
@@ -2015,6 +2009,194 @@ a.tuile:hover {
 .tuile__label {
   color: var(--couleur-muet);
   font-weight: 600;
+}
+
+/* Hub Finances : titre de section + grille de blocs par domaine */
+.finances-section-titre {
+  margin-top: 2rem;
+}
+.finances-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.finances-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.35rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  box-shadow: var(--ombre);
+}
+.finances-bloc__titre {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.15rem;
+}
+.finances-bloc__titre .ico {
+  color: var(--couleur-primaire);
+}
+.finances-bloc__titre small {
+  color: var(--couleur-muet);
+  font-weight: 400;
+}
+.finances-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.finances-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.finances-stats dt {
+  color: var(--couleur-muet);
+  font-size: 0.85rem;
+}
+.finances-stats dd {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--couleur-lien);
+}
+.finances-stats dd small {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--couleur-muet);
+}
+.finances-solde--negatif {
+  color: #cf3d3d;
+}
+.finances-liens {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--bordure);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+}
+.finances-liens a {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Onglets de section (Facturation, Cotisations & reçus) : une barre unique
+   sous laquelle on change de sous-écran, plutôt que 6 liens à plat dans la nav. */
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 0 1.5rem;
+  border-bottom: 2px solid var(--bordure);
+}
+.onglet {
+  padding: 0.55rem 1rem;
+  text-decoration: none;
+  color: var(--couleur-muet);
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  border-radius: var(--rayon) var(--rayon) 0 0;
+}
+.onglet:hover,
+.onglet:focus-visible {
+  color: var(--couleur-texte);
+  background: var(--surface-alt);
+}
+.onglet--actif {
+  color: var(--couleur-primaire);
+  border-bottom-color: var(--couleur-primaire);
+}
+/* Barre d'actions + filtre au-dessus d'une liste à onglets */
+.facturation-barre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.facturation-barre .formulaire__actions {
+  margin: 0;
+}
+
+/* Panneau trésorerie (écran Budget) : solde en banque pointé + prévisionnel */
+.tresorerie {
+  margin: 1.25rem 0 1.75rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--bordure);
+  border-left: 4px solid var(--couleur-primaire);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  box-shadow: var(--ombre);
+}
+.tresorerie__titre {
+  margin: 0 0 0.85rem;
+  font-size: 1.1rem;
+}
+.tresorerie__chiffres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  align-items: flex-end;
+}
+.tresorerie__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.tresorerie__label {
+  color: var(--couleur-muet);
+  font-size: 0.85rem;
+}
+.tresorerie__montant {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--couleur-lien);
+}
+.tresorerie__montant--sec {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--couleur-texte);
+}
+.tresorerie__item--total .tresorerie__montant {
+  font-size: 1.85rem;
+}
+.tresorerie__montant--negatif {
+  color: #cf3d3d;
+}
+.tresorerie__note {
+  color: var(--couleur-muet);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+.tresorerie__avertissement {
+  margin: 0.7rem 0 0;
+  color: var(--couleur-muet);
+  font-size: 0.82rem;
+}
+.tresorerie__edition {
+  margin-top: 0.85rem;
+}
+.tresorerie__edition summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--couleur-lien);
+}
+.tresorerie__edition .formulaire {
+  margin-top: 0.85rem;
+  max-width: 24rem;
 }
 
 /* Formulaire en ligne (filtres) + bouton d'aspect lien */

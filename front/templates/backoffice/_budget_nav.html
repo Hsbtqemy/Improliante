@@ -1,7 +1,9 @@
-{% comment %}Sous-navigation du module Budget.{% endcomment %}
-<nav aria-label="Budget" class="espace-actions">
-  <a class="lien-bouton" href="{% url 'backoffice:budget_transactions' %}">Mouvements</a>
-  <a class="lien-bouton" href="{% url 'backoffice:budget_bilan' %}">Bilan</a>
-  <a class="lien-bouton" href="{% url 'backoffice:budget_saisons' %}">Saisons</a>
-  <a class="lien-bouton" href="{% url 'backoffice:budget_categories' %}">Catégories</a>
+{% comment %}Onglets du module Budget (même composant que Facturation / Cotisations).{% endcomment %}
+{% with vn=request.resolver_match.view_name %}
+<nav class="onglets" aria-label="Budget">
+  <a class="onglet{% if vn == 'backoffice:budget_transactions' %} onglet--actif{% endif %}" href="{% url 'backoffice:budget_transactions' %}"{% if vn == 'backoffice:budget_transactions' %} aria-current="page"{% endif %}>Mouvements</a>
+  <a class="onglet{% if vn == 'backoffice:budget_bilan' %} onglet--actif{% endif %}" href="{% url 'backoffice:budget_bilan' %}"{% if vn == 'backoffice:budget_bilan' %} aria-current="page"{% endif %}>Bilan</a>
+  <a class="onglet{% if vn == 'backoffice:budget_saisons' %} onglet--actif{% endif %}" href="{% url 'backoffice:budget_saisons' %}"{% if vn == 'backoffice:budget_saisons' %} aria-current="page"{% endif %}>Saisons</a>
+  <a class="onglet{% if vn == 'backoffice:budget_categories' %} onglet--actif{% endif %}" href="{% url 'backoffice:budget_categories' %}"{% if vn == 'backoffice:budget_categories' %} aria-current="page"{% endif %}>Catégories</a>
 </nav>
+{% endwith %}

@@ -7,7 +7,14 @@ from decimal import Decimal
 from django import forms
 
 from apps.agenda.models import Evenement, Intervention
-from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
+from apps.budget.models import (
+    Adhesion,
+    Categorie,
+    RecuFiscal,
+    Saison,
+    SoldeTresorerie,
+    Transaction,
+)
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 from apps.common.fiches import ImagesFicheFormMixin
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
@@ -173,6 +180,22 @@ class SaisonForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for champ in ("date_debut", "date_fin"):
             self.fields[champ].input_formats = ["%Y-%m-%d"]
+
+
+class SoldeTresorerieForm(forms.ModelForm):
+    """Saisie du solde en banque de référence (dernier pointage)."""
+
+    class Meta:
+        model = SoldeTresorerie
+        fields = ["montant", "date_pointage", "note"]
+        widgets = {
+            "date_pointage": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "note": forms.TextInput(attrs={"placeholder": "ex. d'après le relevé du mois"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date_pointage"].input_formats = ["%Y-%m-%d"]
 
 
 class CategorieForm(forms.ModelForm):

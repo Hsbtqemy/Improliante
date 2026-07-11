@@ -57,21 +57,27 @@ l'écriture Association est gardée par `est_bureau` (POST non-bureau → 404).
 ### Back-office (`apps/backoffice`) — bureau
 3ᵉ app métier (sans modèle propre), **interface sur-mesure** (templates sur
 `base.html`, pas l'admin Django) : **tableau de bord** (compteurs + accès
-rapides), **modération** (valider/refuser projets et événements, fixer la
+rapides), **finances** (hub : porte d'entrée unique — chiffres clés facturation /
+cotisations / **trésorerie** + tuiles « à traiter » vers les sections),
+**modération** (valider/refuser projets et événements, fixer la
 visibilité), **programmation** (gestion directe des **événements** et **projets** :
 liste, création avec **publication immédiate** possible, édition de n'importe
 quelle fiche même publiée, intervenants/distribution via formsets, porteurs en
 cases à cocher, suppression — complète la modération ; la **mise en scène** n'a pas
 de champ dédié : c'est une **ligne de distribution** au rôle libre « Mise en scène »),
-**devis** (→ transformation en facture), **factures** (brouillon →
-validation numérotée → PDF ; **aperçu** brouillon ; **avoir**), **reçus
-fiscaux** (Cerfa, aperçu avant émission), **adhésions** (par saison + statut +
-montants ; personne choisie ou **créée à la volée**, avec ou sans compte),
+**facturation** (un **écran unique à onglets** — Devis · Factures · Avoirs ·
+Clients ; devis → transformation en facture ; facture brouillon → validation
+numérotée → PDF ; **aperçu** ; **avoir**), **cotisations & reçus** (onglets
+**adhésions** — par saison + statut + montants, personne choisie ou **créée à
+la volée**, avec ou sans compte — et **reçus fiscaux** Cerfa),
 **membres** (fiches ; création avec accès en ligne optionnel ; **ouverture
 d'accès** a posteriori), **fichiers transmis** (agrégat en lecture des dossiers
 que les membres marquent « transmis au bureau » ; la gestion documentaire
 officielle est passée dans la branche **Association** de l'explorateur « Fichiers »),
-**budget** (mouvements + bilan par catégorie + export Excel),
+**budget** (mouvements + bilan par catégorie + export Excel ; **trésorerie** =
+solde en banque de référence saisi par le trésorier + prévisionnel = solde +
+reste à réaliser du budget de la saison — repère de gestion à rapprocher des
+comptes, pas une compta),
 **gouvernance** (réunions/AG : quorum, ordre du jour, présences avec
 préremplissage des droits de vote, pouvoirs, résolutions avec résultat),
 **réglages** (paramètres de l'association, équipe = groupe « Bureau »). Listes
@@ -93,7 +99,9 @@ orchestrent et rendent le retour utilisateur). Points d'entrée notables :
   affiche/galerie mutualisées entre l'espace membre et le back-office (programmation).
 - `apps/facturation/services.py` : `valider_facture` (numéro légal),
   `creer_avoir`, `transformer_en_facture`, `numeroter_devis`, rendus PDF.
-- `apps/budget/services.py` : `emettre_recu`, `bilan_par_categorie`, PDF Cerfa.
+- `apps/budget/services.py` : `emettre_recu`, `bilan_par_categorie`, PDF Cerfa ;
+  `tresorerie` (solde en banque de référence + prévisionnel) ; `resume_cotisations`
+  (chiffres du hub Finances). Facturation : `apps/facturation/services.py::resume_facturation`.
 - `apps/coeur/services.py` : `creer_membre` (fiche seule, sans compte),
   `ouvrir_compte` (crée l'`Utilisateur` + lien d'activation), `synchroniser_compte`
   (recopie l'identité vers le compte sans toucher l'identifiant), `creer_compte_membre`

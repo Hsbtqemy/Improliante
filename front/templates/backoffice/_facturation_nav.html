@@ -1,0 +1,11 @@
+{% comment %}
+Onglets de la section « Facturation ». Attend `actif` = devis|factures|avoirs|clients.
+Devis/Factures/Avoirs vivent sur le même écran (`facturation`, via ?onglet) ;
+Clients est une page voisine (formulaire + liste) sous le même bandeau.
+{% endcomment %}
+<nav class="onglets" aria-label="Facturation">
+  <a class="onglet{% if actif == 'devis' %} onglet--actif{% endif %}" href="{% url 'backoffice:facturation' %}?onglet=devis"{% if actif == 'devis' %} aria-current="page"{% endif %}>Devis</a>
+  <a class="onglet{% if actif == 'factures' %} onglet--actif{% endif %}" href="{% url 'backoffice:facturation' %}?onglet=factures"{% if actif == 'factures' %} aria-current="page"{% endif %}>Factures</a>
+  <a class="onglet{% if actif == 'avoirs' %} onglet--actif{% endif %}" href="{% url 'backoffice:facturation' %}?onglet=avoirs"{% if actif == 'avoirs' %} aria-current="page"{% endif %}>Avoirs</a>
+  <a class="onglet{% if actif == 'clients' %} onglet--actif{% endif %}" href="{% url 'backoffice:liste_clients' %}"{% if actif == 'clients' %} aria-current="page"{% endif %}>Clients</a>
+</nav>

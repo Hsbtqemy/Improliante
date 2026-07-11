@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Finances — Back-office{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau</span>
+    <h1>Finances</h1>
+    <p class="page-tete__sous">
+      {% if saison %}Saison en cours : <strong>{{ saison }}</strong>.{% else %}Aucune saison définie.{% endif %}
+      Vue d'ensemble et accès aux sections.
+    </p>
+  </header>
+
+  <h2 class="finances-section-titre">À traiter</h2>
+  <div class="tuiles">
+    <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=factures">
+      <span class="tuile__nombre">{{ facturation.factures_a_valider }}</span>
+      <span class="tuile__label">facture(s) à valider</span>
+    </a>
+    <a class="tuile" href="{% url 'backoffice:liste_adhesions' %}">
+      <span class="tuile__nombre">{{ cotisations.adhesions_en_attente }}</span>
+      <span class="tuile__label">cotisation(s) en attente</span>
+    </a>
+    <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=devis">
+      <span class="tuile__nombre">{{ facturation.devis_a_suivre }}</span>
+      <span class="tuile__label">devis à suivre</span>
+    </a>
+  </div>
+
+  <div class="finances-grille">
+    <section class="finances-bloc" aria-labelledby="f-fact">
+      <h2 id="f-fact" class="finances-bloc__titre">
+        <svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg> Facturation
+      </h2>
+      <dl class="finances-stats">
+        <div>
+          <dt>En attente de paiement</dt>
+          <dd>{{ facturation.en_attente_montant|floatformat:2 }} € <small>({{ facturation.en_attente_nb }})</small></dd>
+        </div>
+        <div>
+          <dt>Factures payées</dt>
+          <dd>{{ facturation.factures_payees }}</dd>
+        </div>
+      </dl>
+      <ul class="finances-liens">
+        <li><a href="{% url 'backoffice:facturation' %}?onglet=devis">Devis →</a></li>
+        <li><a href="{% url 'backoffice:facturation' %}?onglet=factures">Factures →</a></li>
+        <li><a href="{% url 'backoffice:liste_clients' %}">Clients →</a></li>
+      </ul>
+    </section>
+
+    <section class="finances-bloc" aria-labelledby="f-coti">
+      <h2 id="f-coti" class="finances-bloc__titre">
+        <svg class="ico" aria-hidden="true"><use href="#ico-adhesion"></use></svg> Cotisations &amp; dons
+      </h2>
+      <dl class="finances-stats">
+        <div>
+          <dt>Cotisations{% if saison %} · {{ saison }}{% endif %}</dt>
+          <dd>{{ cotisations.verse|floatformat:2 }} € <small>/ {{ cotisations.attendu|floatformat:2 }} € attendus</small></dd>
+        </div>
+        <div>
+          <dt>Reçus fiscaux émis</dt>
+          <dd>{{ cotisations.recus_montant|floatformat:2 }} € <small>({{ cotisations.recus_nb }})</small></dd>
+        </div>
+      </dl>
+      <ul class="finances-liens">
+        <li><a href="{% url 'backoffice:liste_adhesions' %}">Adhésions →</a></li>
+        <li><a href="{% url 'backoffice:liste_recus' %}">Reçus fiscaux →</a></li>
+      </ul>
+    </section>
+
+    <section class="finances-bloc" aria-labelledby="f-budg">
+      <h2 id="f-budg" class="finances-bloc__titre">
+        <svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg> Trésorerie &amp; budget
+      </h2>
+      <dl class="finances-stats">
+        <div>
+          <dt>Solde en banque{% if tresorerie.date_pointage %} · {{ tresorerie.date_pointage|date:"d/m/Y" }}{% endif %}</dt>
+          <dd>{{ tresorerie.solde_pointe|floatformat:2 }} €</dd>
+        </div>
+        {% if saison %}
+          <div>
+            <dt>Prévisionnelle · {{ saison }}</dt>
+            <dd class="finances-solde{% if tresorerie.previsionnelle < 0 %} finances-solde--negatif{% endif %}">{{ tresorerie.previsionnelle|floatformat:2 }} €</dd>
+          </div>
+          <div>
+            <dt>Résultat réalisé · {{ saison }}</dt>
+            <dd>{{ bilan.solde_realise|floatformat:2 }} €</dd>
+          </div>
+        {% endif %}
+      </dl>
+      <p class="champ__aide">Repère à rapprocher des comptes réels.</p>
+      <ul class="finances-liens">
+        <li><a href="{% url 'backoffice:budget_transactions' %}">Budget &amp; trésorerie →</a></li>
+      </ul>
+    </section>
+  </div>
+{% endblock %}

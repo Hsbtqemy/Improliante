@@ -14,11 +14,11 @@
       <span class="tuile__nombre">{{ a_moderer }}</span>
       <span class="tuile__label">fiche(s) à modérer</span>
     </a>
-    <a class="tuile" href="{% url 'backoffice:liste_factures' %}">
+    <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=factures">
       <span class="tuile__nombre">{{ factures_brouillon }}</span>
       <span class="tuile__label">facture(s) en brouillon</span>
     </a>
-    <a class="tuile" href="{% url 'backoffice:liste_devis' %}">
+    <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=devis">
       <span class="tuile__nombre">{{ devis_a_suivre }}</span>
       <span class="tuile__label">devis à suivre</span>
     </a>
@@ -38,14 +38,14 @@
       </a>
     </li>
     <li>
-      <a class="action-carte" href="{% url 'backoffice:liste_devis' %}">
+      <a class="action-carte" href="{% url 'backoffice:facturation' %}?onglet=devis">
         <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg></span>
         Devis
         <span class="action-carte__fleche" aria-hidden="true">→</span>
       </a>
     </li>
     <li>
-      <a class="action-carte" href="{% url 'backoffice:liste_factures' %}">
+      <a class="action-carte" href="{% url 'backoffice:facturation' %}?onglet=factures">
         <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg></span>
         Factures
         <span class="action-carte__fleche" aria-hidden="true">→</span>

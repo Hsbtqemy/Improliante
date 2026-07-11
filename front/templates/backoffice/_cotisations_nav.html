@@ -1,0 +1,7 @@
+{% comment %}
+Onglets de la section « Cotisations & reçus ». Attend `actif` = adhesions|recus.
+{% endcomment %}
+<nav class="onglets" aria-label="Cotisations et reçus">
+  <a class="onglet{% if actif == 'adhesions' %} onglet--actif{% endif %}" href="{% url 'backoffice:liste_adhesions' %}"{% if actif == 'adhesions' %} aria-current="page"{% endif %}>Adhésions</a>
+  <a class="onglet{% if actif == 'recus' %} onglet--actif{% endif %}" href="{% url 'backoffice:liste_recus' %}"{% if actif == 'recus' %} aria-current="page"{% endif %}>Reçus fiscaux</a>
+</nav>

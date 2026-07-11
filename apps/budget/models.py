@@ -5,6 +5,8 @@
 - `Adhesion` : relie un `Membre` à une `Saison` (statut, montant attendu et versé).
 - `Transaction` : recette ou dépense, prévue ou réalisée (budget prévisionnel vs
   réel), avec catégorie et lien optionnel vers une facture ou une adhésion.
+- `SoldeTresorerie` : solde en banque de référence (singleton), repère de
+  gestion à rapprocher des comptes réels — pas une source de vérité comptable.
 """
 
 from __future__ import annotations
@@ -252,3 +254,34 @@ class RecuFiscal(Horodatage):
 
     def __str__(self) -> str:
         return f"Reçu {self.numero} — {self.donateur_nom}"
+
+
+class SoldeTresorerie(models.Model):
+    """Solde de trésorerie de référence — **singleton** (pk=1).
+
+    Ce que le trésorier constate en banque à un instant donné (dernier pointage).
+    C'est un **repère de gestion et de prévision**, volontairement libre et non
+    lié aux saisons : la vérité reste le relevé bancaire, que l'on rapproche
+    après coup. Sert de point de départ à la trésorerie prévisionnelle
+    (cf. `services.tresorerie`)."""
+
+    montant = models.DecimalField("solde en banque", max_digits=12, decimal_places=2, default=0)
+    date_pointage = models.DateField("date du pointage", null=True, blank=True)
+    note = models.CharField("note", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "solde de trésorerie"
+        verbose_name_plural = "solde de trésorerie"
+
+    def __str__(self) -> str:
+        return f"{self.montant} € au {self.date_pointage or '—'}"
+
+    def save(self, *args, **kwargs):
+        """Force une instance unique (singleton, pk=1)."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def charger(cls) -> SoldeTresorerie:
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

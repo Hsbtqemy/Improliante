@@ -10,6 +10,7 @@ app_name = "backoffice"
 
 urlpatterns = [
     path("bureau/", views.tableau_de_bord, name="tableau_de_bord"),
+    path("bureau/finances/", views.finances, name="finances"),
     path("bureau/parametres/", views.parametres_association, name="parametres_association"),
     path("bureau/equipe/", views.equipe_bureau, name="equipe_bureau"),
     path("bureau/membres/", views.liste_membres, name="liste_membres"),
@@ -60,6 +61,7 @@ urlpatterns = [
     path("bureau/recus/", views.liste_recus, name="liste_recus"),
     path("bureau/recus/nouveau/", views.creer_recu, name="creer_recu"),
     path("bureau/recus/<int:pk>/telecharger/", views.telecharger_recu, name="telecharger_recu"),
+    path("bureau/facturation/", views.facturation, name="facturation"),
     path("bureau/factures/", views.liste_factures, name="liste_factures"),
     path("bureau/factures/nouvelle/", views.creer_facture, name="creer_facture"),
     path("bureau/factures/<int:pk>/", views.editer_facture, name="editer_facture"),

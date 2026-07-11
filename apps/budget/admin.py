@@ -4,13 +4,18 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
+from .models import Adhesion, Categorie, RecuFiscal, Saison, SoldeTresorerie, Transaction
 
 
 @admin.register(Saison)
 class SaisonAdmin(admin.ModelAdmin):
     list_display = ("nom", "date_debut", "date_fin")
     search_fields = ("nom",)
+
+
+@admin.register(SoldeTresorerie)
+class SoldeTresorerieAdmin(admin.ModelAdmin):
+    list_display = ("montant", "date_pointage", "note")
 
 
 @admin.register(Categorie)

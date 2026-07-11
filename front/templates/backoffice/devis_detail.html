@@ -49,6 +49,6 @@
         Voir la facture {{ facture }}
       </a>
     {% endfor %}
-    <a class="lien-bouton" href="{% url 'backoffice:liste_devis' %}">Retour à la liste</a>
+    <a class="lien-bouton" href="{% url 'backoffice:facturation' %}?onglet=devis">Retour à la liste</a>
   </p>
 {% endblock %}

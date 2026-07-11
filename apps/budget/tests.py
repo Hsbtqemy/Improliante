@@ -10,7 +10,14 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
+from apps.budget.models import (
+    Adhesion,
+    Categorie,
+    RecuFiscal,
+    Saison,
+    SoldeTresorerie,
+    Transaction,
+)
 from apps.budget.services import (
     assurer_pdf_recu,
     bilan_par_categorie,
@@ -18,6 +25,7 @@ from apps.budget.services import (
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
+    tresorerie,
 )
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 
@@ -209,3 +217,59 @@ def test_classeur_bilan_produit_un_xlsx_avec_les_donnees(db):
     assert lignes[1][0] == "Subventions"
     assert lignes[1][2] == 800.0  # recettes réalisées
     assert lignes[-1][0] == "Total"  # ligne de totaux en dernier
+
+
+def test_tresorerie_ajoute_le_reste_a_realiser_au_solde(db):
+    saison = Saison.objects.create(nom="2025-2026")
+    cat = Categorie.objects.create(nom="Général")
+    solde = SoldeTresorerie.charger()
+    solde.montant = Decimal("1000.00")
+    solde.save()
+    _transaction(saison, cat, Transaction.TypeFlux.RECETTE, Transaction.Statut.PREVU, "300")
+    _transaction(saison, cat, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "100")
+    _transaction(saison, cat, Transaction.TypeFlux.DEPENSE, Transaction.Statut.PREVU, "120")
+
+    t = tresorerie(saison)
+    assert t["solde_pointe"] == Decimal("1000.00")
+    assert t["reste_a_encaisser"] == Decimal("200.00")  # 300 prévu − 100 réalisé
+    assert t["reste_a_decaisser"] == Decimal("120.00")  # 120 prévu − 0 réalisé
+    assert t["previsionnelle"] == Decimal("1080.00")  # 1000 + 200 − 120
+
+
+def test_tresorerie_reste_a_realiser_jamais_negatif(db):
+    """Si le réalisé dépasse le prévu, le « reste à réaliser » est nul (pas
+    négatif) : la prévisionnelle ne descend pas sous le solde pointé de ce fait."""
+    saison = Saison.objects.create(nom="2025-2026")
+    cat = Categorie.objects.create(nom="Général")
+    solde = SoldeTresorerie.charger()
+    solde.montant = Decimal("2000.00")
+    solde.save()
+    # Recettes réalisées (800) > prévues (500) ; dépenses réalisées (400) > prévues (300).
+    _transaction(saison, cat, Transaction.TypeFlux.RECETTE, Transaction.Statut.PREVU, "500")
+    _transaction(saison, cat, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "800")
+    _transaction(saison, cat, Transaction.TypeFlux.DEPENSE, Transaction.Statut.PREVU, "300")
+    _transaction(saison, cat, Transaction.TypeFlux.DEPENSE, Transaction.Statut.REALISE, "400")
+
+    t = tresorerie(saison)
+    assert t["reste_a_encaisser"] == Decimal("0.00")
+    assert t["reste_a_decaisser"] == Decimal("0.00")
+    assert t["previsionnelle"] == Decimal("2000.00")  # rien à réaliser → = solde pointé
+
+
+def test_tresorerie_sans_saison_ne_projette_pas(db):
+    solde = SoldeTresorerie.charger()
+    solde.montant = Decimal("500.00")
+    solde.save()
+    t = tresorerie(None)
+    assert t["previsionnelle"] == Decimal("500.00")
+    assert t["reste_a_encaisser"] == Decimal("0.00")
+
+
+def test_solde_tresorerie_est_un_singleton(db):
+    a = SoldeTresorerie.charger()
+    a.montant = Decimal("100.00")
+    a.save()
+    b = SoldeTresorerie(montant=Decimal("999.00"))
+    b.save()
+    assert SoldeTresorerie.objects.count() == 1
+    assert SoldeTresorerie.charger().montant == Decimal("999.00")

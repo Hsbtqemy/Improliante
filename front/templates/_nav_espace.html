@@ -38,12 +38,10 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
     <section class="nav-espace__groupe">
       <h2 class="nav-espace__titre">Finances</h2>
       <ul class="nav-espace__liste">
-        <li><a href="{% url 'backoffice:liste_devis' %}" {% if vn == 'backoffice:liste_devis' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg><span>Devis</span></a></li>
-        <li><a href="{% url 'backoffice:liste_factures' %}" {% if vn == 'backoffice:liste_factures' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg><span>Factures</span></a></li>
-        <li><a href="{% url 'backoffice:liste_adhesions' %}" {% if vn == 'backoffice:liste_adhesions' or vn == 'backoffice:creer_adhesion' or vn == 'backoffice:editer_adhesion' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-adhesion"></use></svg><span>Adhésions</span></a></li>
-        <li><a href="{% url 'backoffice:liste_recus' %}" {% if vn == 'backoffice:liste_recus' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Reçus fiscaux</span></a></li>
-        <li><a href="{% url 'backoffice:liste_clients' %}" {% if vn == 'backoffice:liste_clients' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg><span>Clients</span></a></li>
-        <li><a href="{% url 'backoffice:budget_transactions' %}" {% if vn == 'backoffice:budget_transactions' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg><span>Budget</span></a></li>
+        <li><a href="{% url 'backoffice:finances' %}" {% if vn == 'backoffice:finances' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Aperçu</span></a></li>
+        <li><a href="{% url 'backoffice:facturation' %}" {% if vn == 'backoffice:facturation' or 'facture' in vn or 'devis' in vn or 'client' in vn %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg><span>Facturation</span></a></li>
+        <li><a href="{% url 'backoffice:liste_adhesions' %}" {% if 'adhesion' in vn or 'recu' in vn %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-adhesion"></use></svg><span>Cotisations &amp; reçus</span></a></li>
+        <li><a href="{% url 'backoffice:budget_transactions' %}" {% if 'budget' in vn %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg><span>Budget</span></a></li>
       </ul>
     </section>
 

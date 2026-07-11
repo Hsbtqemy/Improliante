@@ -4,10 +4,54 @@
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Bureau · Finances</span>
     <h1>Budget — mouvements</h1>
   </header>
   {% include "backoffice/_budget_nav.html" %}
+
+  <section class="tresorerie" aria-labelledby="tresorerie-titre">
+    <h2 id="tresorerie-titre" class="tresorerie__titre">Trésorerie</h2>
+    <div class="tresorerie__chiffres">
+      <div class="tresorerie__item">
+        <span class="tresorerie__label">Solde en banque{% if tresorerie.date_pointage %} · pointé le {{ tresorerie.date_pointage|date:"d/m/Y" }}{% endif %}</span>
+        <span class="tresorerie__montant">{{ tresorerie.solde_pointe|floatformat:2 }} €</span>
+        {% if tresorerie.note %}<span class="tresorerie__note">{{ tresorerie.note }}</span>{% endif %}
+      </div>
+      {% if saison_courante %}
+        <div class="tresorerie__item">
+          <span class="tresorerie__label">+ reste à encaisser</span>
+          <span class="tresorerie__montant tresorerie__montant--sec">{{ tresorerie.reste_a_encaisser|floatformat:2 }} €</span>
+        </div>
+        <div class="tresorerie__item">
+          <span class="tresorerie__label">− reste à décaisser</span>
+          <span class="tresorerie__montant tresorerie__montant--sec">{{ tresorerie.reste_a_decaisser|floatformat:2 }} €</span>
+        </div>
+        <div class="tresorerie__item tresorerie__item--total">
+          <span class="tresorerie__label">= Prévisionnelle · {{ saison_courante }}</span>
+          <span class="tresorerie__montant{% if tresorerie.previsionnelle < 0 %} tresorerie__montant--negatif{% endif %}">{{ tresorerie.previsionnelle|floatformat:2 }} €</span>
+        </div>
+      {% endif %}
+    </div>
+    <p class="tresorerie__avertissement">
+      Repère de gestion et de prévision — à rapprocher des comptes réels (la banque fait foi).
+      {% if not saison_courante %}Choisissez une saison pour voir la trésorerie prévisionnelle.{% endif %}
+    </p>
+    <details class="tresorerie__edition" {% if form_tresorerie.errors %}open{% endif %}>
+      <summary>Mettre à jour le solde en banque</summary>
+      <form method="post" class="formulaire">
+        {% csrf_token %}
+        {% for field in form_tresorerie %}
+          <p class="champ">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+            {% for e in field.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
+          </p>
+        {% endfor %}
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer le solde</button>
+      </form>
+    </details>
+  </section>
 
   <form method="get" class="formulaire-inline">
     <label for="saison">Saison</label>

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Facturation — Back-office{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Finances</span>
+    <h1>Facturation</h1>
+  </header>
+
+  {% include "backoffice/_facturation_nav.html" with actif=onglet %}
+
+  <div class="liste-entete">
+    <span class="liste-entete__compte">
+      {{ page.paginator.count }}
+      {% if onglet == 'devis' %}devis{% elif onglet == 'avoirs' %}avoir{{ page.paginator.count|pluralize }}{% else %}facture{{ page.paginator.count|pluralize }}{% endif %}
+    </span>
+  </div>
+
+  <div class="facturation-barre">
+    <p class="formulaire__actions">
+      {% if onglet == 'devis' %}
+        <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_devis' %}">Nouveau devis</a>
+      {% elif onglet == 'factures' %}
+        <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_facture' %}">Nouvelle facture</a>
+      {% else %}
+        <span class="champ__aide">Un avoir se crée depuis une facture validée.</span>
+      {% endif %}
+    </p>
+
+    <form method="get" class="formulaire-inline">
+      <input type="hidden" name="onglet" value="{{ onglet }}">
+      <label for="statut">Statut</label>
+      <select id="statut" name="statut">
+        <option value="">Tous</option>
+        {% for valeur, libelle in statuts %}
+          <option value="{{ valeur }}" {% if statut_courant == valeur %}selected{% endif %}>{{ libelle }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="lien-bouton">Filtrer</button>
+    </form>
+  </div>
+
+  {% if objets %}
+    <div class="tableau-wrap">
+      <table class="tableau">
+        <thead>
+          <tr>
+            <th scope="col">{% if onglet == 'devis' %}Devis{% elif onglet == 'avoirs' %}Avoir{% else %}Facture{% endif %}</th>
+            <th scope="col">Client</th>
+            <th scope="col">Statut</th>
+            <th scope="col" class="montant">Total TTC</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for obj in objets %}
+            <tr>
+              <td>{{ obj }}</td>
+              <td>{{ obj.client }}</td>
+              <td><span class="badge badge--{{ obj.statut }}">{{ obj.get_statut_display }}</span></td>
+              <td class="montant">{{ obj.total_ttc|floatformat:2 }} €</td>
+              <td>
+                {% if onglet == 'devis' %}
+                  <a href="{% url 'backoffice:editer_devis' pk=obj.pk %}">{% if obj.statut == 'facture' %}Voir{% else %}Éditer{% endif %}</a>
+                  · <a href="{% url 'backoffice:telecharger_devis' pk=obj.pk %}">PDF</a>
+                {% else %}
+                  <a href="{% url 'backoffice:editer_facture' pk=obj.pk %}">{% if obj.statut == 'brouillon' %}Éditer{% else %}Voir{% endif %}</a>
+                  {% if obj.statut != 'brouillon' %}· <a href="{% url 'backoffice:telecharger_facture' pk=obj.pk %}">PDF</a>{% endif %}
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "backoffice/_pagination.html" %}
+  {% else %}
+    <div class="etat-vide">
+      <div class="etat-vide__ico" aria-hidden="true">
+        <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-document-check"></use></svg>
+      </div>
+      {% if onglet == 'devis' %}
+        <p class="etat-vide__titre">Aucun devis pour l'instant</p>
+        <p>Créez un premier devis pour le proposer à un client.</p>
+        <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_devis' %}">Nouveau devis</a></p>
+      {% elif onglet == 'avoirs' %}
+        <p class="etat-vide__titre">Aucun avoir</p>
+        <p>Un avoir s'émet depuis une facture validée, pour l'annuler ou la corriger.</p>
+      {% else %}
+        <p class="etat-vide__titre">Aucune facture</p>
+        <p>Créez votre première facture : elle recevra son numéro légal à la validation.</p>
+        <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:creer_facture' %}">Nouvelle facture</a></p>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

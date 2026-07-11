@@ -98,6 +98,11 @@ Application web à deux faces partageant une même base de données :
 
 ### Sorties
 - Total recettes, total dépenses, solde, reste à encaisser, écart prévu/réel.
+- **Trésorerie** (ajout post-cadrage) : un **solde en banque de référence** saisi
+  par le trésorier (dernier pointage, global, non lié aux saisons) + une
+  **trésorerie prévisionnelle** = solde + reste à réaliser du budget. C'est un
+  **repère de gestion et de prévision**, à rapprocher des comptes réels — l'outil
+  ne remplace pas la comptabilité (la banque fait foi).
 - **Export CSV / Excel** pour le trésorier / l'expert-comptable.
 - **Bilan financier annuel** par catégorie (PDF et/ou Excel), pour l'AG.
 - **Reçus fiscaux** pour les dons (Cerfa 11580) si l'association est d'intérêt général.

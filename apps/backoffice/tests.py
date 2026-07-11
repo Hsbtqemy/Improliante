@@ -10,7 +10,14 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement, Intervention
-from apps.budget.models import Adhesion, Categorie, RecuFiscal, Saison, Transaction
+from apps.budget.models import (
+    Adhesion,
+    Categorie,
+    RecuFiscal,
+    Saison,
+    SoldeTresorerie,
+    Transaction,
+)
 from apps.budget.services import emettre_recu
 from apps.coeur.models import Membre, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU
@@ -1098,7 +1105,8 @@ def test_filtre_factures_par_statut(client, db):
     brouillon = Facture.objects.create(client=c)
     validee = _facture_validee_bo("Théâtre")
     client.force_login(_staff())
-    factures = list(client.get("/bureau/factures/?statut=brouillon").context["factures"])
+    reponse = client.get("/bureau/facturation/?onglet=factures&statut=brouillon")
+    factures = list(reponse.context["objets"])
     assert brouillon in factures
     assert validee not in factures
 
@@ -1138,10 +1146,10 @@ def test_pagination_des_factures(client, db):
     for _ in range(25):
         Facture.objects.create(client=c)  # > 20 (une page)
     client.force_login(_staff())
-    page1 = client.get("/bureau/factures/").context["page"]
+    page1 = client.get("/bureau/facturation/?onglet=factures").context["page"]
     assert page1.paginator.num_pages == 2
     assert len(page1.object_list) == 20
-    page2 = client.get("/bureau/factures/?page=2").context["page"]
+    page2 = client.get("/bureau/facturation/?onglet=factures&page=2").context["page"]
     assert len(page2.object_list) == 5
 
 
@@ -1149,7 +1157,7 @@ def test_pagination_page_non_numerique_toleree(client, db):
     Client.objects.create(nom="X")
     client.force_login(_staff())
     # ?page=abc ne doit pas planter (get_page renvoie la 1re page).
-    assert client.get("/bureau/factures/?page=abc").status_code == 200
+    assert client.get("/bureau/facturation/?onglet=factures&page=abc").status_code == 200
 
 
 # --- Gouvernance ------------------------------------------------------------
@@ -1726,3 +1734,75 @@ def test_bureau_ajoute_plusieurs_intervenants(client, db):
     )
     evenement = Evenement.objects.get()
     assert Intervention.objects.filter(evenement=evenement).count() == 2
+
+
+def test_finances_reservee_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/finances/").status_code == 403
+
+
+def test_finances_agrege_les_chiffres(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    Facture.objects.create(client=Client.objects.create(nom="A"))  # brouillon → à valider
+    Adhesion.objects.create(
+        membre=_membre("adh").membre,
+        saison=saison,
+        statut=Adhesion.Statut.EN_ATTENTE,
+        montant_attendu=Decimal("40.00"),
+    )
+    Devis.objects.create(
+        client=Client.objects.create(nom="B"), date="2026-01-01", statut=Devis.Statut.ENVOYE
+    )
+    client.force_login(_staff())
+    reponse = client.get("/bureau/finances/")
+    assert reponse.status_code == 200
+    assert reponse.context["saison"] == saison
+    assert reponse.context["facturation"]["factures_a_valider"] == 1
+    assert reponse.context["facturation"]["devis_a_suivre"] == 1
+    assert reponse.context["cotisations"]["adhesions_en_attente"] == 1
+
+
+def test_budget_met_a_jour_le_solde_de_tresorerie(client, db):
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/budget/",
+        {"montant": "3200.00", "date_pointage": "2026-06-30", "note": "relevé de juin"},
+    )
+    assert reponse.status_code == 302
+    solde = SoldeTresorerie.charger()
+    assert solde.montant == Decimal("3200.00")
+    assert str(solde.date_pointage) == "2026-06-30"
+
+
+def test_budget_affiche_le_panneau_tresorerie(client, db):
+    Saison.objects.create(nom="2025-2026")
+    client.force_login(_staff())
+    corps = client.get("/bureau/budget/").content.decode()
+    assert "Solde en banque" in corps
+
+
+def test_facturation_onglets_accessibles(client, db):
+    client.force_login(_staff())
+    for onglet in ("devis", "factures", "avoirs"):
+        reponse = client.get(f"/bureau/facturation/?onglet={onglet}")
+        assert reponse.status_code == 200
+        assert reponse.context["onglet"] == onglet
+
+
+def test_facturation_separe_factures_et_avoirs(client, db):
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)  # type FACTURE par défaut
+    avoir = Facture.objects.create(client=c, type_piece=Facture.TypePiece.AVOIR)
+    client.force_login(_staff())
+    factures = client.get("/bureau/facturation/?onglet=factures").context["objets"].object_list
+    avoirs = client.get("/bureau/facturation/?onglet=avoirs").context["objets"].object_list
+    assert facture in factures and avoir not in factures
+    assert avoir in avoirs and facture not in avoirs
+
+
+def test_anciennes_urls_facturation_redirigent(client, db):
+    client.force_login(_staff())
+    r_factures = client.get("/bureau/factures/")
+    r_devis = client.get("/bureau/devis/")
+    assert r_factures.status_code == 302 and "onglet=factures" in r_factures["Location"]
+    assert r_devis.status_code == 302 and "onglet=devis" in r_devis["Location"]

@@ -9,6 +9,7 @@ même en cas de validations concurrentes (sur PostgreSQL).
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -181,3 +182,22 @@ def transformer_en_facture(devis: Devis) -> Facture:
     devis.statut = Devis.Statut.FACTURE
     devis.save(update_fields=["statut"])
     return facture
+
+
+def resume_facturation() -> dict:
+    """Chiffres clés de la facturation pour le hub Finances.
+
+    Les compteurs sont calculés en base ; le montant « en attente de paiement »
+    est sommé en Python sur les seules factures validées (`total_ttc` dérive des
+    lignes, préchargées ici)."""
+    factures = Facture.objects.filter(type_piece=Facture.TypePiece.FACTURE)
+    en_attente = list(factures.filter(statut=Facture.Statut.VALIDEE).prefetch_related("lignes"))
+    return {
+        "factures_a_valider": factures.filter(statut=Facture.Statut.BROUILLON).count(),
+        "factures_payees": factures.filter(statut=Facture.Statut.PAYEE).count(),
+        "en_attente_nb": len(en_attente),
+        "en_attente_montant": sum((f.total_ttc for f in en_attente), Decimal("0.00")),
+        "devis_a_suivre": Devis.objects.filter(
+            statut__in=[Devis.Statut.ENVOYE, Devis.Statut.ACCEPTE]
+        ).count(),
+    }
