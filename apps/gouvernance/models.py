@@ -100,6 +100,13 @@ class Reunion(Horodatage):
     convocation_texte = models.TextField("texte de convocation", blank=True)
     date_convocation = models.DateField("date d'envoi de la convocation", null=True, blank=True)
 
+    compte_rendu_texte = models.TextField(
+        "synthèse du compte-rendu",
+        blank=True,
+        help_text="Notes générales de séance ; le PV est ensuite généré à partir "
+        "de ces notes + présences, pouvoirs, quorum et résolutions.",
+    )
+
     compte_rendu = models.ForeignKey(
         "documents.Document",
         on_delete=models.SET_NULL,
@@ -140,6 +147,14 @@ class Reunion(Horodatage):
         return self.presences.filter(statut=Presence.Statut.REPRESENTE).count()
 
     @property
+    def nb_excuses(self) -> int:
+        return self.presences.filter(statut=Presence.Statut.EXCUSE).count()
+
+    @property
+    def nb_absents(self) -> int:
+        return self.presences.filter(statut=Presence.Statut.ABSENT).count()
+
+    @property
     def nb_pouvoirs(self) -> int:
         return self.pouvoirs.count()
 
@@ -176,6 +191,11 @@ class Sujet(Horodatage):
     )
     categorie = models.CharField("catégorie", max_length=120, blank=True)
     motif_refus = models.TextField("motif de refus", blank=True)
+    notes = models.TextField(
+        "notes / décision",
+        blank=True,
+        help_text="Ce qui a été dit ou décidé sur ce point (repris dans le PV).",
+    )
 
     documents = models.ManyToManyField(
         "documents.Document", blank=True, related_name="sujets", verbose_name="documents liés"
@@ -305,3 +325,33 @@ class Presence(models.Model):
 
     def __str__(self) -> str:
         return f"{self.membre} — {self.get_statut_display()}"
+
+
+class BlocCompteRendu(models.Model):
+    """Bloc de texte libre du compte-rendu, intercalé dans le déroulé.
+
+    Sert au **récit** hors des points : préambule, comptes rendus d'échanges,
+    transitions, intertitres. Ancrage : `apres_sujet` NULL = **préambule** (avant
+    le 1er point) ; sinon le bloc se place **juste après** ce point de l'ordre du
+    jour. Les blocs d'un même ancrage s'ordonnent par `ordre` puis `id`."""
+
+    reunion = models.ForeignKey(Reunion, on_delete=models.CASCADE, related_name="blocs")
+    apres_sujet = models.ForeignKey(
+        Sujet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="blocs_apres",
+        verbose_name="placé après le point",
+    )
+    titre = models.CharField("intertitre", max_length=200, blank=True)
+    texte = models.TextField()
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "bloc de compte-rendu"
+        verbose_name_plural = "blocs de compte-rendu"
+        ordering = ["ordre", "id"]
+
+    def __str__(self) -> str:
+        return self.titre or (self.texte[:50] or "bloc")

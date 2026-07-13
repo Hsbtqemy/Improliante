@@ -79,7 +79,12 @@ solde en banque de référence saisi par le trésorier + prévisionnel = solde +
 reste à réaliser du budget de la saison — repère de gestion à rapprocher des
 comptes, pas une compta),
 **gouvernance** (réunions/AG : quorum, ordre du jour, présences avec
-préremplissage des droits de vote, pouvoirs, résolutions avec résultat),
+préremplissage des droits de vote, pouvoirs, résolutions avec résultat ;
+**compte-rendu en déroulé** — note/décision par point + **blocs de récit
+libre** (`BlocCompteRendu`) intercalables (préambule, échanges, transitions) +
+conclusion — et **génération du PV en PDF** reprenant présences/pouvoirs/quorum/
+résolutions, déposé dans la GED via `gouvernance.services.generer_compte_rendu` ;
+**édition de la réunion** — statut, convocation — hors admin),
 **réglages** (paramètres de l'association, équipe = groupe « Bureau »). Listes
 filtrables et paginées.
 

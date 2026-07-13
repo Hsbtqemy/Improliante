@@ -2199,6 +2199,148 @@ a.tuile:hover {
   max-width: 24rem;
 }
 
+/* Fiche réunion (gouvernance) : résumé, ordre du jour + notes, ajouts repliés */
+.reunion-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.reunion-convocation {
+  color: var(--couleur-muet);
+  border-left: 3px solid var(--bordure);
+  padding-left: 0.85rem;
+}
+.reunion-resume {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.75rem;
+  align-items: baseline;
+  margin: 1.25rem 0 1.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-alt);
+}
+.reunion-resume__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.reunion-resume__val {
+  font-family: var(--police-titre);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--couleur-lien);
+}
+.reunion-resume__lbl {
+  color: var(--couleur-muet);
+  font-size: 0.82rem;
+}
+.odj-liste {
+  list-style: none;
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+  counter-reset: odj;
+}
+.odj-point {
+  counter-increment: odj;
+  position: relative;
+  padding: 0.9rem 1rem 0.9rem 2.7rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+.odj-point::before {
+  content: counter(odj);
+  position: absolute;
+  left: 0.85rem;
+  top: 0.9rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--couleur-primaire);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.odj-point__titre {
+  font-weight: 700;
+}
+.odj-point__desc {
+  color: var(--couleur-muet);
+  margin: 0.15rem 0 0.5rem;
+}
+.odj-point__label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--couleur-muet);
+  margin-bottom: 0.2rem;
+}
+/* Bloc de récit libre (préambule / transition) intercalé dans le déroulé.
+   Bordure ambre pour le distinguer des points (numérotés, bordeaux). */
+.cr-bloc {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--bordure);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--rayon) var(--rayon) 0;
+  background: var(--surface-alt);
+}
+.cr-bloc__titre {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.cr-bloc__suppr {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--couleur-muet);
+}
+.cr-bloc__suppr input {
+  width: auto;
+}
+.reunion-sous-titre {
+  margin-top: 1.6rem;
+}
+.liste-simple {
+  margin: 0.5rem 0;
+  padding-left: 1.2rem;
+}
+.ajout {
+  margin-top: 0.6rem;
+}
+.ajout-groupe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.75rem;
+}
+.ajout > summary {
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 600;
+  color: var(--couleur-lien);
+  padding: 0.25rem 0;
+}
+.ajout > summary:hover,
+.ajout > summary:focus-visible {
+  color: var(--couleur-primaire-vif);
+}
+.ajout[open] > summary {
+  margin-bottom: 0.6rem;
+}
+.ajout .formulaire,
+.ajout .formulaire-inline {
+  max-width: 34rem;
+}
+
 /* Formulaire en ligne (filtres) + bouton d'aspect lien */
 .formulaire-inline {
   display: flex;

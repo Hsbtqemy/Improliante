@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Procès-verbal — {{ reunion.titre }}</title>
+    <style>
+      @page { size: A4; margin: 1.6cm; }
+      * { box-sizing: border-box; }
+      body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+
+      .bandeau { display: flex; justify-content: space-between; align-items: flex-start;
+                 background: #7a1f2b; color: #fff; padding: 14px 18px; border-radius: 5px; }
+      .bandeau__asso { font-size: 15px; font-weight: bold; }
+      .bandeau__coord { font-size: 9.5px; color: #f0d6da; margin-top: 3px; }
+      .bandeau__doc { text-align: right; }
+      .bandeau__type { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+      .bandeau__sous { font-size: 11px; margin-top: 2px; }
+      .bandeau__date { font-size: 9.5px; color: #f0d6da; margin-top: 2px; }
+
+      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #7a1f2b;
+           border-bottom: 1px solid #e6d3d6; padding-bottom: 3px; margin: 18px 0 8px; }
+      p { margin: 4px 0; }
+      ul, ol { margin: 4px 0; padding-left: 20px; }
+      li { margin: 2px 0; }
+      .muet { color: #666; }
+
+      .quorum { padding: 8px 12px; border-radius: 5px; background: #f7f2f3; }
+      .badge-ok { color: #1c6b2e; font-weight: bold; }
+      .badge-ko { color: #a01f3c; font-weight: bold; }
+
+      .grille-presences { display: flex; flex-wrap: wrap; gap: 10px; }
+      .presence-col { width: 47%; border: 1px solid #eadfe1; border-radius: 5px; padding: 8px 10px; }
+      .presence-col h3 { font-size: 9.5px; text-transform: uppercase; color: #7a1f2b; margin: 0 0 4px; }
+
+      .odj-point { margin: 0 0 10px; }
+      .odj-point__titre { font-weight: bold; }
+      .odj-point__notes { margin-top: 3px; white-space: pre-line; }
+      .pv-bloc { margin: 0 0 10px; padding: 6px 11px; border-left: 3px solid #d9a441; background: #faf6ee; }
+      .pv-bloc__titre { font-weight: bold; margin-bottom: 2px; }
+      .pv-bloc__texte { white-space: pre-line; }
+
+      table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+      th { background: #f3e7e9; color: #4a1219; text-align: left; padding: 6px 8px; font-size: 9.5px;
+           text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #7a1f2b; }
+      td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+      .num { text-align: center; white-space: nowrap; }
+
+      .synthese { white-space: pre-line; }
+      .signatures { display: flex; justify-content: space-between; margin-top: 34px; }
+      .signature-bloc { width: 45%; font-size: 10px; }
+      .signature-bloc__ligne { margin-top: 34px; border-top: 1px solid #999; padding-top: 3px; color: #666; }
+    </style>
+  </head>
+  <body>
+    <div class="bandeau">
+      <div>
+        <div class="bandeau__asso">{{ asso.nom }}</div>
+        <div class="bandeau__coord">
+          {{ asso.adresse }}{% if asso.adresse %} · {% endif %}{{ asso.code_postal }} {{ asso.ville }}
+        </div>
+      </div>
+      <div class="bandeau__doc">
+        <div class="bandeau__type">Procès-verbal</div>
+        <div class="bandeau__sous">{{ reunion.get_type_reunion_display }}</div>
+        {% if reunion.date %}<div class="bandeau__date">{{ reunion.date|date:"l j F Y à H:i" }}</div>{% endif %}
+      </div>
+    </div>
+
+    <h2>{{ reunion.titre }}</h2>
+    <p class="muet">
+      {% if reunion.lieu_texte %}Lieu : {{ reunion.lieu_texte }}. {% endif %}
+      {% if reunion.date_convocation %}Convocation envoyée le {{ reunion.date_convocation|date:"d/m/Y" }}.{% endif %}
+    </p>
+
+    {# --- Quorum --- #}
+    <h2>Quorum &amp; participation</h2>
+    <div class="quorum">
+      {% if quorum.applicable %}
+        <strong>{{ quorum.presents_representes }}</strong> présents ou représentés sur
+        <strong>{{ quorum.electorat }}</strong> membres votants — seuil statutaire {{ quorum.seuil }} :
+        {% if quorum.atteint %}<span class="badge-ok">quorum atteint</span>{% else %}<span class="badge-ko">quorum non atteint</span>{% endif %}.
+      {% else %}
+        Pas de quorum statutaire pour ce type de réunion
+        ({{ quorum.presents_representes }} présents ou représentés).
+      {% endif %}
+    </div>
+
+    {# --- Présences --- #}
+    <div class="grille-presences" style="margin-top: 10px;">
+      <div class="presence-col">
+        <h3>Présent·es ({{ presents|length }})</h3>
+        {% if presents %}<ul>{% for p in presents %}<li>{{ p.membre }}</li>{% endfor %}</ul>{% else %}<p class="muet">—</p>{% endif %}
+      </div>
+      <div class="presence-col">
+        <h3>Représenté·es ({{ representes|length }})</h3>
+        {% if representes %}<ul>{% for p in representes %}<li>{{ p.membre }}</li>{% endfor %}</ul>{% else %}<p class="muet">—</p>{% endif %}
+      </div>
+      <div class="presence-col">
+        <h3>Excusé·es ({{ excuses|length }})</h3>
+        {% if excuses %}<ul>{% for p in excuses %}<li>{{ p.membre }}</li>{% endfor %}</ul>{% else %}<p class="muet">—</p>{% endif %}
+      </div>
+      <div class="presence-col">
+        <h3>Absent·es ({{ absents|length }})</h3>
+        {% if absents %}<ul>{% for p in absents %}<li>{{ p.membre }}</li>{% endfor %}</ul>{% else %}<p class="muet">—</p>{% endif %}
+      </div>
+    </div>
+
+    {% if pouvoirs %}
+      <h2>Pouvoirs</h2>
+      <ul>
+        {% for pouvoir in pouvoirs %}<li>{{ pouvoir.mandant }} donne pouvoir à {{ pouvoir.mandataire }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    {# --- Déroulé : préambule + points (avec notes) + blocs de récit intercalés --- #}
+    <h2>Déroulé &amp; délibérations</h2>
+    {% for bloc in blocs_intro %}
+      <div class="pv-bloc">
+        {% if bloc.titre %}<div class="pv-bloc__titre">{{ bloc.titre }}</div>{% endif %}
+        <div class="pv-bloc__texte">{{ bloc.texte }}</div>
+      </div>
+    {% endfor %}
+    {% for sujet in ordre_du_jour %}
+      <div class="odj-point">
+        <span class="odj-point__titre">{{ forloop.counter }}. {{ sujet.titre }}</span>
+        {% if sujet.description %}<div class="muet">{{ sujet.description }}</div>{% endif %}
+        {% if sujet.notes %}<div class="odj-point__notes">{{ sujet.notes }}</div>{% endif %}
+      </div>
+      {% for bloc in sujet.blocs_suivants %}
+        <div class="pv-bloc">
+          {% if bloc.titre %}<div class="pv-bloc__titre">{{ bloc.titre }}</div>{% endif %}
+          <div class="pv-bloc__texte">{{ bloc.texte }}</div>
+        </div>
+      {% endfor %}
+    {% empty %}
+      {% if not blocs_intro %}<p class="muet">Aucun point à l'ordre du jour.</p>{% endif %}
+    {% endfor %}
+
+    {# --- Résolutions --- #}
+    {% if resolutions %}
+      <h2>Résolutions</h2>
+      <table>
+        <thead>
+          <tr><th>Résolution</th><th>Majorité</th><th class="num">Pour</th><th class="num">Contre</th><th class="num">Abst.</th><th>Résultat</th></tr>
+        </thead>
+        <tbody>
+          {% for r, res in resolutions %}
+            <tr>
+              <td>{{ r.intitule }}{% if r.texte %}<br /><span class="muet">{{ r.texte }}</span>{% endif %}</td>
+              <td>{{ r.get_type_majorite_display }}</td>
+              <td class="num">{{ res.pour }}</td>
+              <td class="num">{{ res.contre }}</td>
+              <td class="num">{{ res.abstention }}</td>
+              <td>{% if res.adoptee %}<span class="badge-ok">Adoptée</span>{% else %}<span class="badge-ko">Rejetée</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {% if reunion.compte_rendu_texte %}
+      <h2>Synthèse</h2>
+      <div class="synthese">{{ reunion.compte_rendu_texte }}</div>
+    {% endif %}
+
+    <div class="signatures">
+      <div class="signature-bloc">
+        <div>La présidence</div>
+        <div class="signature-bloc__ligne">Signature</div>
+      </div>
+      <div class="signature-bloc">
+        <div>Le secrétariat de séance</div>
+        <div class="signature-bloc__ligne">Signature</div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -4,8 +4,9 @@
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:gouvernance_reunions' %}">← Réunions</a></p>
+
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Bureau · Gouvernance</span>
     <h1>{{ reunion.titre }}</h1>
     <p class="page-tete__sous">
       <span class="badge">{{ reunion.get_type_reunion_display }}</span>
@@ -13,51 +14,40 @@
       {% if reunion.date %}· {{ reunion.date|date:"l j F Y à H:i" }}{% endif %}
       {% if reunion.lieu_texte %}· {{ reunion.lieu_texte }}{% endif %}
     </p>
+    <p class="reunion-actions">
+      <a class="lien-bouton" href="{% url 'backoffice:gouvernance_editer_reunion' pk=reunion.pk %}">Modifier la réunion</a>
+      {% if reunion.compte_rendu %}
+        <a class="lien-bouton" href="{% url 'backoffice:gouvernance_telecharger_pv' pk=reunion.pk %}">Télécharger le PV</a>
+      {% endif %}
+    </p>
   </header>
-  {% if reunion.convocation_texte %}<p>{{ reunion.convocation_texte|linebreaksbr }}</p>{% endif %}
 
-  {# --- Quorum --- #}
-  <section aria-labelledby="t-quorum">
-    <h2 id="t-quorum">Quorum</h2>
-    {% if quorum.applicable %}
-      <p>
-        <strong>{{ quorum.presents_representes }}</strong> présents/représentés sur
-        <strong>{{ quorum.electorat }}</strong> votants · seuil {{ quorum.seuil }} →
-        {% if quorum.atteint %}
-          <span class="badge badge--publie">quorum atteint</span>
-        {% else %}
-          <span class="badge badge--refuse">quorum non atteint</span>
-        {% endif %}
-      </p>
-    {% else %}
-      <p class="carte-projet__meta">Pas de quorum statutaire pour ce type de réunion.</p>
-    {% endif %}
-  </section>
+  {% if reunion.convocation_texte %}<p class="reunion-convocation">{{ reunion.convocation_texte|linebreaksbr }}</p>{% endif %}
 
-  {# --- Ordre du jour --- #}
-  <section aria-labelledby="t-odj">
-    <h2 id="t-odj">Ordre du jour</h2>
-    {% if ordre_du_jour %}
-      <ol>
-        {% for sujet in ordre_du_jour %}
-          <li><strong>{{ sujet.titre }}</strong>{% if sujet.description %} — {{ sujet.description }}{% endif %}</li>
-        {% endfor %}
-      </ol>
-    {% else %}
-      <p>Aucun sujet à l'ordre du jour.</p>
-    {% endif %}
-    <form method="post" action="{% url 'backoffice:gouvernance_ajouter_sujet' pk=reunion.pk %}" class="formulaire">
-      {% csrf_token %}
-      {% for field in sujet_form %}
-        <p class="champ"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</p>
-      {% endfor %}
-      <button type="submit" class="lien-bouton">Ajouter le sujet</button>
-    </form>
-  </section>
+  {# --- Résumé de séance --- #}
+  <div class="reunion-resume" role="group" aria-label="Résumé de la séance">
+    <span class="reunion-resume__item">
+      <span class="reunion-resume__val">
+        {% if quorum.applicable %}
+          {% if quorum.atteint %}<span class="badge badge--publie">Quorum atteint</span>{% else %}<span class="badge badge--refuse">Quorum non atteint</span>{% endif %}
+        {% else %}<span class="badge">Sans quorum</span>{% endif %}
+      </span>
+      <span class="reunion-resume__lbl">
+        {% if quorum.applicable %}{{ quorum.presents_representes }}/{{ quorum.electorat }} votants · seuil {{ quorum.seuil }}{% else %}réunion de bureau{% endif %}
+      </span>
+    </span>
+    <span class="reunion-resume__item"><span class="reunion-resume__val">{{ reunion.nb_presents }}</span><span class="reunion-resume__lbl">présent·es</span></span>
+    <span class="reunion-resume__item"><span class="reunion-resume__val">{{ reunion.nb_representes }}</span><span class="reunion-resume__lbl">représenté·es</span></span>
+    <span class="reunion-resume__item"><span class="reunion-resume__val">{{ reunion.nb_excuses }}</span><span class="reunion-resume__lbl">excusé·es</span></span>
+    <span class="reunion-resume__item"><span class="reunion-resume__val">{{ reunion.nb_absents }}</span><span class="reunion-resume__lbl">absent·es</span></span>
+    <span class="reunion-resume__item"><span class="reunion-resume__val">{{ reunion.nb_pouvoirs }}</span><span class="reunion-resume__lbl">pouvoir·s</span></span>
+    <span class="reunion-resume__item"><span class="reunion-resume__val">{{ resolutions|length }}</span><span class="reunion-resume__lbl">résolution·s</span></span>
+  </div>
 
-  {# --- Présences --- #}
-  <section aria-labelledby="t-presences">
-    <h2 id="t-presences">Présences ({{ reunion.nb_presents }} présent·es, {{ reunion.nb_representes }} représenté·es)</h2>
+  {# --- Participants : présences + pouvoirs (on établit qui est là avant de dérouler) --- #}
+  <section aria-labelledby="t-participants">
+    <h2 id="t-participants">Participants</h2>
+
     {% if presences %}
       <div class="tableau-wrap">
         <table class="tableau">
@@ -74,54 +64,127 @@
         </table>
       </div>
     {% else %}
-      <p>Aucune présence enregistrée.</p>
+      <p class="champ__aide">Aucune présence enregistrée.</p>
     {% endif %}
 
-    <form method="post" action="{% url 'backoffice:gouvernance_saisir_presence' pk=reunion.pk %}" class="formulaire">
-      {% csrf_token %}
-      {% for field in presence_form %}
-        <p class="champ">
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
-        </p>
-      {% endfor %}
-      <button type="submit" class="lien-bouton">Enregistrer la présence</button>
-    </form>
+    <div class="ajout-groupe">
+      <details class="ajout">
+        <summary>+ Enregistrer une présence</summary>
+        <form method="post" action="{% url 'backoffice:gouvernance_saisir_presence' pk=reunion.pk %}" class="formulaire">
+          {% csrf_token %}
+          {% for field in presence_form %}
+            <p class="champ">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+            </p>
+          {% endfor %}
+          <button type="submit" class="lien-bouton">Enregistrer la présence</button>
+        </form>
+      </details>
 
-    <form method="post" action="{% url 'backoffice:gouvernance_preremplir_votes' pk=reunion.pk %}" class="formulaire-inline">
-      {% csrf_token %}
-      <label for="saison-vote">Préremplir les droits de vote (saison)</label>
-      <select id="saison-vote" name="saison">
-        <option value="">—</option>
-        {% for s in saisons %}<option value="{{ s.pk }}">{{ s.nom }}</option>{% endfor %}
-      </select>
-      <button type="submit" class="lien-bouton">Préremplir</button>
-    </form>
-  </section>
+      <details class="ajout">
+        <summary>Préremplir les droits de vote</summary>
+        <form method="post" action="{% url 'backoffice:gouvernance_preremplir_votes' pk=reunion.pk %}" class="formulaire-inline">
+          {% csrf_token %}
+          <label for="saison-vote">Saison de référence</label>
+          <select id="saison-vote" name="saison">
+            <option value="">—</option>
+            {% for s in saisons %}<option value="{{ s.pk }}">{{ s.nom }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="lien-bouton">Préremplir</button>
+        </form>
+      </details>
+    </div>
 
-  {# --- Pouvoirs --- #}
-  <section aria-labelledby="t-pouvoirs">
-    <h2 id="t-pouvoirs">Pouvoirs</h2>
+    <h3 class="reunion-sous-titre">Pouvoirs</h3>
     {% if mandataires_en_exces %}
       <div class="message message--error" role="alert">
         Attention : un ou plusieurs mandataires dépassent le nombre de pouvoirs autorisé.
       </div>
     {% endif %}
     {% if pouvoirs %}
-      <ul>
+      <ul class="liste-simple">
         {% for pouvoir in pouvoirs %}<li>{{ pouvoir.mandant }} → {{ pouvoir.mandataire }}</li>{% endfor %}
       </ul>
     {% else %}
-      <p>Aucun pouvoir.</p>
+      <p class="champ__aide">Aucun pouvoir.</p>
     {% endif %}
-    <form method="post" action="{% url 'backoffice:gouvernance_ajouter_pouvoir' pk=reunion.pk %}" class="formulaire">
+    <details class="ajout">
+      <summary>+ Ajouter un pouvoir</summary>
+      <form method="post" action="{% url 'backoffice:gouvernance_ajouter_pouvoir' pk=reunion.pk %}" class="formulaire">
+        {% csrf_token %}
+        {% for field in pouvoir_form %}
+          <p class="champ"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</p>
+        {% endfor %}
+        <button type="submit" class="lien-bouton">Ajouter le pouvoir</button>
+      </form>
+    </details>
+  </section>
+
+  {# --- Déroulé : ordre du jour + notes + blocs de récit intercalés --- #}
+  <section aria-labelledby="t-odj">
+    <h2 id="t-odj">Déroulé &amp; compte-rendu</h2>
+    <p class="champ__aide">
+      Les points numérotés portent la <strong>décision</strong> ; les blocs ambrés sont du
+      <strong>récit libre</strong> (préambule, échanges, transitions) intercalé où vous voulez.
+    </p>
+
+    <form method="post" action="{% url 'backoffice:gouvernance_notes' pk=reunion.pk %}" class="formulaire">
       {% csrf_token %}
-      {% for field in pouvoir_form %}
-        <p class="champ"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</p>
-      {% endfor %}
-      <button type="submit" class="lien-bouton">Ajouter le pouvoir</button>
+      <div class="odj-liste">
+        {% for bloc in blocs_intro %}{% include "backoffice/_cr_bloc.html" %}{% endfor %}
+        {% for sujet in ordre_du_jour %}
+          <div class="odj-point">
+            <div class="odj-point__titre">{{ sujet.titre }}</div>
+            {% if sujet.description %}<p class="odj-point__desc">{{ sujet.description }}</p>{% endif %}
+            <label class="odj-point__label" for="notes-{{ sujet.pk }}">Notes / décision</label>
+            <textarea id="notes-{{ sujet.pk }}" name="notes_{{ sujet.pk }}" rows="3" placeholder="Ce qui a été dit ou décidé…">{{ sujet.notes }}</textarea>
+          </div>
+          {% for bloc in sujet.blocs_suivants %}{% include "backoffice/_cr_bloc.html" %}{% endfor %}
+        {% empty %}
+          {% if not blocs_intro %}<p class="champ__aide">Aucun point à l'ordre du jour pour l'instant.</p>{% endif %}
+        {% endfor %}
+      </div>
+
+      <p class="champ">
+        <label for="synthese">Conclusion / synthèse</label>
+        <textarea id="synthese" name="synthese" rows="4" placeholder="Clôture, remarques finales…">{{ reunion.compte_rendu_texte }}</textarea>
+      </p>
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer le compte-rendu</button>
     </form>
+
+    <div class="ajout-groupe">
+      <details class="ajout">
+        <summary>+ Ajouter un point à l'ordre du jour</summary>
+        <form method="post" action="{% url 'backoffice:gouvernance_ajouter_sujet' pk=reunion.pk %}" class="formulaire">
+          {% csrf_token %}
+          {% for field in sujet_form %}
+            <p class="champ"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</p>
+          {% endfor %}
+          <button type="submit" class="lien-bouton">Ajouter le sujet</button>
+        </form>
+      </details>
+
+      <details class="ajout">
+        <summary>+ Ajouter un bloc de récit (contexte / transition)</summary>
+        <form method="post" action="{% url 'backoffice:gouvernance_ajouter_bloc' pk=reunion.pk %}" class="formulaire">
+          {% csrf_token %}
+          <p class="champ">
+            <label for="bloc-position">Position</label>
+            <select id="bloc-position" name="apres_sujet">
+              <option value="">En préambule (avant le 1er point)</option>
+              {% for sujet in ordre_du_jour %}
+                <option value="{{ sujet.pk }}">Après le point {{ forloop.counter }} — {{ sujet.titre }}</option>
+              {% endfor %}
+            </select>
+          </p>
+          <p class="champ"><label for="bloc-titre">Intertitre (optionnel)</label><input type="text" id="bloc-titre" name="titre" /></p>
+          <p class="champ"><label for="bloc-texte">Texte</label><textarea id="bloc-texte" name="texte" rows="3"></textarea></p>
+          <button type="submit" class="lien-bouton">Ajouter le bloc</button>
+        </form>
+      </details>
+    </div>
   </section>
 
   {# --- Résolutions --- #}
@@ -143,11 +206,7 @@
                 <td>{{ r.get_type_majorite_display }}</td>
                 <td>{{ res.pour }} / {{ res.contre }} / {{ res.abstention }}</td>
                 <td>
-                  {% if res.adoptee %}
-                    <span class="badge badge--publie">Adoptée</span>
-                  {% else %}
-                    <span class="badge badge--refuse">Rejetée</span>
-                  {% endif %}
+                  {% if res.adoptee %}<span class="badge badge--publie">Adoptée</span>{% else %}<span class="badge badge--refuse">Rejetée</span>{% endif %}
                 </td>
               </tr>
             {% endfor %}
@@ -155,18 +214,45 @@
         </table>
       </div>
     {% else %}
-      <p>Aucune résolution.</p>
+      <p class="champ__aide">Aucune résolution.</p>
     {% endif %}
-    <form method="post" action="{% url 'backoffice:gouvernance_ajouter_resolution' pk=reunion.pk %}" class="formulaire">
-      {% csrf_token %}
-      {% for field in resolution_form %}
-        <p class="champ">
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
-        </p>
-      {% endfor %}
-      <button type="submit" class="lien-bouton">Enregistrer la résolution</button>
-    </form>
+    <details class="ajout">
+      <summary>+ Enregistrer une résolution</summary>
+      <form method="post" action="{% url 'backoffice:gouvernance_ajouter_resolution' pk=reunion.pk %}" class="formulaire">
+        {% csrf_token %}
+        {% for field in resolution_form %}
+          <p class="champ">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+          </p>
+        {% endfor %}
+        <button type="submit" class="lien-bouton">Enregistrer la résolution</button>
+      </form>
+    </details>
+  </section>
+
+  {# --- Compte-rendu (PV) --- #}
+  <section class="bloc-secondaire" aria-labelledby="t-pv">
+    <h2 id="t-pv">Procès-verbal (PV)</h2>
+    {% if reunion.compte_rendu %}
+      <p>
+        PV généré — <a href="{% url 'backoffice:gouvernance_telecharger_pv' pk=reunion.pk %}">Télécharger le PDF</a>.
+        Déposé dans la GED et visible des membres convoqués.
+      </p>
+      <form method="post" action="{% url 'backoffice:gouvernance_generer_pv' pk=reunion.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton">Régénérer le PV</button>
+      </form>
+    {% else %}
+      <p class="champ__aide">
+        Assemble automatiquement présences, pouvoirs, quorum, ordre du jour + notes et
+        résolutions en un PDF (aucune ressaisie), déposé dans la GED.
+      </p>
+      <form method="post" action="{% url 'backoffice:gouvernance_generer_pv' pk=reunion.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Générer le PV</button>
+      </form>
+    {% endif %}
   </section>
 {% endblock %}

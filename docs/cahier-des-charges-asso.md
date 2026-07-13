@@ -224,7 +224,14 @@ Spectacle / Projet
 - **Ordre du jour** = sujets piochés dans le carnet (ordonnés).
 - **Documents joints** → GED (communiqués avec la convocation).
 - Convocation (texte + date d'envoi).
-- **Compte-rendu** (PV) → GED.
+- **Compte-rendu** (PV) → GED. **Évolution post-cadrage** : le PV peut être
+  *rédigé depuis le site*. Le compte-rendu est un **déroulé** : une note/décision
+  par point d'ordre du jour, **des blocs de récit libre** (`BlocCompteRendu`)
+  intercalables n'importe où (préambule, comptes rendus d'échanges, transitions),
+  et une conclusion. Le PV est ensuite **généré en PDF** — présences, pouvoirs,
+  quorum et résolutions (avec résultats) sont repris automatiquement, sans
+  ressaisie — et déposé dans la GED (visible des convoqués). Le dépôt d'un PV
+  externe reste possible.
 - Une réunion **peut être** un `Evenement` de l'agenda (visibilité membres/interne) — pas de duplication.
 
 ### 8.3 Votes / pouvoirs / quorum — **dès la v1**

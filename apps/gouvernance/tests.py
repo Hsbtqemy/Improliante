@@ -8,18 +8,22 @@ import pytest
 
 from apps.budget.models import Adhesion, Saison
 from apps.coeur.models import Membre, Utilisateur
+from apps.documents.models import Document
 from apps.gouvernance.models import (
+    BlocCompteRendu,
     ParametresGouvernance,
     Pouvoir,
     Presence,
     Resolution,
     Reunion,
+    Sujet,
 )
 from apps.gouvernance.services import (
     ReponseConvocationImpossible,
     calcul_quorum,
     donner_pouvoir,
     enregistrer_presence_membre,
+    generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
     resultat_resolution,
@@ -296,3 +300,61 @@ def test_pas_de_reponse_si_reunion_non_convoquee(make_membre):
     )
     with pytest.raises(ReponseConvocationImpossible):
         enregistrer_presence_membre(reunion, make_membre(), Presence.Statut.PRESENT)
+
+
+# --- Génération du compte-rendu (PV) ---------------------------------------
+
+
+def test_generer_compte_rendu_depose_un_document_membres(db, monkeypatch):
+    # PDF mocké : on stocke le HTML rendu pour pouvoir vérifier son contenu.
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    bureau = Utilisateur.objects.create(username="bureau")
+    reunion = _reunion()
+    membre = Membre.objects.create(prenom="Alice", nom="Martin")
+    _presence(reunion, membre, Presence.Statut.PRESENT)
+    Sujet.objects.create(
+        titre="Budget prévisionnel",
+        reunion=reunion,
+        statut=Sujet.Statut.ORDRE_DU_JOUR,
+        notes="Adopté sans opposition",
+    )
+
+    doc = generer_compte_rendu(reunion, par=bureau)
+
+    reunion.refresh_from_db()
+    assert reunion.compte_rendu_id == doc.pk
+    assert doc.confidentialite == Document.Confidentialite.MEMBRES
+    contenu = doc.fichier.open("rb").read().decode()
+    assert "Martin" in contenu  # présent listé
+    assert "Adopté sans opposition" in contenu  # notes du point d'ordre du jour
+
+
+def test_regenerer_pv_remplace_sans_creer_de_doublon(db, monkeypatch):
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4")
+    bureau = Utilisateur.objects.create(username="bureau")
+    reunion = _reunion()
+    doc1 = generer_compte_rendu(reunion, par=bureau)
+    doc2 = generer_compte_rendu(reunion, par=bureau)
+    assert doc1.pk == doc2.pk  # même Document, fichier remplacé
+    assert Document.objects.count() == 1
+
+
+def test_pv_intercale_les_blocs_de_recit_dans_le_deroule(db, monkeypatch):
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    bureau = Utilisateur.objects.create(username="bureau")
+    reunion = _reunion()
+    sujet = Sujet.objects.create(titre="Budget", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR)
+    BlocCompteRendu.objects.create(reunion=reunion, apres_sujet=None, texte="Ouverture de seance")
+    BlocCompteRendu.objects.create(reunion=reunion, apres_sujet=sujet, texte="Transition suivante")
+
+    contenu = generer_compte_rendu(reunion, par=bureau).fichier.open("rb").read().decode()
+    # Ordre attendu dans le déroulé : préambule < point < bloc rattaché au point.
+    assert (
+        contenu.index("Ouverture de seance")
+        < contenu.index("Budget")
+        < contenu.index("Transition suivante")
+    )

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier « {{ reunion.titre }} » — Gouvernance{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:gouvernance_reunion' pk=reunion.pk %}">← {{ reunion.titre }}</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Gouvernance</span>
+    <h1>Modifier la réunion</h1>
+  </header>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <p class="champ">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <a class="lien-bouton" href="{% url 'backoffice:gouvernance_reunion' pk=reunion.pk %}">Annuler</a>
+    </div>
+  </form>
+{% endblock %}

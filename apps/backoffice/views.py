@@ -8,6 +8,7 @@ un retour à l'utilisateur.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import PurePosixPath
 
 from django.contrib import messages
@@ -52,6 +53,7 @@ from apps.common.moderation import (
     refuser,
     valider,
 )
+from apps.common.pdf import RenduPDFIndisponible
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
@@ -67,9 +69,10 @@ from apps.facturation.services import (
     transformer_en_facture,
     valider_facture,
 )
-from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
+from apps.gouvernance.models import BlocCompteRendu, Pouvoir, Presence, Reunion, Sujet
 from apps.gouvernance.services import (
     calcul_quorum,
+    generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
     resultat_resolution,
@@ -1307,13 +1310,28 @@ def gouvernance_reunion(request, pk):
     résolutions (avec résultat calculé)."""
     reunion = get_object_or_404(Reunion, pk=pk)
     resolutions = [(r, resultat_resolution(r)) for r in reunion.resolutions.all()]
+
+    # Déroulé du compte-rendu : blocs de récit en préambule (apres_sujet nul) +
+    # blocs rattachés à chaque point (affichés juste après lui).
+    sujets = list(reunion.sujets.order_by("ordre_du_jour", "id"))
+    blocs_par_sujet = defaultdict(list)
+    blocs_intro = []
+    for bloc in reunion.blocs.all():
+        if bloc.apres_sujet_id:
+            blocs_par_sujet[bloc.apres_sujet_id].append(bloc)
+        else:
+            blocs_intro.append(bloc)
+    for sujet in sujets:
+        sujet.blocs_suivants = blocs_par_sujet.get(sujet.pk, [])
+
     return render(
         request,
         "backoffice/gouvernance_reunion.html",
         {
             "reunion": reunion,
             "quorum": calcul_quorum(reunion),
-            "ordre_du_jour": reunion.sujets.order_by("ordre_du_jour", "id"),
+            "ordre_du_jour": sujets,
+            "blocs_intro": blocs_intro,
             "presences": reunion.presences.select_related("membre").order_by("membre"),
             "pouvoirs": reunion.pouvoirs.select_related("mandant", "mandataire"),
             "resolutions": resolutions,
@@ -1324,6 +1342,31 @@ def gouvernance_reunion(request, pk):
             "pouvoir_form": PouvoirForm(),
             "resolution_form": ResolutionForm(reunion=reunion),
         },
+    )
+
+
+def _vers_reunion(pk, ancre=""):
+    """Redirige vers la fiche réunion, ancrée sur une section — garde le contexte
+    de défilement après un POST (la fiche est longue)."""
+    return redirect(reverse("backoffice:gouvernance_reunion", args=[pk]) + ancre)
+
+
+@bureau_requis
+def gouvernance_editer_reunion(request, pk):
+    """Édite une réunion (titre, type, statut, date, lieu, texte de convocation).
+
+    Couvre notamment les **transitions de statut** (préparation → convoquée →
+    tenue → archivée) sans passer par l'admin Django."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    form = ReunionForm(request.POST or None, instance=reunion)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Réunion mise à jour.")
+        return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return render(
+        request,
+        "backoffice/gouvernance_reunion_form.html",
+        {"form": form, "reunion": reunion},
     )
 
 
@@ -1340,7 +1383,7 @@ def gouvernance_ajouter_sujet(request, pk):
         messages.success(request, "Sujet ajouté à l'ordre du jour.")
     else:
         messages.error(request, "Sujet invalide.")
-    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return _vers_reunion(reunion.pk, "#t-odj")
 
 
 @bureau_requis
@@ -1362,7 +1405,7 @@ def gouvernance_saisir_presence(request, pk):
         messages.success(request, "Présence enregistrée.")
     else:
         messages.error(request, "Présence invalide.")
-    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return _vers_reunion(reunion.pk, "#t-participants")
 
 
 @bureau_requis
@@ -1378,7 +1421,7 @@ def gouvernance_preremplir_votes(request, pk):
         messages.success(request, f"Droits de vote mis à jour ({nb} présence(s)).")
     except ValueError as exc:
         messages.error(request, str(exc))
-    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return _vers_reunion(reunion.pk, "#t-participants")
 
 
 @bureau_requis
@@ -1396,7 +1439,7 @@ def gouvernance_ajouter_pouvoir(request, pk):
         messages.success(request, "Pouvoir enregistré.")
     else:
         messages.error(request, "; ".join(form.non_field_errors()) or "Pouvoir invalide.")
-    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return _vers_reunion(reunion.pk, "#t-participants")
 
 
 @bureau_requis
@@ -1411,4 +1454,76 @@ def gouvernance_ajouter_resolution(request, pk):
         messages.success(request, "Résolution enregistrée.")
     else:
         messages.error(request, "Résolution invalide.")
-    return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
+    return _vers_reunion(reunion.pk, "#t-resolutions")
+
+
+@bureau_requis
+@require_POST
+def gouvernance_notes(request, pk):
+    """Enregistre le compte-rendu en une seule sauvegarde : synthèse, notes par
+    point de l'ordre du jour, et le texte (+ suppression) des blocs de récit."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    reunion.compte_rendu_texte = request.POST.get("synthese", "")
+    reunion.save(update_fields=["compte_rendu_texte"])
+
+    for sujet in reunion.sujets.all():
+        cle = f"notes_{sujet.pk}"
+        if cle in request.POST:
+            sujet.notes = request.POST.get(cle, "")
+            sujet.save(update_fields=["notes"])
+
+    a_supprimer = set(request.POST.getlist("supprimer_bloc"))
+    for bloc in reunion.blocs.all():
+        if str(bloc.pk) in a_supprimer:
+            bloc.delete()
+            continue
+        cle_texte = f"bloc_{bloc.pk}_texte"
+        if cle_texte in request.POST:
+            bloc.titre = request.POST.get(f"bloc_{bloc.pk}_titre", "")
+            bloc.texte = request.POST.get(cle_texte, "")
+            bloc.save(update_fields=["titre", "texte"])
+
+    messages.success(request, "Compte-rendu enregistré.")
+    return _vers_reunion(reunion.pk, "#t-odj")
+
+
+@bureau_requis
+@require_POST
+def gouvernance_ajouter_bloc(request, pk):
+    """Ajoute un bloc de texte libre au déroulé (préambule ou après un point)."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    apres_pk = request.POST.get("apres_sujet", "")
+    apres = reunion.sujets.filter(pk=apres_pk).first() if apres_pk and apres_pk.isdigit() else None
+    BlocCompteRendu.objects.create(
+        reunion=reunion,
+        apres_sujet=apres,
+        titre=request.POST.get("titre", ""),
+        texte=request.POST.get("texte", ""),
+    )
+    messages.success(request, "Bloc de texte ajouté au compte-rendu.")
+    return _vers_reunion(reunion.pk, "#t-odj")
+
+
+@bureau_requis
+@require_POST
+def gouvernance_generer_pv(request, pk):
+    """Génère (ou régénère) le PV PDF et le dépose dans la GED (visible des membres)."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    try:
+        generer_compte_rendu(reunion, par=request.user)
+    except RenduPDFIndisponible as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Compte-rendu (PV) généré et déposé.")
+    return _vers_reunion(reunion.pk, "#t-pv")
+
+
+@bureau_requis
+def gouvernance_telecharger_pv(request, pk):
+    """Télécharge le PV généré d'une réunion (fichier privé)."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    if not reunion.compte_rendu_id:
+        raise Http404("Aucun compte-rendu généré pour cette réunion.")
+    return reponse_fichier_prive(
+        reunion.compte_rendu.fichier, nom_telechargement=f"pv-{reunion.pk}.pdf"
+    )

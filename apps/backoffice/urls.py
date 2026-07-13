@@ -108,6 +108,11 @@ urlpatterns = [
         name="gouvernance_reunion",
     ),
     path(
+        "bureau/gouvernance/reunion/<int:pk>/modifier/",
+        views.gouvernance_editer_reunion,
+        name="gouvernance_editer_reunion",
+    ),
+    path(
         "bureau/gouvernance/reunion/<int:pk>/sujet/",
         views.gouvernance_ajouter_sujet,
         name="gouvernance_ajouter_sujet",
@@ -131,5 +136,25 @@ urlpatterns = [
         "bureau/gouvernance/reunion/<int:pk>/resolution/",
         views.gouvernance_ajouter_resolution,
         name="gouvernance_ajouter_resolution",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/notes/",
+        views.gouvernance_notes,
+        name="gouvernance_notes",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/bloc/",
+        views.gouvernance_ajouter_bloc,
+        name="gouvernance_ajouter_bloc",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/pv/",
+        views.gouvernance_generer_pv,
+        name="gouvernance_generer_pv",
+    ),
+    path(
+        "bureau/gouvernance/reunion/<int:pk>/pv/telecharger/",
+        views.gouvernance_telecharger_pv,
+        name="gouvernance_telecharger_pv",
     ),
 ]

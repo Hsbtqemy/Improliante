@@ -19,10 +19,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count
+from django.template.loader import render_to_string
 
 from apps.budget.models import Adhesion
+from apps.coeur.models import ParametresAssociation
+from apps.common import pdf
+from apps.documents.models import Document
+from apps.documents.services import televerser_fichier
 
 from .models import ParametresGouvernance, Pouvoir, Presence, Resolution, Reunion
 
@@ -194,3 +200,59 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
             presence.save(update_fields=["peut_voter"])
             modifies += 1
     return modifies
+
+
+def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
+    """Génère le PV (PDF) d'une réunion et le range dans la GED.
+
+    Le PV assemble les **notes de séance** (synthèse + notes par point d'ordre du
+    jour) avec les **données déjà saisies** (présences, pouvoirs, quorum,
+    résolutions et leurs résultats) — aucune ressaisie. Le PDF est déposé comme
+    Document (confidentialité « Membres », donc visible des convoqués) et rattaché
+    à `reunion.compte_rendu`. Régénérer **remplace** le fichier du compte-rendu
+    existant (pas de doublon)."""
+    presences = reunion.presences.select_related("membre").order_by("membre__nom", "membre__prenom")
+
+    # Déroulé : préambule (blocs sans point) + chaque point suivi de ses blocs.
+    sujets = list(reunion.sujets.order_by("ordre_du_jour", "id"))
+    blocs_intro = []
+    blocs_par_sujet: dict[int, list] = {}
+    for bloc in reunion.blocs.all():
+        if bloc.apres_sujet_id:
+            blocs_par_sujet.setdefault(bloc.apres_sujet_id, []).append(bloc)
+        else:
+            blocs_intro.append(bloc)
+    for sujet in sujets:
+        sujet.blocs_suivants = blocs_par_sujet.get(sujet.pk, [])
+
+    contexte = {
+        "reunion": reunion,
+        "asso": ParametresAssociation.load(),
+        "quorum": calcul_quorum(reunion),
+        "ordre_du_jour": sujets,
+        "blocs_intro": blocs_intro,
+        "pouvoirs": reunion.pouvoirs.select_related("mandant", "mandataire"),
+        "presents": presences.filter(statut=Presence.Statut.PRESENT),
+        "representes": presences.filter(statut=Presence.Statut.REPRESENTE),
+        "excuses": presences.filter(statut=Presence.Statut.EXCUSE),
+        "absents": presences.filter(statut=Presence.Statut.ABSENT),
+        "resolutions": [(r, resultat_resolution(r)) for r in reunion.resolutions.all()],
+    }
+    octets = pdf.html_vers_pdf(render_to_string("pv/pv.html", contexte))
+    nom = f"pv-reunion-{reunion.pk}.pdf"
+
+    if reunion.compte_rendu_id:
+        doc = reunion.compte_rendu
+        doc.fichier.delete(save=False)
+        doc.fichier.save(nom, ContentFile(octets), save=True)
+    else:
+        doc = televerser_fichier(
+            None,
+            titre=f"Compte-rendu — {reunion.titre}",
+            fichier=ContentFile(octets, name=nom),
+            par=par,
+            confidentialite=Document.Confidentialite.MEMBRES,
+        )
+        reunion.compte_rendu = doc
+        reunion.save(update_fields=["compte_rendu"])
+    return doc

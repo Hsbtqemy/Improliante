@@ -24,7 +24,14 @@ from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
-from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
+from apps.gouvernance.models import (
+    BlocCompteRendu,
+    Pouvoir,
+    Presence,
+    Resolution,
+    Reunion,
+    Sujet,
+)
 from apps.spectacles.models import LigneDistribution, Spectacle
 
 Statut = Moderation.StatutModeration
@@ -1806,3 +1813,100 @@ def test_anciennes_urls_facturation_redirigent(client, db):
     r_devis = client.get("/bureau/devis/")
     assert r_factures.status_code == 302 and "onglet=factures" in r_factures["Location"]
     assert r_devis.status_code == 302 and "onglet=devis" in r_devis["Location"]
+
+
+def test_gouvernance_enregistre_les_notes(client, db):
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    sujet = Sujet.objects.create(
+        titre="Point 1", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR
+    )
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/notes/",
+        {"synthese": "RAS", f"notes_{sujet.pk}": "Adopté"},
+    )
+    reunion.refresh_from_db()
+    sujet.refresh_from_db()
+    assert reunion.compte_rendu_texte == "RAS"
+    assert sujet.notes == "Adopté"
+
+
+def test_gouvernance_genere_le_pv_depuis_l_ecran(client, db, monkeypatch):
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF")
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/gouvernance/reunion/{reunion.pk}/pv/")
+    assert reponse.status_code == 302
+    reunion.refresh_from_db()
+    assert reunion.compte_rendu_id is not None
+
+
+def test_gouvernance_edite_une_reunion(client, db):
+    reunion = Reunion.objects.create(
+        titre="AG",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.PREPARATION,
+    )
+    client.force_login(_staff())
+    reponse = client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/modifier/",
+        {
+            "titre": "AG 2026",
+            "type_reunion": Reunion.TypeReunion.AG_ORDINAIRE,
+            "statut": Reunion.Statut.CONVOQUEE,
+            "lieu_texte": "Salle B",
+            "convocation_texte": "Venez nombreux.",
+        },
+    )
+    assert reponse.status_code == 302
+    reunion.refresh_from_db()
+    assert reunion.titre == "AG 2026"
+    assert reunion.statut == Reunion.Statut.CONVOQUEE  # transition de statut via l'édition
+
+
+def test_gouvernance_edition_reservee_au_bureau(client, db):
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    client.force_login(_membre("edit_lambda"))
+    assert client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/modifier/").status_code == 403
+
+
+def test_gouvernance_ajoute_un_bloc_de_recit(client, db):
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    sujet = Sujet.objects.create(
+        titre="Point 1", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR
+    )
+    client.force_login(_staff())
+    # Bloc en préambule
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/bloc/",
+        {"apres_sujet": "", "titre": "Préambule", "texte": "Contexte d'ouverture"},
+    )
+    # Bloc rattaché à un point
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/bloc/",
+        {"apres_sujet": str(sujet.pk), "titre": "", "texte": "Transition"},
+    )
+    assert reunion.blocs.count() == 2
+    intro = reunion.blocs.get(titre="Préambule")
+    assert intro.apres_sujet_id is None
+    assert reunion.blocs.get(texte="Transition").apres_sujet_id == sujet.pk
+
+
+def test_gouvernance_edite_et_supprime_un_bloc(client, db):
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    b1 = BlocCompteRendu.objects.create(reunion=reunion, texte="ancien")
+    b2 = BlocCompteRendu.objects.create(reunion=reunion, texte="à supprimer")
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/notes/",
+        {
+            "synthese": "",
+            f"bloc_{b1.pk}_titre": "Titre",
+            f"bloc_{b1.pk}_texte": "nouveau",
+            f"bloc_{b2.pk}_texte": "peu importe",
+            "supprimer_bloc": str(b2.pk),
+        },
+    )
+    b1.refresh_from_db()
+    assert b1.texte == "nouveau" and b1.titre == "Titre"
+    assert not BlocCompteRendu.objects.filter(pk=b2.pk).exists()

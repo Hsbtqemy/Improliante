@@ -1,0 +1,13 @@
+{% comment %}
+Un bloc de récit éditable, rendu à l'intérieur du formulaire du compte-rendu.
+Attend `bloc` (BlocCompteRendu). Titre optionnel + texte + case « supprimer »
+(traitée par la vue gouvernance_notes).
+{% endcomment %}
+<div class="cr-bloc">
+  <input type="text" class="cr-bloc__titre" name="bloc_{{ bloc.pk }}_titre" value="{{ bloc.titre }}"
+         placeholder="Intertitre (optionnel)" aria-label="Intertitre du bloc de récit" />
+  <textarea name="bloc_{{ bloc.pk }}_texte" rows="3" aria-label="Texte du bloc de récit">{{ bloc.texte }}</textarea>
+  <label class="cr-bloc__suppr">
+    <input type="checkbox" name="supprimer_bloc" value="{{ bloc.pk }}" /> Supprimer ce bloc
+  </label>
+</div>
