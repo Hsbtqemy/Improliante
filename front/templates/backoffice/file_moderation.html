@@ -97,4 +97,55 @@
       </div>
     {% endif %}
   </section>
+
+  {% if projets_a_revoir or evenements_a_revoir %}
+    <section aria-labelledby="titre-a-revoir">
+      <h2 id="titre-a-revoir">À revoir — modifiés après publication</h2>
+      <p class="page-tete__sous">
+        Ces fiches sont <strong>déjà en ligne</strong> : leur auteur les a retouchées.
+        Contrôle a posteriori, puis « Marquer comme revu ».
+      </p>
+      <ul class="liste-projets">
+        {% for projet in projets_a_revoir %}
+          <li class="carte-projet">
+            <h3 class="carte-projet__titre">
+              <a href="{% url 'backoffice:editer_projet' pk=projet.pk %}">{{ projet.titre }}</a>
+            </h3>
+            <p class="carte-projet__meta">
+              <span class="badge">Projet</span>
+              · modifié le {{ projet.date_modification|date:"l j F Y à H:i" }}
+              {% if projet.cree_par %}· par {{ projet.cree_par }}{% endif %}
+            </p>
+            <div class="formulaire__actions">
+              <a class="lien-bouton" href="{% url 'backoffice:editer_projet' pk=projet.pk %}">Voir / éditer</a>
+              <form method="post" action="{% url 'backoffice:marquer_projet_revu' pk=projet.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="lien-bouton lien-bouton--primaire">Marquer comme revu</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+        {% for evenement in evenements_a_revoir %}
+          <li class="carte-projet">
+            <h3 class="carte-projet__titre">
+              <a href="{% url 'backoffice:editer_evenement' pk=evenement.pk %}">{{ evenement.titre }}</a>
+            </h3>
+            <p class="carte-projet__meta">
+              <span class="badge">Événement</span>
+              · {{ evenement.date_debut|date:"l j F Y à H:i" }}
+              · modifié le {{ evenement.date_modification|date:"j F à H:i" }}
+              {% if evenement.cree_par %}· par {{ evenement.cree_par }}{% endif %}
+            </p>
+            <div class="formulaire__actions">
+              <a class="lien-bouton" href="{% url 'backoffice:editer_evenement' pk=evenement.pk %}">Voir / éditer</a>
+              <form method="post" action="{% url 'backoffice:marquer_evenement_revu' pk=evenement.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="lien-bouton lien-bouton--primaire">Marquer comme revu</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 {% endblock %}

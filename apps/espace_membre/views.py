@@ -33,7 +33,12 @@ from apps.coeur.services import (
 )
 from apps.common.fiches import appliquer_images
 from apps.common.fichiers import reponse_fichier_prive
-from apps.common.moderation import peut_etre_edite_par_auteur, soumettre_a_moderation
+from apps.common.moderation import (
+    peut_etre_edite_par_auteur,
+    peut_etre_soumis,
+    signaler_modification_apres_publication,
+    soumettre_a_moderation,
+)
 from apps.documents import services as documents_services
 from apps.documents.models import Document, Dossier
 from apps.documents.services import DossierNonVide
@@ -209,22 +214,40 @@ def creer_projet(request):
                 messages.success(request, "Projet créé et soumis à validation du bureau.")
             else:
                 messages.success(request, "Brouillon de projet enregistré.")
-            return redirect("espace_membre:editer_projet", pk=projet.pk)
+            return redirect("espace_membre:voir_projet", pk=projet.pk)
     else:
         form = ProjetMembreForm()
 
     return render(
         request,
         "espace_membre/projet_form.html",
-        {"form": form, "projet": None, "editable": True},
+        {"form": form, "projet": None, "editable": True, "peut_soumettre": True},
+    )
+
+
+@login_required
+def voir_projet(request, pk):
+    """Fiche (lecture seule) d'un projet du membre — anti-IDOR par `porteurs`.
+    Point d'entrée depuis « Mes projets » : on regarde, puis on édite au besoin."""
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+    projet = get_object_or_404(Spectacle, pk=pk, porteurs=membre)
+    return render(
+        request,
+        "espace_membre/projet_detail.html",
+        {"projet": projet, "editable": peut_etre_edite_par_auteur(projet)},
     )
 
 
 @login_required
 def editer_projet(request, pk):
     """Édition d'un projet du membre. La propriété est vérifiée par le filtre
-    `porteurs=membre` (anti-IDOR). L'édition n'est possible qu'en brouillon ou
-    après refus ; une fiche proposée/publiée est présentée en lecture seule."""
+    `porteurs=membre` (anti-IDOR). L'auteur édite en brouillon, après refus et
+    **une fois publié** (un spectacle évolue) ; seule une fiche « proposée »
+    reste verrouillée le temps du contrôle initial du bureau. Une retouche d'une
+    fiche publiée part en ligne immédiatement et la signale au bureau."""
     membre = _membre_connecte(request)
     if membre is None:
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
@@ -237,26 +260,39 @@ def editer_projet(request, pk):
         if not editable:
             messages.error(
                 request,
-                "Ce projet est en cours de validation ou publié : il n'est plus modifiable ici.",
+                "Ce projet est en cours de validation par le bureau : il n'est plus modifiable ici.",
             )
-            return redirect("espace_membre:editer_projet", pk=projet.pk)
+            return redirect("espace_membre:voir_projet", pk=projet.pk)
+        etait_publie = projet.est_publie
         form = ProjetMembreForm(request.POST, request.FILES, instance=projet)
         if form.is_valid():
             form.save()
             appliquer_images(projet, form, request, spectacles_services)
-            if request.POST.get("action") == "soumettre":
+            if request.POST.get("action") == "soumettre" and peut_etre_soumis(projet):
                 soumettre_a_moderation(projet)
                 messages.success(request, "Projet soumis à validation du bureau.")
                 return redirect("espace_membre:mes_projets")
-            messages.success(request, "Modifications enregistrées.")
-            return redirect("espace_membre:editer_projet", pk=projet.pk)
+            if etait_publie:
+                signaler_modification_apres_publication(projet)
+                messages.success(
+                    request,
+                    "Modifications publiées. Le bureau en sera informé pour vérification.",
+                )
+            else:
+                messages.success(request, "Modifications enregistrées.")
+            return redirect("espace_membre:voir_projet", pk=projet.pk)
     else:
         form = ProjetMembreForm(instance=projet)
 
     return render(
         request,
         "espace_membre/projet_form.html",
-        {"form": form, "projet": projet, "editable": editable},
+        {
+            "form": form,
+            "projet": projet,
+            "editable": editable,
+            "peut_soumettre": peut_etre_soumis(projet),
+        },
     )
 
 
@@ -299,21 +335,40 @@ def creer_evenement(request):
                 messages.success(request, "Événement créé et soumis à validation du bureau.")
             else:
                 messages.success(request, "Brouillon d'événement enregistré.")
-            return redirect("espace_membre:editer_evenement", pk=evenement.pk)
+            return redirect("espace_membre:voir_evenement", pk=evenement.pk)
     else:
         form = EvenementMembreForm(membre=membre)
 
     return render(
         request,
         "espace_membre/evenement_form.html",
-        {"form": form, "evenement": None, "editable": True},
+        {"form": form, "evenement": None, "editable": True, "peut_soumettre": True},
+    )
+
+
+@login_required
+def voir_evenement(request, pk):
+    """Fiche (lecture seule) d'un événement du membre — anti-IDOR par `cree_par`.
+    Point d'entrée depuis « Mes événements » : on regarde, puis on édite au besoin."""
+    evenement = get_object_or_404(
+        Evenement.objects.select_related("lieu", "spectacle", "affiche"),
+        pk=pk,
+        cree_par=request.user,
+    )
+    return render(
+        request,
+        "espace_membre/evenement_detail.html",
+        {"evenement": evenement, "editable": peut_etre_edite_par_auteur(evenement)},
     )
 
 
 @login_required
 def editer_evenement(request, pk):
     """Édition d'un événement du membre. Propriété vérifiée par
-    `cree_par=request.user` (anti-IDOR). Verrouillé dès la proposition."""
+    `cree_par=request.user` (anti-IDOR). L'auteur édite en brouillon, après refus
+    et **une fois publié** (ajout de dates, de contexte, de visuels) ; seul l'état
+    « proposé » reste verrouillé le temps du contrôle initial du bureau. Une
+    retouche d'un événement publié part en ligne aussitôt et le signale au bureau."""
     membre = _membre_connecte(request)
     evenement = get_object_or_404(Evenement, pk=pk, cree_par=request.user)
     editable = peut_etre_edite_par_auteur(evenement)
@@ -322,26 +377,36 @@ def editer_evenement(request, pk):
         if not editable:
             messages.error(
                 request,
-                "Cet événement est en cours de validation ou publié : il n'est plus modifiable ici.",
+                "Cet événement est en cours de validation par le bureau : "
+                "il n'est plus modifiable ici.",
             )
-            return redirect("espace_membre:editer_evenement", pk=evenement.pk)
+            return redirect("espace_membre:voir_evenement", pk=evenement.pk)
+        etait_publie = evenement.est_publie
         form = EvenementMembreForm(request.POST, request.FILES, instance=evenement, membre=membre)
         if form.is_valid():
             form.save()
             appliquer_images(evenement, form, request, agenda_services)
-            if request.POST.get("action") == "soumettre":
+            if request.POST.get("action") == "soumettre" and peut_etre_soumis(evenement):
                 soumettre_a_moderation(evenement)
                 messages.success(request, "Événement soumis à validation du bureau.")
                 return redirect("espace_membre:mes_evenements")
-            messages.success(request, "Modifications enregistrées.")
-            return redirect("espace_membre:editer_evenement", pk=evenement.pk)
+            if etait_publie:
+                signaler_modification_apres_publication(evenement)
+                messages.success(
+                    request,
+                    "Modifications publiées. Le bureau en sera informé pour vérification.",
+                )
+            else:
+                messages.success(request, "Modifications enregistrées.")
+            return redirect("espace_membre:voir_evenement", pk=evenement.pk)
     else:
         form = EvenementMembreForm(instance=evenement, membre=membre)
 
     return render(
         request,
         "espace_membre/evenement_form.html",
-        {"form": form, "evenement": evenement, "editable": editable},
+        {"form": form, "evenement": evenement, "editable": editable,
+         "peut_soumettre": peut_etre_soumis(evenement)},
     )
 
 

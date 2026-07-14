@@ -13,11 +13,22 @@ from django.utils import timezone
 
 from apps.common.models import Moderation
 
-# États dans lesquels l'auteur d'une fiche peut encore la modifier ou la
-# (re)soumettre. Une fiche « proposée » attend l'avis du bureau (verrouillée
-# côté auteur) ; une fiche « publiée » est en ligne (toute retouche repasserait
-# par la modération, hors périmètre de cette tranche).
-ETATS_EDITABLES_PAR_AUTEUR = frozenset(
+# États dans lesquels l'auteur d'une fiche peut en modifier les champs.
+# Une fiche « proposée » attend le contrôle initial du bureau : elle reste
+# verrouillée côté auteur le temps de cette vérification. Une fiche « publiée »
+# reste éditable par son auteur (un spectacle évolue) : la retouche part en
+# ligne immédiatement et signale la fiche au bureau (contrôle a posteriori,
+# `signaler_modification_apres_publication`). Cf. CLAUDE.md règle 7.
+ETATS_MODIFIABLES_PAR_AUTEUR = frozenset(
+    {
+        Moderation.StatutModeration.BROUILLON,
+        Moderation.StatutModeration.REFUSE,
+        Moderation.StatutModeration.PUBLIE,
+    }
+)
+
+# États depuis lesquels l'auteur peut (re)soumettre la fiche à la validation.
+ETATS_SOUMISSIBLES = frozenset(
     {
         Moderation.StatutModeration.BROUILLON,
         Moderation.StatutModeration.REFUSE,
@@ -30,8 +41,13 @@ class TransitionModerationInvalide(Exception):
 
 
 def peut_etre_edite_par_auteur(fiche: Moderation) -> bool:
-    """Vrai si l'auteur peut encore éditer / soumettre cette fiche."""
-    return fiche.statut_moderation in ETATS_EDITABLES_PAR_AUTEUR
+    """Vrai si l'auteur peut modifier les champs de cette fiche."""
+    return fiche.statut_moderation in ETATS_MODIFIABLES_PAR_AUTEUR
+
+
+def peut_etre_soumis(fiche: Moderation) -> bool:
+    """Vrai si l'auteur peut soumettre la fiche à la validation du bureau."""
+    return fiche.statut_moderation in ETATS_SOUMISSIBLES
 
 
 def soumettre_a_moderation(fiche: Moderation) -> None:
@@ -41,7 +57,7 @@ def soumettre_a_moderation(fiche: Moderation) -> None:
     Lève `TransitionModerationInvalide` si la fiche n'est pas dans un état
     soumissible (déjà proposée, ou publiée).
     """
-    if not peut_etre_edite_par_auteur(fiche):
+    if not peut_etre_soumis(fiche):
         raise TransitionModerationInvalide(
             f"Une fiche au statut « {fiche.get_statut_moderation_display()} » "
             "ne peut pas être soumise à la modération."
@@ -49,6 +65,30 @@ def soumettre_a_moderation(fiche: Moderation) -> None:
     fiche.statut_moderation = Moderation.StatutModeration.PROPOSE
     fiche.motif_refus = ""
     fiche.save()
+
+
+def signaler_modification_apres_publication(fiche: Moderation) -> None:
+    """Marque une fiche publiée retouchée par son auteur (contrôle bureau a posteriori).
+
+    La fiche reste publiée : le changement est déjà en ligne. On lève seulement
+    un drapeau que le bureau verra dans sa file « à revoir ». Sans effet si la
+    fiche n'est pas publiée ou est déjà signalée (évite un `save` inutile).
+    """
+    if fiche.statut_moderation != Moderation.StatutModeration.PUBLIE:
+        return
+    if fiche.modifie_apres_publication:
+        return
+    fiche.modifie_apres_publication = True
+    fiche.save(update_fields=["modifie_apres_publication"])
+
+
+def marquer_revu(fiche: Moderation, *, par) -> None:
+    """Le bureau a examiné une modification post-publication : efface le drapeau."""
+    if not fiche.modifie_apres_publication:
+        return
+    fiche.modifie_apres_publication = False
+    fiche.valide_par = par
+    fiche.save(update_fields=["modifie_apres_publication", "valide_par"])
 
 
 def valider(fiche: Moderation, *, par) -> None:
@@ -79,6 +119,8 @@ def publier(fiche: Moderation, *, par) -> None:
     if fiche.date_publication is None:
         fiche.date_publication = timezone.now()
     fiche.motif_refus = ""
+    # Le bureau vient de (re)publier : plus rien à revoir a posteriori.
+    fiche.modifie_apres_publication = False
 
 
 def refuser(fiche: Moderation, *, par, motif: str) -> None:

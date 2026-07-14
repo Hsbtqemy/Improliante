@@ -11,8 +11,10 @@
 
   <div class="tuiles">
     <a class="tuile" href="{% url 'backoffice:file_moderation' %}">
-      <span class="tuile__nombre">{{ a_moderer }}</span>
-      <span class="tuile__label">fiche(s) à modérer</span>
+      <span class="tuile__nombre">{{ a_moderer|add:a_revoir }}</span>
+      <span class="tuile__label">
+        fiche(s) à traiter{% if a_revoir %} (dont {{ a_revoir }} à revoir){% endif %}
+      </span>
     </a>
     <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=factures">
       <span class="tuile__nombre">{{ factures_brouillon }}</span>

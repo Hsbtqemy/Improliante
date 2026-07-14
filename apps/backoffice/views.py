@@ -49,6 +49,7 @@ from apps.common.fiches import appliquer_images
 from apps.common.fichiers import reponse_fichier_prive
 from apps.common.moderation import (
     TransitionModerationInvalide,
+    marquer_revu,
     publier,
     refuser,
     valider,
@@ -137,10 +138,15 @@ def tableau_de_bord(request):
     """Accueil du back-office : compteurs des tâches en attente + accès rapides."""
     projets_a_moderer = Spectacle.objects.filter(statut_moderation=Propose).count()
     evenements_a_moderer = Evenement.objects.filter(statut_moderation=Propose).count()
+    a_revoir = (
+        Spectacle.objects.filter(modifie_apres_publication=True).count()
+        + Evenement.objects.filter(modifie_apres_publication=True).count()
+    )
     contexte = {
         "projets_a_moderer": projets_a_moderer,
         "evenements_a_moderer": evenements_a_moderer,
         "a_moderer": projets_a_moderer + evenements_a_moderer,
+        "a_revoir": a_revoir,
         "factures_brouillon": Facture.objects.filter(
             statut=Facture.Statut.BROUILLON, type_piece=Facture.TypePiece.FACTURE
         ).count(),
@@ -353,12 +359,21 @@ def ouvrir_acces_membre(request, pk):
 
 @bureau_requis
 def file_moderation(request):
-    """Liste des fiches en attente de validation (projets et événements)."""
+    """File du bureau : fiches à valider (proposées) et fiches publiées retouchées
+    par leur auteur, à revoir a posteriori (`modifie_apres_publication`)."""
     projets = Spectacle.objects.filter(statut_moderation=Propose).order_by("date_modification")
     evenements = (
         Evenement.objects.filter(statut_moderation=Propose)
         .select_related("cree_par")
         .order_by("date_debut")
+    )
+    projets_a_revoir = Spectacle.objects.filter(modifie_apres_publication=True).order_by(
+        "-date_modification"
+    )
+    evenements_a_revoir = (
+        Evenement.objects.filter(modifie_apres_publication=True)
+        .select_related("cree_par")
+        .order_by("-date_modification")
     )
     return render(
         request,
@@ -366,6 +381,8 @@ def file_moderation(request):
         {
             "projets": projets,
             "evenements": evenements,
+            "projets_a_revoir": projets_a_revoir,
+            "evenements_a_revoir": evenements_a_revoir,
             "visibilites": Evenement.Visibilite.choices,
         },
     )
@@ -393,6 +410,26 @@ def moderer_evenement(request, pk):
         # Le bureau fixe la visibilité au moment de la validation (cf. modèle).
         evenement.visibilite = visibilite
     _appliquer_decision(request, evenement, libelle="L'événement")
+    return redirect("backoffice:file_moderation")
+
+
+@bureau_requis
+@require_POST
+def marquer_projet_revu(request, pk):
+    """Le bureau acquitte une modification post-publication d'un projet."""
+    projet = get_object_or_404(Spectacle, pk=pk)
+    marquer_revu(projet, par=request.user)
+    messages.success(request, f"Le projet « {projet} » a été marqué comme revu.")
+    return redirect("backoffice:file_moderation")
+
+
+@bureau_requis
+@require_POST
+def marquer_evenement_revu(request, pk):
+    """Le bureau acquitte une modification post-publication d'un événement."""
+    evenement = get_object_or_404(Evenement, pk=pk)
+    marquer_revu(evenement, par=request.user)
+    messages.success(request, f"L'événement « {evenement} » a été marqué comme revu.")
     return redirect("backoffice:file_moderation")
 
 

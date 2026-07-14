@@ -26,6 +26,12 @@
         Corrigez puis soumettez à nouveau.
       </div>
     {% endif %}
+    {% if projet.statut_moderation == "publie" %}
+      <p class="message message--info" role="status">
+        Ce projet est publié : vos modifications seront mises en ligne
+        <strong>immédiatement</strong>, et le bureau en sera informé pour vérification.
+      </p>
+    {% endif %}
   {% endif %}
 
   {% if editable %}
@@ -96,20 +102,43 @@
       </fieldset>
 
       <div class="formulaire__actions">
-        <button type="submit" name="action" value="enregistrer" class="lien-bouton">
-          Enregistrer le brouillon
-        </button>
-        <button type="submit" name="action" value="soumettre" class="lien-bouton lien-bouton--primaire">
-          Soumettre à validation
-        </button>
+        {% if peut_soumettre %}
+          <button type="submit" name="action" value="enregistrer" class="lien-bouton">
+            Enregistrer le brouillon
+          </button>
+          <button type="submit" name="action" value="soumettre" class="lien-bouton lien-bouton--primaire">
+            Soumettre à validation
+          </button>
+        {% else %}
+          <button type="submit" name="action" value="enregistrer" class="lien-bouton lien-bouton--primaire">
+            Enregistrer les modifications
+          </button>
+        {% endif %}
       </div>
     </form>
+  {% elif est_bureau %}
+    <p>
+      Ce projet est en cours de validation par le bureau : il n'est plus modifiable
+      depuis l'espace membre. En tant que membre du bureau, vous pouvez l'éditer
+      directement dans le back-office.
+    </p>
+    <p>
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:editer_projet' projet.pk %}">
+        Modifier dans le back-office
+      </a>
+    </p>
   {% else %}
     <p>
-      Ce projet est en cours de validation par le bureau (ou déjà publié) :
-      il n'est plus modifiable ici. Contactez le bureau si une correction est nécessaire.
+      Ce projet est en cours de validation par le bureau : il n'est plus modifiable
+      ici. Contactez le bureau si une correction est nécessaire.
     </p>
   {% endif %}
 
-  <p><a href="{% url 'espace_membre:mes_projets' %}">← Retour à mes projets</a></p>
+  <p>
+    {% if projet %}
+      <a href="{% url 'espace_membre:voir_projet' projet.pk %}">← Retour à la fiche</a>
+    {% else %}
+      <a href="{% url 'espace_membre:mes_projets' %}">← Retour à mes projets</a>
+    {% endif %}
+  </p>
 {% endblock %}

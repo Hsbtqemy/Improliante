@@ -12,7 +12,7 @@
       {% for evenement in evenements %}
         <li class="carte-projet">
           <h2 class="carte-projet__titre">
-            <a href="{% url 'espace_membre:editer_evenement' pk=evenement.pk %}">{{ evenement.titre }}</a>
+            <a href="{% url 'espace_membre:voir_evenement' pk=evenement.pk %}">{{ evenement.titre }}</a>
           </h2>
           <p class="carte-projet__meta">
             <span class="badge badge--{{ evenement.statut_moderation }}">

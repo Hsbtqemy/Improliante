@@ -14,8 +14,11 @@ from apps.common.fichiers import reponse_fichier_prive
 from apps.common.models import Moderation
 from apps.common.moderation import (
     TransitionModerationInvalide,
+    marquer_revu,
     peut_etre_edite_par_auteur,
+    peut_etre_soumis,
     refuser,
+    signaler_modification_apres_publication,
     soumettre_a_moderation,
     valider,
 )
@@ -142,13 +145,53 @@ def test_refuser_sans_motif_leve_une_erreur(db):
     [
         (Statut.BROUILLON, True),
         (Statut.REFUSE, True),
-        (Statut.PROPOSE, False),
-        (Statut.PUBLIE, False),
+        (Statut.PROPOSE, False),  # verrouillé le temps du contrôle initial
+        (Statut.PUBLIE, True),  # publié : l'auteur peut encore faire évoluer sa fiche
     ],
 )
 def test_peut_etre_edite_par_auteur(db, statut, attendu):
     projet = Spectacle.objects.create(titre="X", statut_moderation=statut)
     assert peut_etre_edite_par_auteur(projet) is attendu
+
+
+@pytest.mark.parametrize(
+    ("statut", "attendu"),
+    [
+        (Statut.BROUILLON, True),
+        (Statut.REFUSE, True),
+        (Statut.PROPOSE, False),
+        (Statut.PUBLIE, False),  # publié : éditable mais pas re-soumissible
+    ],
+)
+def test_peut_etre_soumis(db, statut, attendu):
+    projet = Spectacle.objects.create(titre="X", statut_moderation=statut)
+    assert peut_etre_soumis(projet) is attendu
+
+
+def test_signaler_modification_apres_publication_leve_le_drapeau(db):
+    projet = Spectacle.objects.create(titre="En ligne", statut_moderation=Statut.PUBLIE)
+    signaler_modification_apres_publication(projet)
+    projet.refresh_from_db()
+    assert projet.modifie_apres_publication is True
+    assert projet.statut_moderation == Statut.PUBLIE  # reste publié
+
+
+def test_signaler_sans_effet_si_non_publie(db):
+    projet = Spectacle.objects.create(titre="Brouillon", statut_moderation=Statut.BROUILLON)
+    signaler_modification_apres_publication(projet)
+    projet.refresh_from_db()
+    assert projet.modifie_apres_publication is False
+
+
+def test_marquer_revu_efface_le_drapeau(db):
+    bureau = Utilisateur.objects.create(username="bureau")
+    projet = Spectacle.objects.create(
+        titre="Revu", statut_moderation=Statut.PUBLIE, modifie_apres_publication=True
+    )
+    marquer_revu(projet, par=bureau)
+    projet.refresh_from_db()
+    assert projet.modifie_apres_publication is False
+    assert projet.valide_par == bureau
 
 
 # --- Service de fichier privé ----------------------------------------------

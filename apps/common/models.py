@@ -61,6 +61,14 @@ class Moderation(models.Model):
         verbose_name="validé par",
     )
     date_publication = models.DateTimeField("date de publication", null=True, blank=True)
+    modifie_apres_publication = models.BooleanField(
+        "modifié depuis la publication",
+        default=False,
+        help_text=(
+            "L'auteur a retouché la fiche après sa mise en ligne : à revoir par le "
+            "bureau (contrôle a posteriori). Les changements sont déjà publiés."
+        ),
+    )
 
     class Meta:
         abstract = True

@@ -32,6 +32,13 @@
     La visibilité (public / membres / interne) est fixée par le bureau à la validation.
   </p>
 
+  {% if evenement and evenement.statut_moderation == "publie" %}
+    <p class="message message--info" role="status">
+      Cet événement est publié : vos modifications seront mises en ligne
+      <strong>immédiatement</strong>, et le bureau en sera informé pour vérification.
+    </p>
+  {% endif %}
+
   {% if editable %}
     <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
       {% csrf_token %}
@@ -100,20 +107,43 @@
       </fieldset>
 
       <div class="formulaire__actions">
-        <button type="submit" name="action" value="enregistrer" class="lien-bouton">
-          Enregistrer le brouillon
-        </button>
-        <button type="submit" name="action" value="soumettre" class="lien-bouton lien-bouton--primaire">
-          Soumettre à validation
-        </button>
+        {% if peut_soumettre %}
+          <button type="submit" name="action" value="enregistrer" class="lien-bouton">
+            Enregistrer le brouillon
+          </button>
+          <button type="submit" name="action" value="soumettre" class="lien-bouton lien-bouton--primaire">
+            Soumettre à validation
+          </button>
+        {% else %}
+          <button type="submit" name="action" value="enregistrer" class="lien-bouton lien-bouton--primaire">
+            Enregistrer les modifications
+          </button>
+        {% endif %}
       </div>
     </form>
+  {% elif est_bureau %}
+    <p>
+      Cet événement est en cours de validation par le bureau : il n'est plus modifiable
+      depuis l'espace membre. En tant que membre du bureau, vous pouvez l'éditer
+      directement dans le back-office.
+    </p>
+    <p>
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'backoffice:editer_evenement' evenement.pk %}">
+        Modifier dans le back-office
+      </a>
+    </p>
   {% else %}
     <p>
-      Cet événement est en cours de validation par le bureau (ou déjà publié) :
-      il n'est plus modifiable ici. Contactez le bureau si une correction est nécessaire.
+      Cet événement est en cours de validation par le bureau : il n'est plus
+      modifiable ici. Contactez le bureau si une correction est nécessaire.
     </p>
   {% endif %}
 
-  <p><a href="{% url 'espace_membre:mes_evenements' %}">← Retour à mes événements</a></p>
+  <p>
+    {% if evenement %}
+      <a href="{% url 'espace_membre:voir_evenement' evenement.pk %}">← Retour à la fiche</a>
+    {% else %}
+      <a href="{% url 'espace_membre:mes_evenements' %}">← Retour à mes événements</a>
+    {% endif %}
+  </p>
 {% endblock %}

@@ -183,7 +183,7 @@ def test_membre_edite_son_propre_projet(client, db):
     projet.porteurs.add(membre)
     client.force_login(membre.user)
     client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(titre="Après", action="enregistrer"),
     )
     projet.refresh_from_db()
@@ -200,9 +200,9 @@ def test_membre_ne_peut_pas_editer_le_projet_d_un_autre(client, db):
     intrus = _membre("intrus")
     client.force_login(intrus.user)
 
-    assert client.get(f"/espace/projets/{projet.pk}/").status_code == 404
+    assert client.get(f"/espace/projets/{projet.pk}/modifier/").status_code == 404
     reponse = client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(titre="Piraté", action="enregistrer"),
     )
     assert reponse.status_code == 404
@@ -220,7 +220,7 @@ def test_projet_propose_n_est_plus_editable_par_le_membre(client, db):
     projet.porteurs.add(membre)
     client.force_login(membre.user)
     reponse = client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(titre="Modif interdite", action="enregistrer"),
     )
     assert reponse.status_code == 302  # redirigé, non enregistré
@@ -267,7 +267,7 @@ def test_membre_ajoute_une_affiche_a_son_projet(client, db):
     projet = _projet_de(membre)
     client.force_login(membre.user)
     client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(
             titre=projet.titre,
             action="enregistrer",
@@ -288,7 +288,7 @@ def test_affiche_sans_alt_est_refusee(client, db):
     projet = _projet_de(membre)
     client.force_login(membre.user)
     reponse = client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(
             titre=projet.titre, action="enregistrer", affiche_fichier=_image_png("affiche.png")
         ),
@@ -304,7 +304,7 @@ def test_membre_ajoute_une_image_a_la_galerie(client, db):
     projet = _projet_de(membre)
     client.force_login(membre.user)
     client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(
             titre=projet.titre,
             action="enregistrer",
@@ -323,7 +323,7 @@ def test_membre_retire_une_image_de_sa_galerie(client, db):
     image = ImageSpectacle.objects.create(spectacle=projet, media=media, ordre=1)
     client.force_login(membre.user)
     client.post(
-        f"/espace/projets/{projet.pk}/",
+        f"/espace/projets/{projet.pk}/modifier/",
         _donnees_projet(titre=projet.titre, action="enregistrer", supprimer_image=str(image.pk)),
     )
     assert projet.images.count() == 0
@@ -342,7 +342,7 @@ def test_membre_ne_peut_pas_retirer_l_image_d_un_autre_projet(client, db):
 
     client.force_login(membre.user)
     client.post(
-        f"/espace/projets/{mien.pk}/",
+        f"/espace/projets/{mien.pk}/modifier/",
         _donnees_projet(
             titre=mien.titre, action="enregistrer", supprimer_image=str(image_autre.pk)
         ),
@@ -412,9 +412,9 @@ def test_membre_ne_peut_pas_editer_evenement_d_un_autre(client, db):
     intrus = _membre("intrus")
     client.force_login(intrus.user)
 
-    assert client.get(f"/espace/evenements/{evenement.pk}/").status_code == 404
+    assert client.get(f"/espace/evenements/{evenement.pk}/modifier/").status_code == 404
     reponse = client.post(
-        f"/espace/evenements/{evenement.pk}/",
+        f"/espace/evenements/{evenement.pk}/modifier/",
         _donnees_evenement(titre="Piraté", action="enregistrer"),
     )
     assert reponse.status_code == 404
@@ -432,7 +432,7 @@ def test_evenement_propose_n_est_plus_editable(client, db):
     )
     client.force_login(membre.user)
     reponse = client.post(
-        f"/espace/evenements/{evenement.pk}/",
+        f"/espace/evenements/{evenement.pk}/modifier/",
         _donnees_evenement(titre="Modif interdite", action="enregistrer"),
     )
     assert reponse.status_code == 302
@@ -489,7 +489,7 @@ def test_membre_ajoute_une_affiche_a_son_evenement(client, db):
     evenement = _evenement_de(membre)
     client.force_login(membre.user)
     client.post(
-        f"/espace/evenements/{evenement.pk}/",
+        f"/espace/evenements/{evenement.pk}/modifier/",
         _donnees_evenement(
             titre=evenement.titre,
             action="enregistrer",
@@ -508,7 +508,7 @@ def test_affiche_evenement_sans_alt_est_refusee(client, db):
     evenement = _evenement_de(membre)
     client.force_login(membre.user)
     reponse = client.post(
-        f"/espace/evenements/{evenement.pk}/",
+        f"/espace/evenements/{evenement.pk}/modifier/",
         _donnees_evenement(
             titre=evenement.titre, action="enregistrer", affiche_fichier=_image_png("a.png")
         ),
@@ -523,7 +523,7 @@ def test_membre_ajoute_une_image_a_la_galerie_evenement(client, db):
     evenement = _evenement_de(membre)
     client.force_login(membre.user)
     client.post(
-        f"/espace/evenements/{evenement.pk}/",
+        f"/espace/evenements/{evenement.pk}/modifier/",
         _donnees_evenement(
             titre=evenement.titre,
             action="enregistrer",
@@ -547,7 +547,7 @@ def test_membre_ne_peut_pas_retirer_l_image_d_un_autre_evenement(client, db):
 
     client.force_login(membre.user)
     client.post(
-        f"/espace/evenements/{mien.pk}/",
+        f"/espace/evenements/{mien.pk}/modifier/",
         _donnees_evenement(
             titre=mien.titre, action="enregistrer", supprimer_image=str(image_autre.pk)
         ),
@@ -1474,3 +1474,173 @@ def test_suppression_association_reservee_au_bureau(client, db):
     reponse = client.post(f"/espace/association/{dossier.pk}/supprimer/")
     assert reponse.status_code == 404
     assert Dossier.objects.filter(pk=dossier.pk).exists()
+
+
+# --- Fiche verrouillée : raccourci back-office pour le bureau ---------------
+
+
+def _evenement_verrouille(auteur):
+    """Événement « proposé » (en attente du contrôle initial du bureau, donc
+    verrouillé côté auteur) créé par `auteur`. NB : une fois *publié*, il
+    redevient éditable — c'est le cas testé plus bas."""
+    return Evenement.objects.create(
+        titre="Nuit blanche",
+        date_debut=timezone.now() + timedelta(days=5),
+        statut_moderation=Statut.PROPOSE,
+        visibilite=Evenement.Visibilite.PUBLIC,
+        cree_par=auteur.user,
+    )
+
+
+def test_evenement_verrouille_le_bureau_a_un_lien_backoffice(client, db):
+    """Quand l'auteur est aussi membre du bureau, la page verrouillée propose
+    d'éditer dans le back-office plutôt que « contactez le bureau »."""
+    membre = _membre("presidente")
+    membre.user.is_staff = True  # membre du bureau (est_bureau)
+    membre.user.save()
+    evt = _evenement_verrouille(membre)
+    client.force_login(membre.user)
+
+    corps = client.get(f"/espace/evenements/{evt.pk}/modifier/").content.decode()
+    assert "Modifier dans le back-office" in corps
+    assert f"/bureau/evenements/{evt.pk}/" in corps
+    assert "Contactez le bureau" not in corps
+
+
+def test_evenement_verrouille_membre_ordinaire_renvoie_au_bureau(client, db):
+    """Un auteur sans rôle bureau garde le message « contactez le bureau »."""
+    membre = _membre("simple")
+    evt = _evenement_verrouille(membre)
+    client.force_login(membre.user)
+
+    corps = client.get(f"/espace/evenements/{evt.pk}/modifier/").content.decode()
+    assert "Contactez le bureau" in corps
+    assert "Modifier dans le back-office" not in corps
+
+
+# --- Édition d'une fiche PUBLIÉE : en ligne aussitôt + signalement bureau ---
+
+
+def _evenement_publie_de(auteur, titre="Avant"):
+    return Evenement.objects.create(
+        titre=titre,
+        date_debut=make_aware(datetime(2026, 9, 1, 20, 30)),
+        statut_moderation=Statut.PUBLIE,
+        visibilite=Evenement.Visibilite.PUBLIC,
+        cree_par=auteur.user,
+    )
+
+
+def test_membre_edite_son_evenement_publie_en_ligne_et_signale(client, db):
+    """La retouche d'un événement publié reste en ligne (pas de re-modération)
+    et lève le drapeau « à revoir » pour le bureau."""
+    membre = _membre("alice")
+    evt = _evenement_publie_de(membre)
+    client.force_login(membre.user)
+
+    reponse = client.post(
+        f"/espace/evenements/{evt.pk}/modifier/",
+        _donnees_evenement(titre="Après", action="enregistrer"),
+    )
+    assert reponse.status_code == 302
+    evt.refresh_from_db()
+    assert evt.titre == "Après"
+    assert evt.statut_moderation == Statut.PUBLIE  # reste publié
+    assert evt.modifie_apres_publication is True  # signalé au bureau
+
+
+def test_membre_edite_son_projet_publie_en_ligne_et_signale(client, db):
+    membre = _membre("alice")
+    projet = Spectacle.objects.create(
+        titre="Avant",
+        type_portage=Spectacle.TypePortage.PERSONNEL,
+        statut_moderation=Statut.PUBLIE,
+    )
+    projet.porteurs.add(membre)
+    client.force_login(membre.user)
+
+    client.post(
+        f"/espace/projets/{projet.pk}/modifier/",
+        _donnees_projet(titre="Après", action="enregistrer"),
+    )
+    projet.refresh_from_db()
+    assert projet.titre == "Après"
+    assert projet.statut_moderation == Statut.PUBLIE
+    assert projet.modifie_apres_publication is True
+
+
+def test_page_edition_publie_annonce_mise_en_ligne_immediate(client, db):
+    membre = _membre("alice")
+    evt = _evenement_publie_de(membre, titre="Publié")
+    client.force_login(membre.user)
+
+    corps = client.get(f"/espace/evenements/{evt.pk}/modifier/").content.decode()
+    assert "immédiatement" in corps
+    assert "Enregistrer les modifications" in corps
+    assert "Soumettre à validation" not in corps  # déjà publié : pas de re-soumission
+
+
+def test_bureau_voit_les_fiches_a_revoir_et_les_acquitte(client, db):
+    membre = _membre("alice")
+    evt = _evenement_publie_de(membre, titre="Retouche")
+    evt.modifie_apres_publication = True
+    evt.save(update_fields=["modifie_apres_publication"])
+    client.force_login(_staff())
+
+    corps = client.get("/bureau/moderation/").content.decode()
+    assert "À revoir" in corps
+    assert "Retouche" in corps
+
+    reponse = client.post(f"/bureau/moderation/evenement/{evt.pk}/revu/")
+    assert reponse.status_code == 302
+    evt.refresh_from_db()
+    assert evt.modifie_apres_publication is False
+
+
+# --- Fiche (lecture) de ses propres événements / projets -------------------
+
+
+def test_voir_evenement_affiche_fiche_bouton_modifier_et_lien_public(client, db):
+    membre = _membre("alice")
+    evt = _evenement_publie_de(membre, titre="Ma fiche")
+    client.force_login(membre.user)
+
+    reponse = client.get(f"/espace/evenements/{evt.pk}/")
+    assert reponse.status_code == 200
+    corps = reponse.content.decode()
+    assert "Ma fiche" in corps
+    assert f"/espace/evenements/{evt.pk}/modifier/" in corps  # bouton « Modifier »
+    assert f"/agenda/{evt.pk}/" in corps  # « Voir sur le site » (publié + public)
+
+
+def test_voir_evenement_anti_idor(client, db):
+    proprietaire = _membre("proprio")
+    evt = _evenement_publie_de(proprietaire)
+    client.force_login(_membre("intrus").user)
+    assert client.get(f"/espace/evenements/{evt.pk}/").status_code == 404
+
+
+def test_voir_evenement_propose_pas_de_bouton_modifier(client, db):
+    membre = _membre("alice")
+    evt = _evenement_verrouille(membre)  # proposé → verrouillé côté auteur
+    client.force_login(membre.user)
+
+    corps = client.get(f"/espace/evenements/{evt.pk}/").content.decode()
+    assert "modification en pause" in corps
+    assert f"/espace/evenements/{evt.pk}/modifier/" not in corps
+
+
+def test_voir_projet_anti_idor(client, db):
+    proprietaire = _membre("proprio")
+    projet = Spectacle.objects.create(titre="Secret", type_portage=Spectacle.TypePortage.PERSONNEL)
+    projet.porteurs.add(proprietaire)
+    client.force_login(_membre("intrus").user)
+    assert client.get(f"/espace/projets/{projet.pk}/").status_code == 404
+
+
+def test_mes_evenements_lie_vers_la_fiche_pas_le_formulaire(client, db):
+    membre = _membre("alice")
+    evt = _evenement_publie_de(membre)
+    client.force_login(membre.user)
+    corps = client.get("/espace/evenements/").content.decode()
+    assert f'href="/espace/evenements/{evt.pk}/"' in corps  # vers la fiche (lecture)

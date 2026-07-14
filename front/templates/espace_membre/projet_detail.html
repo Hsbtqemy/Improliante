@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ projet.titre }} — Mes projets — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>{{ projet.titre }}</h1>
+    <p class="page-tete__sous">
+      Statut :
+      <span class="badge badge--{{ projet.statut_moderation }}">
+        {{ projet.get_statut_moderation_display }}
+      </span>
+      · {{ projet.get_type_portage_display }} · {{ projet.get_statut_projet_display }}
+    </p>
+  </header>
+
+  {% if projet.statut_moderation == "refuse" and projet.motif_refus %}
+    <div class="message message--error" role="alert">
+      <strong>Refusé :</strong> {{ projet.motif_refus }}
+    </div>
+  {% endif %}
+  {% if projet.modifie_apres_publication %}
+    <p class="message message--info" role="status">
+      Vos dernières modifications sont en ligne ; le bureau les relira (contrôle a posteriori).
+    </p>
+  {% endif %}
+
+  <div class="fiche-spectacle__corps">
+    {% if projet.affiche and projet.affiche.fichier %}
+      <div class="fiche-spectacle__col-affiche">
+        <img
+          class="fiche-spectacle__affiche"
+          src="{{ projet.affiche.fichier.url }}"
+          alt="{{ projet.affiche.alt }}"
+        />
+      </div>
+    {% endif %}
+
+    <div class="fiche-spectacle__col-infos">
+      {% if projet.synopsis %}
+        <h2>Synopsis</h2>
+        {{ projet.synopsis|linebreaks }}
+      {% endif %}
+      {% if projet.note_intention %}
+        <h2>Note d'intention</h2>
+        {{ projet.note_intention|linebreaks }}
+      {% endif %}
+      {% with distribution=projet.distribution.all %}
+        {% if distribution %}
+          <h2>Distribution</h2>
+          <ul>
+            {% for ligne in distribution %}<li>{{ ligne }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      {% if projet.images.all %}
+        <h2>Galerie</h2>
+        <ul class="galerie-edition">
+          {% for image in projet.images.all %}
+            <li class="galerie-edition__item">
+              <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120" />
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="formulaire__actions">
+    {% if editable %}
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:editer_projet' pk=projet.pk %}">
+        Modifier
+      </a>
+    {% else %}
+      <span class="carte-projet__meta">En cours de validation par le bureau — modification en pause.</span>
+    {% endif %}
+    {% if projet.statut_moderation == "publie" %}
+      <a class="lien-bouton" href="{% url 'vitrine:spectacle' projet.pk %}">Voir sur le site</a>
+    {% endif %}
+  </div>
+
+  <p><a href="{% url 'espace_membre:mes_projets' %}">← Retour à mes projets</a></p>
+{% endblock %}

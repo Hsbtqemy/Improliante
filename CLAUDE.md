@@ -99,7 +99,7 @@ Ces règles découlent du cahier des charges et doivent être respectées dans t
 4. **Numérotation des factures** : séquentielle, continue, sans trou, attribuée **à la validation** (pas à la création du brouillon). Contrainte légale.
 5. **Fichiers privés** (factures, reçus, docs membres) : servis via vue authentifiée contrôlant les droits (ou X-Accel-Redirect), jamais par URL publique devinable.
 6. **`DEBUG = False`** en production ; `manage.py check --deploy` doit passer.
-7. **Modération** : agenda, sujets de gouvernance et fiches de projets perso suivent le cycle `brouillon → proposé → publié/refusé`. Même logique réutilisée partout.
+7. **Modération** : agenda, sujets de gouvernance et fiches de projets perso suivent le cycle `brouillon → proposé → publié/refusé`. Même logique réutilisée partout. **Nuance décidée** : une fiche **publiée reste éditable par son auteur** (un spectacle évolue) — la retouche part en ligne **immédiatement** et lève le drapeau `modifie_apres_publication` pour un **contrôle a posteriori** du bureau (file « à revoir »). Seul l'état **« proposé »** verrouille l'auteur, le temps du contrôle initial. La **visibilité** reste réglée par le bureau. Voir `apps/common/moderation.py` (`ETATS_MODIFIABLES_PAR_AUTEUR`, `signaler_modification_apres_publication`, `marquer_revu`).
 8. **Règles statutaires paramétrables** (quorum, majorités, max pouvoirs, vote lié à la cotisation) : dans un objet de configuration éditable en admin, **jamais codées en dur**.
 9. **Accessibilité (RGAA/WCAG AA)** et **responsive mobile-first** : HTML sémantique, unités relatives, contrastes AA. À garder présent dans tout code front.
 

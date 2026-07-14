@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}{{ evenement.titre }} — Mes événements — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre</span>
+    <h1>{{ evenement.titre }}</h1>
+    <p class="page-tete__sous">
+      Statut :
+      <span class="badge badge--{{ evenement.statut_moderation }}">
+        {{ evenement.get_statut_moderation_display }}
+      </span>
+      · Visibilité : {{ evenement.get_visibilite_display }}
+    </p>
+  </header>
+
+  {% if evenement.statut_moderation == "refuse" and evenement.motif_refus %}
+    <div class="message message--error" role="alert">
+      <strong>Refusé :</strong> {{ evenement.motif_refus }}
+    </div>
+  {% endif %}
+  {% if evenement.modifie_apres_publication %}
+    <p class="message message--info" role="status">
+      Vos dernières modifications sont en ligne ; le bureau les relira (contrôle a posteriori).
+    </p>
+  {% endif %}
+
+  <div class="fiche-spectacle__corps">
+    {% if evenement.affiche and evenement.affiche.fichier %}
+      <div class="fiche-spectacle__col-affiche">
+        <img
+          class="fiche-spectacle__affiche"
+          src="{{ evenement.affiche.fichier.url }}"
+          alt="{{ evenement.affiche.alt }}"
+        />
+      </div>
+    {% endif %}
+
+    <div class="fiche-spectacle__col-infos">
+      <p class="fiche__meta">
+        <svg class="ico" aria-hidden="true"><use href="#ico-horloge"></use></svg>
+        {{ evenement.date_debut|date:"l j F Y" }}, {{ evenement.date_debut|date:"G\hi" }}{% if evenement.date_fin %} – {{ evenement.date_fin|date:"G\hi" }}{% endif %}
+      </p>
+      {% firstof evenement.lieu_texte evenement.lieu.nom as lieu_nom %}
+      {% if lieu_nom %}
+        <p class="fiche__meta">
+          <svg class="ico" aria-hidden="true"><use href="#ico-lieu"></use></svg>
+          {{ lieu_nom }}{% if evenement.lieu.ville %} — {{ evenement.lieu.ville }}{% endif %}
+        </p>
+      {% endif %}
+      {% if evenement.spectacle_id %}
+        <p class="agenda-carte__spectacle">↳ Représentation de « {{ evenement.spectacle.titre }} »</p>
+      {% endif %}
+      {% if evenement.description %}
+        {{ evenement.description|linebreaks }}
+      {% endif %}
+
+      {% if evenement.images.all %}
+        <h2>Galerie</h2>
+        <ul class="galerie-edition">
+          {% for image in evenement.images.all %}
+            <li class="galerie-edition__item">
+              <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120" />
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="formulaire__actions">
+    {% if editable %}
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:editer_evenement' pk=evenement.pk %}">
+        Modifier
+      </a>
+    {% else %}
+      <span class="carte-projet__meta">En cours de validation par le bureau — modification en pause.</span>
+    {% endif %}
+    {% if evenement.statut_moderation == "publie" and evenement.visibilite == "public" %}
+      <a class="lien-bouton" href="{% url 'vitrine:evenement' evenement.pk %}">Voir sur le site</a>
+    {% endif %}
+  </div>
+
+  <p><a href="{% url 'espace_membre:mes_evenements' %}">← Retour à mes événements</a></p>
+{% endblock %}

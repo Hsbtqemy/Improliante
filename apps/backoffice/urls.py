@@ -46,6 +46,16 @@ urlpatterns = [
         views.moderer_evenement,
         name="moderer_evenement",
     ),
+    path(
+        "bureau/moderation/projet/<int:pk>/revu/",
+        views.marquer_projet_revu,
+        name="marquer_projet_revu",
+    ),
+    path(
+        "bureau/moderation/evenement/<int:pk>/revu/",
+        views.marquer_evenement_revu,
+        name="marquer_evenement_revu",
+    ),
     path("bureau/evenements/", views.liste_evenements, name="liste_evenements"),
     path("bureau/evenements/nouveau/", views.creer_evenement, name="creer_evenement"),
     path("bureau/evenements/<int:pk>/", views.editer_evenement, name="editer_evenement"),

@@ -20,8 +20,11 @@ persistés en base). Panneau d'accessibilité (préférences en cookie, classes
 appliquées sur `<html>`, JS externe sans inline).
 
 ### Espace membre (`apps/espace_membre`) — connecté
-Tableau de bord (à traiter, prochaines dates, projets), **proposer/éditer son
-projet** (spectacle), **proposer/éditer un événement**, répondre à ses
+Tableau de bord (à traiter, prochaines dates, projets), **proposer son projet**
+(spectacle) et **son événement**, chacun présenté d'abord en **fiche lecture**
+(`voir_projet` / `voir_evenement`, URL `.../<pk>/`) avec bouton **Modifier**
+(`editer_*`, URL `.../<pk>/modifier/`) et lien « Voir sur le site » si publié ;
+répondre à ses
 **convocations/CR d'AG** (présence / pouvoir), ses **reçus fiscaux**, et gérer
 tous ses **fichiers** dans un explorateur unifié (« Fichiers »). Tout est filtré
 par le membre connecté (voir *Anti-IDOR*).
@@ -159,6 +162,15 @@ Les devis sont numérotés plus souplement (préfixe `D`, sans criticité légal
 `brouillon → proposé → publié / refusé` (mixin `apps.common.models.Moderation`),
 réutilisé pour spectacles et événements. Le membre propose ; le bureau
 valide/refuse (avec motif). Transitions gardées dans le service.
+**Édition après publication** : l'auteur peut retoucher sa fiche **même publiée**
+(brouillon, refusé et publié sont modifiables ; seul « proposé » est verrouillé
+le temps du contrôle initial — helpers `peut_etre_edite_par_auteur` /
+`peut_etre_soumis`). Une retouche d'une fiche publiée reste **en ligne** et lève
+`Moderation.modifie_apres_publication` (`signaler_modification_apres_publication`) ;
+le bureau la voit dans la file « À revoir » de `backoffice:file_moderation` et
+l'acquitte via `marquer_projet_revu` / `marquer_evenement_revu` (service
+`marquer_revu`). Republier depuis le back-office (`publier`) efface le drapeau.
+La **visibilité** reste fixée par le bureau (jamais exposée au membre).
 
 ### Membre = personne, compte optionnel
 `coeur.Membre` porte l'**identité** (`prenom`, `nom`, `email`) et le compte de

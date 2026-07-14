@@ -20,7 +20,7 @@
         {% for projet in projets %}
           <li class="carte-projet">
             <h2 class="carte-projet__titre">
-              <a href="{% url 'espace_membre:editer_projet' pk=projet.pk %}">{{ projet.titre }}</a>
+              <a href="{% url 'espace_membre:voir_projet' pk=projet.pk %}">{{ projet.titre }}</a>
             </h2>
             <p class="carte-projet__meta">
               <span class="badge badge--{{ projet.statut_moderation }}">
