@@ -1,12 +1,35 @@
 {% comment %}
-Navigation de l'espace connecté (membre + bureau), présentée en sidebar.
-Regroupée par affinité. L'élément courant porte aria-current="page".
+Navigation de l'espace connecté (membre + bureau).
+- Desktop : rail latéral, tous les groupes dépliés (les <details open> sont
+  forcés ouverts et non repliables par CSS/JS).
+- Mobile : ce même bloc sert de tiroir unique, ouvert par le burger de l'en-tête
+  (base.html). Chaque groupe est un <details> repliable ; navigation.js ne laisse
+  ouvert que le groupe de la page courante. Le groupe « Le site » (liens publics)
+  n'apparaît qu'en mobile, où l'en-tête public est masqué.
 Attendu dans le contexte : `est_bureau` (context processor backoffice).
 {% endcomment %}
 <nav id="nav-espace" class="nav-espace" aria-label="Navigation de l'espace connecté">
   {% with vn=request.resolver_match.view_name %}
-  <section class="nav-espace__groupe">
-    <h2 class="nav-espace__titre">Mon espace</h2>
+  <details class="nav-espace__groupe nav-espace__groupe--site" open>
+    <summary class="nav-espace__titre">Le site</summary>
+    <ul class="nav-espace__liste">
+      <li><a href="{% url 'vitrine:accueil' %}"><svg class="ico" aria-hidden="true"><use href="#ico-globe"></use></svg><span>Accueil</span></a></li>
+      <li><a href="{% url 'vitrine:spectacles' %}"><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Spectacles</span></a></li>
+      <li><a href="{% url 'vitrine:agenda' %}"><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Agenda</span></a></li>
+      <li><a href="{% url 'vitrine:galerie' %}"><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg><span>Galerie</span></a></li>
+      <li><a href="{% url 'vitrine:association' %}"><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg><span>L'association</span></a></li>
+      <li><a href="{% url 'vitrine:contact' %}"><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Contact</span></a></li>
+      <li>
+        <form method="post" action="{% url 'espace_membre:deconnexion' %}" class="nav-espace__deco">
+          {% csrf_token %}
+          <button type="submit"><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Déconnexion</span></button>
+        </form>
+      </li>
+    </ul>
+  </details>
+
+  <details class="nav-espace__groupe" open>
+    <summary class="nav-espace__titre">Mon espace</summary>
     <ul class="nav-espace__liste">
       <li><a href="{% url 'espace_membre:tableau_de_bord' %}" {% if vn == 'espace_membre:tableau_de_bord' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Tableau de bord</span></a></li>
       <li><a href="{% url 'espace_membre:mes_projets' %}" {% if vn == 'espace_membre:mes_projets' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Mes projets</span></a></li>
@@ -16,51 +39,51 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
       <li><a href="{% url 'espace_membre:mes_recus' %}" {% if vn == 'espace_membre:mes_recus' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Mes reçus</span></a></li>
       <li><a href="{% url 'espace_membre:mon_profil' %}" {% if vn == 'espace_membre:mon_profil' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>
     </ul>
-  </section>
+  </details>
 
   {% if est_bureau %}
-    <section class="nav-espace__groupe">
-      <h2 class="nav-espace__titre">Bureau</h2>
+    <details class="nav-espace__groupe" open>
+      <summary class="nav-espace__titre">Bureau</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:tableau_de_bord' %}" {% if vn == 'backoffice:tableau_de_bord' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Tableau de bord</span></a></li>
         <li><a href="{% url 'backoffice:file_moderation' %}" {% if vn == 'backoffice:file_moderation' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-bouclier"></use></svg><span>Modération</span></a></li>
       </ul>
-    </section>
+    </details>
 
-    <section class="nav-espace__groupe">
-      <h2 class="nav-espace__titre">Programmation</h2>
+    <details class="nav-espace__groupe" open>
+      <summary class="nav-espace__titre">Programmation</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:liste_evenements' %}" {% if vn == 'backoffice:liste_evenements' or vn == 'backoffice:creer_evenement' or vn == 'backoffice:editer_evenement' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Événements</span></a></li>
         <li><a href="{% url 'backoffice:liste_projets' %}" {% if vn == 'backoffice:liste_projets' or vn == 'backoffice:creer_projet' or vn == 'backoffice:editer_projet' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Projets</span></a></li>
       </ul>
-    </section>
+    </details>
 
-    <section class="nav-espace__groupe">
-      <h2 class="nav-espace__titre">Finances</h2>
+    <details class="nav-espace__groupe" open>
+      <summary class="nav-espace__titre">Finances</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:finances' %}" {% if vn == 'backoffice:finances' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Aperçu</span></a></li>
         <li><a href="{% url 'backoffice:facturation' %}" {% if vn == 'backoffice:facturation' or 'facture' in vn or 'devis' in vn or 'client' in vn %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg><span>Facturation</span></a></li>
         <li><a href="{% url 'backoffice:liste_adhesions' %}" {% if 'adhesion' in vn or 'recu' in vn %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-adhesion"></use></svg><span>Cotisations &amp; reçus</span></a></li>
         <li><a href="{% url 'backoffice:budget_transactions' %}" {% if 'budget' in vn %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg><span>Budget</span></a></li>
       </ul>
-    </section>
+    </details>
 
-    <section class="nav-espace__groupe">
-      <h2 class="nav-espace__titre">Vie associative</h2>
+    <details class="nav-espace__groupe" open>
+      <summary class="nav-espace__titre">Vie associative</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:gouvernance_reunions' %}" {% if vn == 'backoffice:gouvernance_reunions' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-ruban"></use></svg><span>Gouvernance</span></a></li>
         <li><a href="{% url 'backoffice:liste_membres' %}" {% if vn == 'backoffice:liste_membres' or vn == 'backoffice:creer_membre' or vn == 'backoffice:editer_membre' or vn == 'backoffice:ouvrir_acces_membre' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg><span>Membres</span></a></li>
         <li><a href="{% url 'backoffice:equipe_bureau' %}" {% if vn == 'backoffice:equipe_bureau' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-badge"></use></svg><span>Équipe du bureau</span></a></li>
         <li><a href="{% url 'backoffice:fichiers_membres' %}" {% if vn == 'backoffice:fichiers_membres' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Fichiers transmis</span></a></li>
       </ul>
-    </section>
+    </details>
 
-    <section class="nav-espace__groupe">
-      <h2 class="nav-espace__titre">Réglages</h2>
+    <details class="nav-espace__groupe" open>
+      <summary class="nav-espace__titre">Réglages</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:parametres_association' %}" {% if vn == 'backoffice:parametres_association' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-reglages"></use></svg><span>Paramètres de l'association</span></a></li>
       </ul>
-    </section>
+    </details>
   {% endif %}
   {% endwith %}
 </nav>

@@ -9,16 +9,49 @@
       name="description"
       content="{% block description %}Association de spectacle vivant : créations, projets et rendez-vous.{% endblock %}"
     />
+    <link rel="canonical" href="{{ canonical }}" />
+
+    {# Partage social (Open Graph / Twitter) et données structurées — cf. apps/vitrine/seo.py #}
+    <meta property="og:site_name" content="L'Improliante" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+    <meta property="og:url" content="{{ canonical }}" />
+    <meta property="og:title" content="{% block og_title %}L'Improliante — spectacle vivant{% endblock %}" />
+    <meta
+      property="og:description"
+      content="{% block og_description %}Association de spectacle vivant : créations, projets et rendez-vous.{% endblock %}"
+    />
+    {% with og_img=og_image|default:partage_image_defaut %}
+      {% if og_img %}
+        <meta property="og:image" content="{{ og_img }}" />
+        <meta name="twitter:card" content="summary_large_image" />
+      {% else %}
+        <meta name="twitter:card" content="summary" />
+      {% endif %}
+    {% endwith %}
+    {% if jsonld %}<script type="application/ld+json">{{ jsonld }}</script>{% endif %}
+    {% block head_extra %}{% endblock %}
+
     <link rel="stylesheet" href="{% static 'css/site.css' %}" />
   </head>
-  <body>
+  <body class="{% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %}layout-espace{% endif %}">
     <a class="lien-evitement" href="#contenu">Aller au contenu principal</a>
     {% include "_icones_svg.html" %}
 
     <header class="site-entete">
       <div class="conteneur site-entete__inner">
         <a href="{% url 'vitrine:accueil' %}" class="site-logo">L'Improliante</a>
-        <nav aria-label="Navigation principale">
+        <button
+          type="button"
+          class="site-burger"
+          data-bascule-nav
+          aria-controls="{% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %}nav-espace{% else %}site-nav{% endif %}"
+          aria-expanded="true"
+          hidden
+        >
+          Menu
+        </button>
+        <nav id="site-nav" aria-label="Navigation principale">
           <ul class="site-nav">
             <li><a href="{% url 'vitrine:accueil' %}">Accueil</a></li>
             <li><a href="{% url 'vitrine:spectacles' %}">Spectacles</a></li>
@@ -49,16 +82,6 @@
     <div class="conteneur espace-grille{% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %} espace-grille--avec-nav{% endif %}">
       {% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %}
         <aside class="espace-grille__nav">
-          <button
-            type="button"
-            class="nav-espace__bascule"
-            data-bascule-nav
-            aria-controls="nav-espace"
-            aria-expanded="true"
-            hidden
-          >
-            Menu de l'espace
-          </button>
           {% include "_nav_espace.html" %}
         </aside>
       {% endif %}
@@ -126,7 +149,7 @@
       aria-controls="a11y-panneau"
       aria-label="Options d'accessibilité"
     >
-      ♿
+      <svg class="ico" aria-hidden="true"><use href="#ico-oeil"></use></svg>
     </button>
     <div
       id="a11y-panneau"

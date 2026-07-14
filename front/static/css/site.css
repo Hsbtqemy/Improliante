@@ -152,6 +152,59 @@ select:focus-visible,
   background: rgba(255, 255, 255, 0.1);
   text-decoration: none;
 }
+/* Burger de l'en-tête public : masqué sur desktop, affiché <48rem (navigation.js). */
+.site-burger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--rayon);
+  background: none;
+  color: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.site-burger[hidden] {
+  display: none;
+}
+.site-burger:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+.site-burger::before {
+  content: "☰";
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.site-burger[aria-expanded="true"]::before {
+  content: "✕";
+}
+@media (max-width: 47.999rem) {
+  /* Menu ouvert : colonne pleine largeur sous la rangée logo + burger. */
+  #site-nav {
+    flex-basis: 100%;
+  }
+  .site-nav {
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-top: 0.5rem;
+  }
+  .site-nav a,
+  .nav-deconnexion,
+  .nav-deconnexion button {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+  /* Pages de l'espace connecté : un seul menu (le burger pilote la nav de
+     l'espace, qui contient déjà les liens publics dans son groupe « Le site »).
+     On masque donc la nav publique horizontale de l'en-tête. */
+  .layout-espace #site-nav {
+    display: none;
+  }
+}
 .nav-deconnexion {
   display: inline;
   margin: 0;
@@ -225,13 +278,27 @@ main {
 }
 
 /* Mise en page de l'espace connecté : sidebar de navigation + contenu.
-   Mobile-first : une seule colonne (nav repliable au-dessus du contenu) ;
-   à partir de 48rem, deux colonnes (sidebar à gauche). */
+   Mobile-first : une seule colonne (tiroir repliable, piloté par le burger de
+   l'en-tête) ; à partir de 48rem, deux colonnes (sidebar à gauche). */
 .espace-grille__nav {
-  padding-block: 1rem;
+  /* Pas de padding propre : quand le tiroir est fermé (nav en display:none),
+     l'aside ne doit laisser aucun espace vide sous l'en-tête. L'espacement du
+     tiroir ouvert est porté par le panneau lui-même (marge mobile ci-dessous). */
+  padding-block: 0;
 }
 .espace-grille--avec-nav {
   display: block;
+}
+@media (max-width: 47.999rem) {
+  /* Tiroir ouvert : un peu d'air entre l'en-tête et le panneau, et avant le
+     contenu (quand le tiroir est fermé, la nav est en display:none et ne
+     réserve aucun espace). */
+  .espace-grille--avec-nav #nav-espace {
+    margin-top: 0.75rem;
+  }
+  .espace-grille--avec-nav .espace-grille__contenu {
+    margin-top: 0.75rem;
+  }
 }
 @media (min-width: 48rem) {
   .espace-grille--avec-nav {
@@ -568,33 +635,6 @@ main {
   margin-top: 1.25rem;
 }
 
-/* Bouton de repli de la nav (visible sur mobile uniquement, via JS) */
-.nav-espace__bascule {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 0.7rem 0.9rem;
-  margin-bottom: 0.5rem;
-  border: 1px solid var(--rail-bordure);
-  border-radius: var(--rayon);
-  background: var(--rail-bg);
-  color: var(--rail-texte-fort);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-/* Respecte l'attribut `hidden` (masqué sur desktop, où la nav est toujours
-   visible) : sans ceci, `display: block` ci-dessus l'emporterait sur `hidden`. */
-.nav-espace__bascule[hidden] {
-  display: none;
-}
-.nav-espace__bascule[aria-expanded="true"]::before {
-  content: "▾ ";
-}
-.nav-espace__bascule[aria-expanded="false"]::before {
-  content: "▸ ";
-}
-
 /* Rail de navigation de l'espace connecté — panneau « app », piloté par tokens */
 .nav-espace {
   background: var(--rail-bg);
@@ -614,6 +654,10 @@ main {
   border-bottom: none;
 }
 .nav-espace__titre {
+  /* Épinglé : le titre est passé de <h2> à <summary> et n'hérite plus de la
+     police de titre via la règle globale h1,h2,h3 — on la fixe pour un rendu
+     identique. */
+  font-family: var(--police-titre);
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -621,6 +665,86 @@ main {
   color: var(--rail-titre);
   margin: 0 0 0.5rem;
   padding-inline: 0.7rem;
+}
+/* Le titre de groupe est un <summary> : repliable au clic (mobile), avec un
+   chevron. On retire le marqueur natif au profit d'un chevron maison. */
+summary.nav-espace__titre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+summary.nav-espace__titre::-webkit-details-marker {
+  display: none;
+}
+summary.nav-espace__titre::after {
+  content: "";
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-bottom: 0.15rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); /* chevron ▾ : groupe ouvert */
+  opacity: 0.65;
+  transition: transform 0.15s ease;
+}
+.nav-espace__groupe:not([open]) > summary.nav-espace__titre::after {
+  transform: rotate(-45deg); /* chevron ▸ : groupe replié */
+  margin-bottom: 0;
+}
+/* Groupe replié : pas d'espace résiduel sous le titre. */
+.nav-espace__groupe:not([open]) > summary.nav-espace__titre {
+  margin-bottom: 0;
+}
+/* Le groupe « Le site » (liens publics) ne sert qu'en mobile, dans le tiroir :
+   sur desktop l'en-tête affiche déjà la nav publique. */
+@media (min-width: 48rem) {
+  .nav-espace__groupe--site {
+    display: none;
+  }
+  /* Rail latéral : groupes toujours dépliés et non repliables (JS force `open`,
+     CSS neutralise le clic et masque le chevron). */
+  .espace-grille__nav summary.nav-espace__titre {
+    cursor: default;
+    pointer-events: none;
+  }
+  .espace-grille__nav summary.nav-espace__titre::after {
+    display: none;
+  }
+}
+/* Déconnexion présentée comme un lien de la nav (dans le groupe « Le site »). */
+.nav-espace__deco {
+  margin: 0;
+}
+.nav-espace__deco button {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: var(--rayon);
+  background: none;
+  color: var(--rail-texte);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-espace__deco button:hover {
+  background: var(--rail-hover);
+  color: var(--rail-texte-fort);
+}
+.nav-espace__deco .ico {
+  width: 1.1rem;
+  height: 1.1rem;
+  opacity: 0.6;
 }
 .nav-espace__liste {
   list-style: none;
@@ -727,6 +851,7 @@ h3 {
   }
 }
 .carte {
+  position: relative; /* ancre le « stretched link » du titre (carte cliquable) */
   background: var(--surface);
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
@@ -734,7 +859,8 @@ h3 {
   box-shadow: var(--ombre);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
-.carte:hover {
+.carte:hover,
+.carte:focus-within {
   transform: translateY(-4px);
   box-shadow: var(--ombre-forte);
   border-color: var(--couleur-primaire);
@@ -1476,6 +1602,54 @@ th.montant {
   padding: 0.05rem 0.3rem;
 }
 
+/* Calendrier compact en téléphone : tient dans l'écran (fini le scroll
+   horizontal). Les événements deviennent de petites pastilles cliquables ;
+   le détail (heure, titre, affiche) reste dans la vue Liste. */
+@media (max-width: 40rem) {
+  .calendrier {
+    min-width: 0;
+    border-spacing: 2px;
+  }
+  .calendrier th {
+    font-size: 0.6rem;
+    padding: 0.15rem 0;
+  }
+  .calendrier td {
+    height: auto;
+    min-height: 3rem;
+    padding: 0.2rem 0.15rem;
+  }
+  .calendrier-jour {
+    font-size: 0.72rem;
+  }
+  .calendrier-evts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 0.25rem;
+  }
+  .calendrier-carte {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--couleur-primaire);
+    overflow: hidden;
+  }
+  .calendrier-carte:hover {
+    background: var(--couleur-primaire-vif);
+  }
+  .calendrier-carte__img,
+  .calendrier-carte__txt {
+    display: none;
+  }
+  .calendrier-plus {
+    flex-basis: 100%;
+    padding: 0;
+    font-size: 0.62rem;
+    line-height: 1;
+  }
+}
+
 /* Galerie */
 .galerie {
   list-style: none;
@@ -1526,9 +1700,10 @@ th.montant {
 .carte--membre .carte__image {
   aspect-ratio: 1 / 1;
 }
-/* Toute la carte cliquable : le lien du nom s'étend en overlay invisible.
-   Les liens de projet (z-index plus haut) restent cliquables par-dessus. */
-.carte--membre .carte__titre a::after {
+/* Toute la carte cliquable : le lien du titre/nom s'étend en overlay invisible
+   sur la carte entière. Les liens internes (projets d'un membre, z-index plus
+   haut) restent cliquables par-dessus. Vaut pour les cartes spectacle ET membre. */
+.carte__titre a::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1716,15 +1891,21 @@ th.montant {
   right: 1rem;
   bottom: 1rem;
   z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 3.25rem;
   height: 3.25rem;
   border: none;
   border-radius: 50%;
   background: var(--couleur-primaire);
   color: #fff;
-  font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
+}
+.a11y__bouton .ico {
+  width: 1.6rem;
+  height: 1.6rem;
 }
 .a11y__panneau {
   position: fixed;
