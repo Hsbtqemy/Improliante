@@ -22,6 +22,7 @@ from apps.common.instagram import derniers_posts_instagram
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
 
+from . import seo
 from .calendrier import bornes_grille, construire_calendrier
 from .forms import ContactForm
 from .ical import generer_ical
@@ -76,8 +77,32 @@ def detail_spectacle(request, pk: int):
         statut_moderation=Evenement.StatutModeration.PUBLIE,
         visibilite=Evenement.Visibilite.PUBLIC,
     ).order_by("date_debut")
-    contexte = {"spectacle": spectacle, "prochaines_dates": prochaines_dates}
+    contexte = {
+        "spectacle": spectacle,
+        "prochaines_dates": prochaines_dates,
+        "og_image": seo.image_partage(request, spectacle.affiche),
+        "jsonld": seo.spectacle_json_ld(request, spectacle),
+    }
     return render(request, "vitrine/spectacle_detail.html", contexte)
+
+
+def detail_evenement(request, pk: int):
+    """Fiche d'un événement public (404 sinon) — la date partageable de l'agenda."""
+    evenement = get_object_or_404(
+        Evenement.objects.select_related("lieu", "spectacle", "affiche"),
+        pk=pk,
+        statut_moderation=_EVT_PUBLIE,
+        visibilite=_EVT_PUBLIC,
+    )
+    spectacle = evenement.spectacle if evenement.spectacle_id else None
+    contexte = {
+        "evenement": evenement,
+        "og_image": seo.image_partage(
+            request, evenement.affiche, spectacle.affiche if spectacle else None
+        ),
+        "jsonld": seo.evenement_json_ld(request, evenement),
+    }
+    return render(request, "vitrine/evenement_detail.html", contexte)
 
 
 def _evenements_publics():
@@ -236,6 +261,8 @@ def detail_membre(request, pk: int):
         "spectacles_portes": spectacles_portes,
         "collaborations": collaborations,
         "bluesky_handle": handle_bluesky(lien_bsky.url) if lien_bsky else "",
+        "og_image": seo.image_partage(request, membre.photo),
+        "jsonld": seo.membre_json_ld(request, membre),
     }
     return render(request, "vitrine/membre_detail.html", contexte)
 
@@ -287,3 +314,16 @@ def contact_merci(request):
 def confidentialite(request):
     """Politique de confidentialité (RGPD)."""
     return render(request, "vitrine/confidentialite.html")
+
+
+def robots_txt(request):
+    """robots.txt : ouvre le public, écarte les espaces privés, pointe le sitemap."""
+    lignes = [
+        "User-agent: *",
+        "Disallow: /admin/",
+        "Disallow: /bureau/",
+        "Disallow: /espace/",
+        "",
+        f"Sitemap: {request.build_absolute_uri('/sitemap.xml')}",
+    ]
+    return HttpResponse("\n".join(lignes) + "\n", content_type="text/plain")

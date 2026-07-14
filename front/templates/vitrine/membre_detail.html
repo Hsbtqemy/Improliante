@@ -2,6 +2,10 @@
 {% load static %}
 
 {% block title %}{{ membre }} — L'Improliante{% endblock %}
+{% block description %}{{ membre.role_public|default:membre.bio|truncatewords:25 }}{% endblock %}
+{% block og_type %}profile{% endblock %}
+{% block og_title %}{{ membre }}{% endblock %}
+{% block og_description %}{{ membre.role_public|default:membre.bio|truncatewords:25 }}{% endblock %}
 
 {% block contenu %}
   <article class="fiche fiche-membre">

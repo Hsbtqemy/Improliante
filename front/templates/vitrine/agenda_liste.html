@@ -16,7 +16,7 @@
         <h2 id="mois-{{ forloop.counter }}" class="agenda-mois__titre">{{ groupe.mois|date:"F Y" }}</h2>
         <ul class="agenda-cartes">
           {% for e in groupe.evenements %}
-            <li class="agenda-carte{% if e.spectacle_id %} agenda-carte--lien{% endif %}">
+            <li class="agenda-carte agenda-carte--lien">
               <div class="agenda-carte__date" aria-hidden="true">
                 <span class="agenda-carte__jsem">{{ e.date_debut|date:"D" }}</span>
                 <span class="agenda-carte__jour">{{ e.date_debut|date:"j" }}</span>
@@ -24,9 +24,7 @@
               <div class="agenda-carte__corps">
                 {% if e.jour_relatif %}<span class="agenda-tag">{{ e.jour_relatif }}</span>{% endif %}
                 <h3 class="agenda-carte__titre">
-                  {% if e.spectacle_id %}
-                    <a class="agenda-carte__lien" href="{% url 'vitrine:spectacle' e.spectacle.pk %}">{{ e.titre }}</a>
-                  {% else %}{{ e.titre }}{% endif %}
+                  <a class="agenda-carte__lien" href="{% url 'vitrine:evenement' e.pk %}">{{ e.titre }}</a>
                 </h3>
                 <p class="agenda-carte__meta">
                   <span>

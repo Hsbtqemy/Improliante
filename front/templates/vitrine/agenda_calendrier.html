@@ -36,7 +36,7 @@
                       {% if forloop.counter <= 3 %}
                         <li>
                           <a class="calendrier-carte{% if e.affiche and e.affiche.fichier %} calendrier-carte--img{% endif %}"
-                             href="{% if e.spectacle_id %}{% url 'vitrine:spectacle' e.spectacle.pk %}{% else %}{% url 'vitrine:agenda' %}{% endif %}"
+                             href="{% url 'vitrine:evenement' e.pk %}"
                              title="{{ e.date_debut|date:'G\hi' }} — {{ e.titre }}{% if e.lieu_texte or e.lieu_id %} · {{ e.lieu_texte|default:e.lieu.nom }}{% endif %}">
                             {% if e.affiche and e.affiche.fichier %}
                               <img class="calendrier-carte__img" src="{{ e.affiche.fichier.url }}" alt="" loading="lazy" />

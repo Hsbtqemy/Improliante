@@ -14,10 +14,12 @@ urlpatterns = [
     path("spectacles/<int:pk>/", views.detail_spectacle, name="spectacle"),
     path("agenda/", views.agenda, name="agenda"),
     path("agenda/agenda.ics", views.agenda_ical, name="agenda_ical"),
+    path("agenda/<int:pk>/", views.detail_evenement, name="evenement"),
     path("galerie/", views.galerie, name="galerie"),
     path("association/", views.association, name="association"),
     path("membres/<int:pk>/", views.detail_membre, name="membre"),
     path("contact/", views.contact, name="contact"),
     path("contact/merci/", views.contact_merci, name="contact_merci"),
     path("confidentialite/", views.confidentialite, name="confidentialite"),
+    path("robots.txt", views.robots_txt, name="robots"),
 ]

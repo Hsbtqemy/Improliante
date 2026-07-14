@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -9,11 +11,18 @@ import pytest
 from django.utils import timezone
 
 from apps.agenda.models import Evenement
-from apps.coeur.models import LienReseau, Membre, Utilisateur
+from apps.coeur.models import LienReseau, Lieu, Membre, Utilisateur
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, LigneDistribution, Spectacle
 from apps.vitrine.models import MessageContact
 from apps.vitrine.views import handle_bluesky
+
+
+def _bloc_json_ld(corps: str):
+    """Contenu du premier <script type="application/ld+json"> d'une page, désérialisé."""
+    motif = r'<script type="application/ld\+json">(.*?)</script>'
+    trouve = re.search(motif, corps, re.DOTALL)
+    return json.loads(trouve.group(1)) if trouve else None
 
 
 @pytest.fixture
@@ -351,3 +360,110 @@ def test_preferences_accessibilite_appliquees_via_cookie(client, db):
     client.cookies["a11y"] = "sombre txt-grand"
     corps = client.get("/").content.decode()
     assert 'class="sombre txt-grand"' in corps
+
+
+# --- Détail d'un événement (page partageable) -----------------------------
+
+
+def test_detail_evenement_public_accessible(client, db):
+    evt = _evenement("SoireePublique")
+    reponse = client.get(f"/agenda/{evt.pk}/")
+    assert reponse.status_code == 200
+    assert "SoireePublique" in reponse.content.decode()
+
+
+def test_detail_evenement_interne_renvoie_404(client, db):
+    evt = _evenement("HuisClos", visibilite=Evenement.Visibilite.INTERNE)
+    assert client.get(f"/agenda/{evt.pk}/").status_code == 404
+
+
+def test_detail_evenement_brouillon_renvoie_404(client, db):
+    evt = _evenement("Ebauche", statut=Evenement.StatutModeration.BROUILLON)
+    assert client.get(f"/agenda/{evt.pk}/").status_code == 404
+
+
+def test_agenda_liste_lie_chaque_evenement_a_sa_fiche(client, db):
+    evt = _evenement("ConcertLie")
+    corps = client.get("/agenda/?vue=liste").content.decode()
+    assert f'href="/agenda/{evt.pk}/"' in corps
+
+
+# --- Métadonnées de partage (Open Graph) et données structurées (JSON-LD) --
+
+
+def test_spectacle_expose_open_graph_et_canonical(client, publie):
+    corps = client.get(f"/spectacles/{publie.pk}/").content.decode()
+    assert '<meta property="og:type" content="article"' in corps
+    assert '<meta property="og:title" content="SpectaclePublie"' in corps
+    assert f'<link rel="canonical" href="http://testserver/spectacles/{publie.pk}/"' in corps
+
+
+def test_spectacle_expose_json_ld_creativework(client, publie):
+    corps = client.get(f"/spectacles/{publie.pk}/").content.decode()
+    donnees = _bloc_json_ld(corps)
+    assert donnees["@type"] == "CreativeWork"
+    assert donnees["name"] == "SpectaclePublie"
+
+
+def test_evenement_expose_json_ld_theaterevent(client, db):
+    lieu = Lieu.objects.create(nom="Théâtre du Coin", ville="Lyon")
+    evt = Evenement.objects.create(
+        titre="Représentation",
+        date_debut=timezone.now() + timedelta(days=3),
+        lieu=lieu,
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+        visibilite=Evenement.Visibilite.PUBLIC,
+    )
+    donnees = _bloc_json_ld(client.get(f"/agenda/{evt.pk}/").content.decode())
+    assert donnees["@type"] == "TheaterEvent"
+    assert donnees["location"]["name"] == "Théâtre du Coin"
+    assert donnees["startDate"].startswith(str(timezone.localtime(evt.date_debut).year))
+
+
+def test_json_ld_neutralise_une_injection_de_script(client, db):
+    """Un titre malicieux ne doit pas fermer prématurément la balise <script>."""
+    evt = Evenement.objects.create(
+        titre="Piège</script><img src=x>",
+        date_debut=timezone.now() + timedelta(days=1),
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+        visibilite=Evenement.Visibilite.PUBLIC,
+    )
+    corps = client.get(f"/agenda/{evt.pk}/").content.decode()
+    brut = re.search(r'<script type="application/ld\+json">(.*?)</script>', corps, re.DOTALL)
+    # Le </script> injecté est échappé : le bloc capturé ne contient aucune
+    # balise fermante brute, et reste un JSON valide portant le titre complet.
+    assert "</script>" not in brut.group(1)
+    assert "\\u003C/script\\u003E" in brut.group(1)
+    assert json.loads(brut.group(1))["name"] == "Piège</script><img src=x>"
+
+
+# --- Plan du site (sitemap.xml) et robots.txt -----------------------------
+
+
+def test_sitemap_liste_le_publie_pas_le_brouillon(client, publie, brouillon):
+    corps = client.get("/sitemap.xml").content.decode()
+    assert client.get("/sitemap.xml").status_code == 200
+    assert f"/spectacles/{publie.pk}/" in corps
+    assert f"/spectacles/{brouillon.pk}/" not in corps
+
+
+def test_sitemap_exclut_evenements_non_publics_et_membres_caches(client, db):
+    public = _evenement("EvtPublicSitemap")
+    interne = _evenement("EvtInterneSitemap", visibilite=Evenement.Visibilite.INTERNE)
+    visible = _membre("MembreSitemapVisible", visible=True)
+    cache = _membre("MembreSitemapCache", visible=False)
+    corps = client.get("/sitemap.xml").content.decode()
+    assert f"/agenda/{public.pk}/" in corps
+    assert f"/agenda/{interne.pk}/" not in corps
+    assert f"/membres/{visible.pk}/" in corps
+    assert f"/membres/{cache.pk}/" not in corps
+
+
+def test_robots_txt_pointe_le_sitemap_et_protege_le_prive(client, db):
+    reponse = client.get("/robots.txt")
+    assert reponse.status_code == 200
+    assert reponse["Content-Type"].startswith("text/plain")
+    corps = reponse.content.decode()
+    assert "Sitemap: http://testserver/sitemap.xml" in corps
+    assert "Disallow: /bureau/" in corps
+    assert "Disallow: /espace/" in corps

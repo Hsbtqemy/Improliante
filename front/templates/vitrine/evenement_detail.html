@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ evenement.titre }} — Agenda — L'Improliante{% endblock %}
+{% block description %}{{ evenement.description|truncatewords:25 }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ evenement.titre }}{% endblock %}
+{% block og_description %}{{ evenement.description|truncatewords:30 }}{% endblock %}
+
+{% block contenu %}
+  <article class="fiche">
+    <p><a href="{% url 'vitrine:agenda' %}">← Retour à l'agenda</a></p>
+
+    <div class="fiche-spectacle__corps">
+      {% if evenement.affiche and evenement.affiche.fichier %}
+        <div class="fiche-spectacle__col-affiche">
+          <img
+            class="fiche-spectacle__affiche"
+            src="{{ evenement.affiche.fichier.url }}"
+            alt="{{ evenement.affiche.alt }}"
+          />
+        </div>
+      {% endif %}
+
+      <div class="fiche-spectacle__col-infos">
+        <h1>{{ evenement.titre }}</h1>
+
+        <p class="fiche__meta">
+          <svg class="ico" aria-hidden="true"><use href="#ico-horloge"></use></svg>
+          <span class="sr-only">Le </span>{{ evenement.date_debut|date:"l j F Y" }}, {{ evenement.date_debut|date:"G\hi" }}{% if evenement.date_fin %} – {{ evenement.date_fin|date:"G\hi" }}{% endif %}
+        </p>
+
+        {% firstof evenement.lieu_texte evenement.lieu.nom as lieu_nom %}
+        {% if lieu_nom %}
+          <p class="fiche__meta">
+            <svg class="ico" aria-hidden="true"><use href="#ico-lieu"></use></svg>
+            {{ lieu_nom }}{% if evenement.lieu.ville %} — {{ evenement.lieu.ville }}{% endif %}
+          </p>
+        {% endif %}
+
+        {% if evenement.spectacle_id %}
+          <p class="agenda-carte__spectacle">
+            ↳ Représentation de
+            <a href="{% url 'vitrine:spectacle' evenement.spectacle.pk %}">{{ evenement.spectacle.titre }}</a>
+          </p>
+        {% endif %}
+
+        {% if evenement.description %}
+          {{ evenement.description|linebreaks }}
+        {% endif %}
+      </div>
+    </div>
+  </article>
+{% endblock %}

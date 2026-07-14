@@ -72,6 +72,7 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",  # sitemap.xml (référencement) — sans framework « sites »
 ]
 
 # Bibliothèques tierces — à décommenter au fur et à mesure de leur
@@ -131,6 +132,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.backoffice.context_processors.roles",
+                "apps.vitrine.context_processors.seo",
             ],
         },
     },

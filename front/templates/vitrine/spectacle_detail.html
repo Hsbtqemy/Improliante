@@ -2,6 +2,9 @@
 
 {% block title %}{{ spectacle.titre }} — L'Improliante{% endblock %}
 {% block description %}{{ spectacle.synopsis|truncatewords:25 }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ spectacle.titre }}{% endblock %}
+{% block og_description %}{{ spectacle.synopsis|truncatewords:30 }}{% endblock %}
 
 {% block contenu %}
   <article class="fiche">
@@ -48,7 +51,10 @@
           <h2>Prochaines dates</h2>
           <ul>
             {% for evenement in prochaines_dates %}
-              <li>{{ evenement.titre }} — {{ evenement.date_debut|date:"DATETIME_FORMAT" }}</li>
+              <li>
+                <a href="{% url 'vitrine:evenement' evenement.pk %}">{{ evenement.titre }}</a>
+                — {{ evenement.date_debut|date:"DATETIME_FORMAT" }}
+              </li>
             {% endfor %}
           </ul>
         {% endif %}

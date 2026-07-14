@@ -8,7 +8,10 @@ l'espace membre seront ajoutées via des include() par app, au fur et à mesure.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
+
+from apps.vitrine.sitemaps import SITEMAPS
 
 # Personnalisation de l'en-tête de l'admin (back-office).
 admin.site.site_header = "Administration — Association"
@@ -17,6 +20,7 @@ admin.site.index_title = "Back-office"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("sitemap.xml", sitemap, {"sitemaps": SITEMAPS}, name="sitemap"),
     path("", include("apps.vitrine.urls")),  # front public
     path("", include("apps.espace_membre.urls")),  # espace membre (connecté)
     path("", include("apps.backoffice.urls")),  # back-office bureau
