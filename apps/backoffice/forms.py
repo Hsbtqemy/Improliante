@@ -17,6 +17,7 @@ from apps.budget.models import (
 )
 from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 from apps.common.fiches import ImagesFicheFormMixin
+from apps.common.forms import AideAccessibleMixin
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
 from apps.spectacles.models import LigneDistribution, Spectacle
@@ -208,7 +209,7 @@ class CategorieForm(forms.ModelForm):
 # --- Paramètres de l'association --------------------------------------------
 
 
-class ParametresAssociationForm(forms.ModelForm):
+class ParametresAssociationForm(AideAccessibleMixin, forms.ModelForm):
     """Identité légale de l'association (en-tête des documents officiels)."""
 
     class Meta:
@@ -311,7 +312,7 @@ class ResolutionForm(forms.ModelForm):
         self.fields["sujet"].required = False
 
 
-class MembreForm(forms.ModelForm):
+class MembreForm(AideAccessibleMixin, forms.ModelForm):
     """Fiche d'une personne (adhérent / membre), pour la création et l'édition.
 
     L'identité vit sur la fiche ; le compte de connexion est facultatif. À la
@@ -398,7 +399,7 @@ class AdhesionForm(forms.ModelForm):
 # --- Programmation : événements & projets (gestion directe par le bureau) ----
 
 
-class EvenementBureauForm(ImagesFicheFormMixin, forms.ModelForm):
+class EvenementBureauForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
     """Création / édition d'un événement par le bureau.
 
     Superset du formulaire membre : expose en plus `visibilite`, le `lieu` (fiche)
@@ -435,7 +436,7 @@ class EvenementBureauForm(ImagesFicheFormMixin, forms.ModelForm):
         self.fields["lieu"].required = False
 
 
-class ProjetBureauForm(ImagesFicheFormMixin, forms.ModelForm):
+class ProjetBureauForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
     """Création / édition d'un projet/spectacle par le bureau.
 
     Superset du formulaire membre : `type_portage` complet (dont « association »)

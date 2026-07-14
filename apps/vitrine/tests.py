@@ -8,6 +8,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.agenda.models import Evenement
@@ -467,3 +468,16 @@ def test_robots_txt_pointe_le_sitemap_et_protege_le_prive(client, db):
     assert "Sitemap: http://testserver/sitemap.xml" in corps
     assert "Disallow: /bureau/" in corps
     assert "Disallow: /espace/" in corps
+
+
+# --- Page d'erreur 404 sur-mesure ------------------------------------------
+
+
+@override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"])
+def test_page_404_personnalisee(client, db):
+    """Hors DEBUG, une URL inconnue rend la 404 sur-mesure (pas la page Django brute)."""
+    reponse = client.get("/une-page-qui-nexiste-pas/")
+    assert reponse.status_code == 404
+    corps = reponse.content.decode()
+    assert "introuvable" in corps.lower()
+    assert "Retour à l'accueil" in corps

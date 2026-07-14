@@ -30,7 +30,10 @@
       </select>
     </div>
 
-    <noscript><button type="submit">Filtrer</button></noscript>
+    {# Bouton toujours visible : contrôle explicite (sans JS, et pour éviter une
+       soumission-surprise au clavier — WCAG 3.2.2). Avec JS, les <select>
+       ci-dessus déclenchent aussi le filtrage à la volée. #}
+    <button type="submit" class="lien-bouton">Filtrer</button>
   </form>
 
   {% if spectacles %}

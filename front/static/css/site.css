@@ -1671,7 +1671,8 @@ th.montant {
 }
 .galerie__item img {
   width: 100%;
-  height: auto;
+  aspect-ratio: 4 / 3; /* réserve la place avant chargement → pas de saut de mise en page (CLS) */
+  object-fit: cover;
   display: block;
   border-radius: var(--rayon);
 }
@@ -1841,6 +1842,14 @@ th.montant {
   outline: none;
   border-color: var(--couleur-primaire);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--couleur-primaire) 22%, transparent);
+}
+/* Focus CLAVIER : contour net et contrasté (WCAG 1.4.11 / 2.4.7) en plus du
+   halo doux ci-dessus, réservé à la navigation au clavier (pas au clic souris). */
+.formulaire input:focus-visible,
+.formulaire textarea:focus-visible,
+.formulaire select:focus-visible {
+  outline: 3px solid var(--couleur-primaire);
+  outline-offset: 2px;
 }
 /* Champ en erreur : le widget vire au rouge (son .champ contient un .champ__erreur) */
 .champ:has(.champ__erreur) input,

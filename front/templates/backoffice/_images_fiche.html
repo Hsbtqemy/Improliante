@@ -19,7 +19,7 @@ les cases `name="supprimer_image"` (lues par `appliquer_images`).
     <p class="champ">
       <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
       {{ champ }}
-      {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+      {% if champ.help_text %}<span class="champ__aide" id="{{ champ.auto_id }}_aide">{{ champ.help_text }}</span>{% endif %}
       {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
     </p>
   {% endfor %}
@@ -43,7 +43,7 @@ les cases `name="supprimer_image"` (lues par `appliquer_images`).
     <p class="champ">
       <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
       {{ champ }}
-      {% if champ.help_text %}<span class="champ__aide">{{ champ.help_text }}</span>{% endif %}
+      {% if champ.help_text %}<span class="champ__aide" id="{{ champ.auto_id }}_aide">{{ champ.help_text }}</span>{% endif %}
       {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
     </p>
   {% endfor %}

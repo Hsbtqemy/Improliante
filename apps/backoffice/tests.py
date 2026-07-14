@@ -1910,3 +1910,12 @@ def test_gouvernance_edite_et_supprime_un_bloc(client, db):
     b1.refresh_from_db()
     assert b1.texte == "nouveau" and b1.titre == "Titre"
     assert not BlocCompteRendu.objects.filter(pk=b2.pk).exists()
+
+
+def test_backoffice_formulaire_lie_l_aide_via_aria_describedby(db):
+    """Accessibilité (WCAG 1.3.1) : l'aide des champs bureau est reliée au widget
+    via aria-describedby, avec un id présent dans le gabarit."""
+    from apps.backoffice.forms import ParametresAssociationForm
+
+    html = str(ParametresAssociationForm()["mention_tva"])
+    assert 'aria-describedby="id_mention_tva_aide"' in html

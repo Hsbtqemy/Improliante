@@ -1644,3 +1644,15 @@ def test_mes_evenements_lie_vers_la_fiche_pas_le_formulaire(client, db):
     client.force_login(membre.user)
     corps = client.get("/espace/evenements/").content.decode()
     assert f'href="/espace/evenements/{evt.pk}/"' in corps  # vers la fiche (lecture)
+
+
+# --- Accessibilité : aide reliée au champ (aria-describedby) ----------------
+
+
+def test_formulaire_lie_l_aide_via_aria_describedby(db):
+    """Le texte d'aide d'un champ est relié au widget (WCAG 1.3.1), avec un id
+    qui correspond au <span class="champ__aide"> du gabarit."""
+    from apps.espace_membre.forms import ProfilMembreForm
+
+    html = str(ProfilMembreForm()["role_public"])
+    assert 'aria-describedby="id_role_public_aide"' in html

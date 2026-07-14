@@ -4,6 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml" />
     <title>{% block title %}L'Improliante{% endblock %}</title>
     <meta
       name="description"
@@ -155,6 +156,7 @@
       id="a11y-panneau"
       class="a11y__panneau"
       role="dialog"
+      aria-modal="true"
       aria-label="Options d'accessibilité"
       hidden
     >

@@ -1,0 +1,46 @@
+{# Page d'erreur serveur : VOLONTAIREMENT autonome (n'étend pas base.html).
+   Un 500 signifie qu'une brique a échoué et le rendu se fait sans contexte ni
+   context processors : on n'utilise donc ni {% url %}, ni {% static %}, ni
+   variables — tout est en dur pour rester affichable quoi qu'il arrive. #}
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Erreur — L'Improliante</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #18131c;
+        color: #f6f1ea;
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+      }
+      .boite { max-width: 32rem; text-align: center; }
+      h1 { font-size: 1.7rem; margin: 0 0 0.6rem; }
+      p { color: #cfc7cf; line-height: 1.6; margin: 0.4rem 0; }
+      a {
+        display: inline-block;
+        margin-top: 1.4rem;
+        padding: 0.65rem 1.2rem;
+        background: #a01f3c;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+      }
+      a:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <div class="boite">
+      <h1>Une erreur est survenue</h1>
+      <p>Nous rencontrons un problème technique momentané.</p>
+      <p>Merci de réessayer dans quelques instants.</p>
+      <a href="/">Retour à l'accueil</a>
+    </div>
+  </body>
+</html>

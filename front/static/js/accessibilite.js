@@ -101,9 +101,40 @@
     });
   });
 
+  // Éléments focusables du panneau (pour le piège de focus du dialogue modal).
+  function focusables() {
+    return Array.prototype.slice
+      .call(panneau.querySelectorAll("button, [href], input, select, [tabindex]"))
+      .filter(function (el) {
+        return !el.disabled && el.tabIndex !== -1 && el.offsetParent !== null;
+      });
+  }
+
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && !panneau.hidden) {
+    if (panneau.hidden) {
+      return;
+    }
+    if (event.key === "Escape") {
       fermer();
+      return;
+    }
+    if (event.key !== "Tab") {
+      return;
+    }
+    // Piège de focus : tant que le dialogue (aria-modal) est ouvert, la
+    // tabulation boucle à l'intérieur du panneau au lieu d'en sortir.
+    var liste = focusables();
+    if (!liste.length) {
+      return;
+    }
+    var premier = liste[0];
+    var dernier = liste[liste.length - 1];
+    if (event.shiftKey && document.activeElement === premier) {
+      dernier.focus();
+      event.preventDefault();
+    } else if (!event.shiftKey && document.activeElement === dernier) {
+      premier.focus();
+      event.preventDefault();
     }
   });
 

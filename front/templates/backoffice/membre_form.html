@@ -49,7 +49,7 @@
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field }}
         {% if field.help_text %}
-          <span class="champ__aide">{{ field.help_text }}</span>
+          <span class="champ__aide" id="{{ field.auto_id }}_aide">{{ field.help_text }}</span>
         {% endif %}
         {% for erreur in field.errors %}
           <span class="champ__erreur" role="alert">{{ erreur }}</span>

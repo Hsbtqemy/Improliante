@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Page introuvable — L'Improliante{% endblock %}
+{% block description %}Cette page n'existe pas ou a été déplacée.{% endblock %}
+
+{% block contenu %}
+  <section class="etat-vide" aria-labelledby="titre-404">
+    <p class="page-tete__eyebrow">Erreur 404</p>
+    <h1 id="titre-404" class="etat-vide__titre">Page introuvable</h1>
+    <p>Désolé, la page que vous cherchez n'existe pas ou a été déplacée.</p>
+    <p class="etat-vide__actions">
+      <a class="lien-bouton lien-bouton--primaire" href="{% url 'vitrine:accueil' %}">Retour à l'accueil</a>
+      <a class="lien-bouton" href="{% url 'vitrine:agenda' %}">Voir l'agenda</a>
+      <a class="lien-bouton" href="{% url 'vitrine:spectacles' %}">Nos spectacles</a>
+    </p>
+  </section>
+{% endblock %}

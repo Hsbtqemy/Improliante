@@ -8,6 +8,7 @@ from django.forms import inlineformset_factory
 from apps.agenda.models import Evenement
 from apps.coeur.models import LienReseau, Membre
 from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
+from apps.common.forms import AideAccessibleMixin
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
 from apps.gouvernance.models import Presence
@@ -17,7 +18,7 @@ from apps.spectacles.models import Spectacle
 _FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
 
 
-class ProjetMembreForm(ImagesFicheFormMixin, forms.ModelForm):
+class ProjetMembreForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
     """Édition par un membre de la fiche de SON projet (perso ou collectif).
 
     Champs descriptifs + gestion des images (affiche et galerie, via le mixin).
@@ -58,7 +59,7 @@ class ProjetMembreForm(ImagesFicheFormMixin, forms.ModelForm):
         self.fields["type_portage"].initial = Spectacle.TypePortage.PERSONNEL
 
 
-class EvenementMembreForm(ImagesFicheFormMixin, forms.ModelForm):
+class EvenementMembreForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
     """Proposition / édition par un membre d'un événement d'agenda.
 
     Champs descriptifs + gestion des images (affiche et galerie, via le mixin).
@@ -100,7 +101,7 @@ class EvenementMembreForm(ImagesFicheFormMixin, forms.ModelForm):
         self.fields["spectacle"].required = False
 
 
-class ProfilMembreForm(forms.ModelForm):
+class ProfilMembreForm(AideAccessibleMixin, forms.ModelForm):
     """Édition par un membre de SA propre fiche (bio, rôle public, coordonnées,
     site web, photo). Les réseaux sociaux sont gérés à part via un formset
     (`LienReseauFormSet`). La photo crée un `Media` (alt obligatoire) traité par
