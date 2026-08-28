@@ -36,6 +36,7 @@ catégories » et de juger la barre à sa densité maximale.
 - [ ] Une catégorie à zéro réalisé montre une piste vide et son repère, pas une ligne blanche indéchiffrable
 - [ ] Les noms longs (« Transport et défraiements ») ne poussent pas la valeur hors de sa colonne
 - [ ] Recettes et dépenses se comparent à l'œil : la même longueur y vaut le même montant
+- [ ] Quand une catégorie écrase l'échelle, les petites lignes restent compréhensibles — piste vide et montant lisible à droite, sans donner l'impression d'un affichage cassé
 
 ### Répartition des dépenses
 
@@ -43,6 +44,7 @@ catégories » et de juger la barre à sa densité maximale.
 - [ ] Les parts de moins de 2 % restent visibles comme un trait, sans disparaître ni écraser leurs voisines
 - [ ] Chaque part de la légende se relie sans hésitation à son segment dans la barre
 - [ ] La légende reste lisible quand un nom de catégorie passe sur deux lignes
+- [ ] Le total annoncé sous « Où partent les dépenses » égale celui de la tuile « Dépenses réalisées » — les deux ne divergent qu'avec un montant négatif saisi hors du formulaire
 
 ### Largeurs et appareils
 

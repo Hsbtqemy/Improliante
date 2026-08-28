@@ -6,7 +6,8 @@ statut: clos
 # BUD-1 — tableau de bord budget avec graphiques (v2)
 
 **Arrêté sur** — tableau de bord posé sur l'écran Bilan (chiffres clés, réalisé face au
-budget, répartition des dépenses), rendu en HTML/CSS, commit `bef0880`, 28 août.
+budget, répartition des dépenses), rendu en HTML/CSS, relu et durci sur données
+limites, commit `26130b5`, 28 août.
 
 ## Reste
 
@@ -69,3 +70,16 @@ l'élargissait jusqu'à son contenu le plus large, si bien que l'`overflow-x` de
 `.tableau-wrap` ne pouvait jamais s'activer. L'écran Bilan poussait la page 165 px hors
 de l'écran en 1280. Le correctif (`min-width: 0`) vaut pour **tous** les écrans du
 back-office à large tableau, pas seulement celui-ci.
+
+Une passe de relecture a suivi la livraison, sur un jeu de données **limites** plutôt
+que sur des chiffres bien élevés — c'est elle qui a payé. Une part négative (montant
+saisi par l'admin, que le formulaire refuse) produisait `width: -6.3%`, ignorée en
+silence par le navigateur : la barre valait zéro sans qu'on puisse distinguer le juste
+du cassé. Les parts sont désormais bornées. Deux résidus ont disparu au passage : une
+classe CSS que le gabarit fabriquait sans qu'elle existe, et une clé que personne ne
+lisait.
+
+Un écart subsiste, documenté et assumé : avec un montant négatif, la tuile « Dépenses
+réalisées » et le total de la répartition affichent deux nombres différents. La tuile
+porte la somme comptable, la barre porte la structure — une part de −500 € dans un tout
+ne veut rien dire.
