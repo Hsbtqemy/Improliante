@@ -3317,27 +3317,27 @@ summary.lien-bouton::-webkit-details-marker {
 }
 
 /* =========================================================================
-   THÈMES DE TEST — palettes & dosage du sombre (bascule ?theme=a..g, dev only)
+   THÈMES DE TEST — palettes & dosage du sombre (bascule ?theme=1..12, dev only)
    À figer sur le choix retenu, puis retirer le sélecteur + les variantes.
    Rail : sombre par défaut ; « rail clair » = bundle de tokens partagé.
-   A bordeaux chaud · B sombre chaud · C clair · D prune/rose · E nuit bleue ·
-   F charbon/corail · G forêt/terracotta · H bleu canard/cuivre · I indigo/or ·
-   J olive/ambre · K rouille/sable · L encre neutre/rouge sec
+   1 bordeaux chaud · 2 sombre chaud · 3 clair · 4 prune/rose · 5 nuit bleue ·
+   6 charbon/corail · 7 forêt/terracotta · 8 bleu canard/cuivre · 9 indigo/or ·
+   10 olive/ambre · 11 rouille/sable · 12 encre neutre/rouge sec
 
    Toute palette doit franchir les seuils AA mesurés par
    `apps/vitrine/tests.py::test_les_palettes_respectent_le_contraste_AA`.
    ========================================================================= */
 
 /* Bundle « rail clair » partagé (crème, item actif en couleur primaire) */
-html[data-theme="a"],
-html[data-theme="c"],
-html[data-theme="e"],
-html[data-theme="f"],
-html[data-theme="h"],
-html[data-theme="i"],
-html[data-theme="j"],
-html[data-theme="k"],
-html[data-theme="l"] {
+html[data-theme="1"],
+html[data-theme="3"],
+html[data-theme="5"],
+html[data-theme="6"],
+html[data-theme="8"],
+html[data-theme="9"],
+html[data-theme="10"],
+html[data-theme="11"],
+html[data-theme="12"] {
   --rail-bg: var(--surface-alt);
   --rail-bordure: var(--bordure);
   --rail-texte: var(--couleur-texte);
@@ -3350,18 +3350,18 @@ html[data-theme="l"] {
   --rail-sep: var(--bordure);
 }
 
-/* A — bordeaux-aubergine chaud (bordeaux + ambre) · rail clair */
-html[data-theme="a"] {
+/* 1 — bordeaux-aubergine chaud (bordeaux + ambre) · rail clair */
+html[data-theme="1"] {
   --ink: #241019;
 }
 
-/* B — sombre chaud partout, rail compris (bordeaux très profond) */
-html[data-theme="b"] {
+/* 2 — sombre chaud partout, rail compris (bordeaux très profond) */
+html[data-theme="2"] {
   --ink: #2a1220;
 }
 
-/* D — velours prune & rose magenta + or · rail sombre prune */
-html[data-theme="d"] {
+/* 4 — velours prune & rose magenta + or · rail sombre prune */
+html[data-theme="4"] {
   --ink: #241028;
   --couleur-primaire: #c02555;
   --couleur-primaire-vif: #e14b7a;
@@ -3370,8 +3370,8 @@ html[data-theme="d"] {
   --accent: #ffca3a;
 }
 
-/* E — nuit bleue & or, accent rouge-corail · rail clair */
-html[data-theme="e"] {
+/* 5 — nuit bleue & or, accent rouge-corail · rail clair */
+html[data-theme="5"] {
   --ink: #101a33;
   --couleur-primaire: #cf3a3f;
   --couleur-primaire-vif: #e5484d;
@@ -3380,8 +3380,8 @@ html[data-theme="e"] {
   --accent: #f2c14e;
 }
 
-/* F — charbon & corail + jaune doux · rail clair */
-html[data-theme="f"] {
+/* 6 — charbon & corail + jaune doux · rail clair */
+html[data-theme="6"] {
   --ink: #201d20;
   --couleur-primaire: #d0293c;
   --couleur-primaire-vif: #ef4d54;
@@ -3390,8 +3390,8 @@ html[data-theme="f"] {
   --accent: #ffd166;
 }
 
-/* G — forêt profonde & terracotta/ambre · rail sombre vert */
-html[data-theme="g"] {
+/* 7 — forêt profonde & terracotta/ambre · rail sombre vert */
+html[data-theme="7"] {
   --ink: #12241b;
   --couleur-primaire: #a8501e;
   --couleur-primaire-vif: #c56a30;
@@ -3400,8 +3400,8 @@ html[data-theme="g"] {
   --accent: #e9c46a;
 }
 
-/* H — bleu canard & cuivre · rail clair */
-html[data-theme="h"] {
+/* 8 — bleu canard & cuivre · rail clair */
+html[data-theme="8"] {
   --ink: #08282e;
   --couleur-primaire: #0e6d78;
   --couleur-primaire-vif: #128b99;
@@ -3410,8 +3410,8 @@ html[data-theme="h"] {
   --accent: #e2a03f;
 }
 
-/* I — indigo & or · rail clair */
-html[data-theme="i"] {
+/* 9 — indigo & or · rail clair */
+html[data-theme="9"] {
   --ink: #16143a;
   --couleur-primaire: #3f3d9e;
   --couleur-primaire-vif: #5a57c4;
@@ -3420,8 +3420,8 @@ html[data-theme="i"] {
   --accent: #f2c14e;
 }
 
-/* J — olive & ambre · rail clair */
-html[data-theme="j"] {
+/* 10 — olive & ambre · rail clair */
+html[data-theme="10"] {
   --ink: #23281a;
   --couleur-primaire: #5a6620;
   --couleur-primaire-vif: #74842c;
@@ -3430,8 +3430,8 @@ html[data-theme="j"] {
   --accent: #e0a12c;
 }
 
-/* K — rouille & sable · rail clair */
-html[data-theme="k"] {
+/* 11 — rouille & sable · rail clair */
+html[data-theme="11"] {
   --ink: #2b1710;
   --couleur-primaire: #a8442a;
   --couleur-primaire-vif: #c65a3c;
@@ -3440,8 +3440,8 @@ html[data-theme="k"] {
   --accent: #e9b44c;
 }
 
-/* L — encre & rouge sec : neutre typographique, la couleur ne sert qu'à l'accent · rail clair */
-html[data-theme="l"] {
+/* 12 — encre & rouge sec : neutre typographique, la couleur ne sert qu'à l'accent · rail clair */
+html[data-theme="12"] {
   --ink: #191519;
   --couleur-primaire: #3a353d;
   --couleur-primaire-vif: #524c56;
@@ -3450,40 +3450,40 @@ html[data-theme="l"] {
   --accent: #e06a55;
 }
 
-/* C — clair : en-tête bordeaux, hero crème, pied bordeaux (rail clair) */
-html[data-theme="c"] {
+/* 3 — clair : en-tête bordeaux, hero crème, pied bordeaux (rail clair) */
+html[data-theme="3"] {
   --ink: #2a1220;
 }
-html[data-theme="c"] .site-entete {
+html[data-theme="3"] .site-entete {
   background: var(--couleur-primaire);
   border-bottom-color: #7a1730;
 }
-html[data-theme="c"] .site-pied {
+html[data-theme="3"] .site-pied {
   background: var(--couleur-primaire);
   border-top-color: #7a1730;
   color: rgba(255, 255, 255, 0.85);
 }
-html[data-theme="c"] .hero {
+html[data-theme="3"] .hero {
   background: var(--surface-alt);
   color: var(--couleur-texte);
 }
-html[data-theme="c"] .hero__titre {
+html[data-theme="3"] .hero__titre {
   color: var(--couleur-texte);
 }
-html[data-theme="c"] .hero__titre .accent {
+html[data-theme="3"] .hero__titre .accent {
   color: var(--couleur-primaire);
 }
-html[data-theme="c"] .hero__intro {
+html[data-theme="3"] .hero__intro {
   color: var(--couleur-muet);
 }
-html[data-theme="c"] .hero::after {
+html[data-theme="3"] .hero::after {
   background: radial-gradient(circle, rgba(160, 31, 60, 0.12), transparent 70%);
 }
-html[data-theme="c"] .hero .lien-bouton--ghost {
+html[data-theme="3"] .hero .lien-bouton--ghost {
   border-color: var(--couleur-primaire);
   color: var(--couleur-primaire);
 }
-html[data-theme="c"] .hero .lien-bouton--ghost:hover {
+html[data-theme="3"] .hero .lien-bouton--ghost:hover {
   background: var(--couleur-primaire-clair);
 }
 

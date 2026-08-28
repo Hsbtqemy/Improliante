@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme 'a' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}" data-titre="{% firstof request.GET.titre request.COOKIES.titre 'systeme' %}">
+<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme '1' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}" data-titre="{% firstof request.GET.titre request.COOKIES.titre 'systeme' %}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -109,24 +109,24 @@
     </footer>
 
     {# Sélecteur de thème/fond (DEV) — à retirer après choix ; persistance en cookie via le script ci-dessous. #}
-    {% firstof request.GET.theme request.COOKIES.theme 'a' as theme_actif %}
+    {% firstof request.GET.theme request.COOKIES.theme '1' as theme_actif %}
     {% firstof request.GET.fond request.COOKIES.fond 'mesh' as fond_actif %}
     {% firstof request.GET.titre request.COOKIES.titre 'systeme' as titre_actif %}
     <div class="theme-switch" role="group" aria-label="Réglages d'apparence (développement)">
       <div class="theme-switch__row">
         <span class="theme-switch__label">Palette</span>
-        <a href="?theme=a"{% if theme_actif == 'a' %} aria-current="true"{% endif %}>A · bordeaux chaud</a>
-        <a href="?theme=b"{% if theme_actif == 'b' %} aria-current="true"{% endif %}>B · sombre chaud</a>
-        <a href="?theme=c"{% if theme_actif == 'c' %} aria-current="true"{% endif %}>C · clair</a>
-        <a href="?theme=d"{% if theme_actif == 'd' %} aria-current="true"{% endif %}>D · prune/rose</a>
-        <a href="?theme=e"{% if theme_actif == 'e' %} aria-current="true"{% endif %}>E · nuit bleue</a>
-        <a href="?theme=f"{% if theme_actif == 'f' %} aria-current="true"{% endif %}>F · corail</a>
-        <a href="?theme=g"{% if theme_actif == 'g' %} aria-current="true"{% endif %}>G · forêt</a>
-        <a href="?theme=h"{% if theme_actif == 'h' %} aria-current="true"{% endif %}>H · bleu canard</a>
-        <a href="?theme=i"{% if theme_actif == 'i' %} aria-current="true"{% endif %}>I · indigo</a>
-        <a href="?theme=j"{% if theme_actif == 'j' %} aria-current="true"{% endif %}>J · olive</a>
-        <a href="?theme=k"{% if theme_actif == 'k' %} aria-current="true"{% endif %}>K · rouille</a>
-        <a href="?theme=l"{% if theme_actif == 'l' %} aria-current="true"{% endif %}>L · encre</a>
+        <a href="?theme=1" title="bordeaux chaud"{% if theme_actif == '1' %} aria-current="true"{% endif %}>1</a>
+        <a href="?theme=2" title="sombre chaud"{% if theme_actif == '2' %} aria-current="true"{% endif %}>2</a>
+        <a href="?theme=3" title="clair"{% if theme_actif == '3' %} aria-current="true"{% endif %}>3</a>
+        <a href="?theme=4" title="prune/rose"{% if theme_actif == '4' %} aria-current="true"{% endif %}>4</a>
+        <a href="?theme=5" title="nuit bleue"{% if theme_actif == '5' %} aria-current="true"{% endif %}>5</a>
+        <a href="?theme=6" title="charbon/corail"{% if theme_actif == '6' %} aria-current="true"{% endif %}>6</a>
+        <a href="?theme=7" title="forêt/terracotta"{% if theme_actif == '7' %} aria-current="true"{% endif %}>7</a>
+        <a href="?theme=8" title="bleu canard/cuivre"{% if theme_actif == '8' %} aria-current="true"{% endif %}>8</a>
+        <a href="?theme=9" title="indigo/or"{% if theme_actif == '9' %} aria-current="true"{% endif %}>9</a>
+        <a href="?theme=10" title="olive/ambre"{% if theme_actif == '10' %} aria-current="true"{% endif %}>10</a>
+        <a href="?theme=11" title="rouille/sable"{% if theme_actif == '11' %} aria-current="true"{% endif %}>11</a>
+        <a href="?theme=12" title="encre neutre/rouge sec"{% if theme_actif == '12' %} aria-current="true"{% endif %}>12</a>
       </div>
       <div class="theme-switch__row">
         <span class="theme-switch__label">Fond</span>
@@ -148,7 +148,7 @@
       // pendant la navigation (test seulement).
       (function () {
         var s = location.search;
-        var mt = s.match(/[?&]theme=([a-l])/);
+        var mt = s.match(/[?&]theme=(\d{1,2})/);
         if (mt) document.cookie = "theme=" + mt[1] + ";path=/;max-age=604800;samesite=Lax";
         var mf = s.match(/[?&]fond=(plat|mesh|grain)/);
         if (mf) document.cookie = "fond=" + mf[1] + ";path=/;max-age=604800;samesite=Lax";
