@@ -184,7 +184,11 @@ class ParametresAssociation(models.Model):
     n° 11580), plus tard factures et courriers. Jamais codée en dur (règle 8).
     """
 
-    nom = models.CharField(max_length=200, default="")
+    # Le nom est déjà affirmé en dur cinq fois dans `base.html` (titre, logo,
+    # pied, Open Graph). Un défaut vide y contredisait le reste du site et
+    # vidait le titre de la page d'accueil, qui en dépend depuis qu'elle
+    # porte sur l'association.
+    nom = models.CharField(max_length=200, default="L'Improliante")
     objet = models.TextField(
         "objet de l'association",
         blank=True,

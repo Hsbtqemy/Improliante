@@ -5,7 +5,7 @@
 {% block contenu %}
   <section class="hero">
     <h1 class="hero__titre">
-      {{ association.nom }}<br />
+      {% if association.nom %}{{ association.nom }}<br />{% endif %}
       <span class="accent">{{ association.accroche }}</span>
     </h1>
     {% if association.presentation %}
