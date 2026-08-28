@@ -202,6 +202,25 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # cible de collectstatic (prod)
 STATICFILES_DIRS = [BASE_DIR / "front" / "static"]  # assets du front public
 
+# Empreinte de contenu dans le nom des fichiers collectés (site.a1b2c3.css).
+# Sans elle, `expires 30d` sur /static/ dans Nginx sert l'ANCIEN CSS/JS aux
+# visiteurs de retour pendant un mois après chaque déploiement : le cache n'a
+# aucun moyen de savoir que le fichier a changé, puisque son URL est la même.
+# Avec l'empreinte, une modification change l'URL — le cache long devient sûr,
+# et c'est lui qui devient l'objectif plutôt que le risque.
+# En développement, `runserver` sert les fichiers depuis `STATICFILES_DIRS` et
+# aucun manifeste n'existe : on garde donc le stockage simple sous DEBUG.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+        )
+    },
+}
+
 # Médias uploadés. `MEDIA_ROOT` (servi publiquement par Nginx) ne contient que
 # des fichiers destinés au public. Les fichiers PRIVÉS (factures, reçus fiscaux,
 # pièces membres, documents confidentiels) vont dans `MEDIA_PRIVE_ROOT`, hors
