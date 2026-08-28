@@ -175,3 +175,51 @@ ruff format .
 - Produire des migrations à chaque changement de modèle.
 - Faire passer `pytest`, `ruff check` et `manage.py check` avant de committer.
 - Signaler (sans le coder) tout écart ou décision manquante plutôt que de supposer en silence.
+
+---
+
+## Pilotage (journal de bord)
+
+Le reste à faire vit dans `pilotage/`, confronté à ce que git montre par l'outil
+`pilote`. Un chantier a un fichier `pilotage/<CODE>.md` ; une QA visuelle est une
+passe rejouable dans `pilotage/qa/<nom>.md`. Le gabarit et le contrat de lecture sont
+dans `pilotage/_TEMPLATE.md`, l'inventaire du dépôt dans `pilotage/journal.config.mjs`.
+
+**Codes de chantier : `PREFIXE-N`, le préfixe nommant un domaine** — `DEP` (déploiement),
+`VIT` (vitrine), `MEM` (espace membre), `BO` (back-office), `FAC` (facturation),
+`GOU` (gouvernance), `GED` (documents/médias), `BUD` (budget), `SEC` (sécurité).
+Un préfixe de 1 à 4 majuscules, un numéro de 1 à 3 chiffres, et rien d'autre : l'outil
+ne reconnaît pas les autres formes.
+
+IMPORTANT — respecter exactement `## Reste` et les H3 de zone : l'outil ne lit que
+ces sections.
+
+- Fin de session : mettre à jour le `Reste` du chantier travaillé.
+- `statut:` se prend dans `à venir` · `interrompu` · `différé` · `clos` · `livré` ·
+  `abandonné`, et rien d'autre — le contrôleur refuse le reste. `différé` = mis en
+  attente exprès (autre chose doit aboutir d'abord), à distinguer d'`interrompu` =
+  arrêté en plein travail. `abandonné` = décidé de ne pas le faire : fermé mais pas
+  fait, et la fiche garde son `Reste` ouvert exprès plutôt que d'être supprimée avec
+  son raisonnement. `livré` est démenti par l'écran si le dernier commit ne vit pas
+  sur `origin/main`.
+- **Le commit de code doit CITER le code du chantier**, dans son sujet ou son corps :
+  `feat(deploiement): DEP-1 — unité systemd Gunicorn + socket`. Un chantier n'est daté
+  que par les commits qui le citent ET qui touchent autre chose que `pilotage/` — les
+  deux à la fois. Sans citation, la fiche affiche `0 commit`, aucune date, aucune barre
+  sur la fresque, quel que soit le travail fait.
+- Le commit de code d'abord, le commit de fiche ensuite, **séparément** : une fiche ne
+  peut pas citer le commit qui la met à jour, et les commits qui ne touchent que
+  `pilotage/` sont exclus du datage.
+- Une case = une affirmation vérifiable, avec son attendu. « Vérifier le rendu » ne se
+  coche pas ; « sur 375 px, la barre ne masque pas le geste » se coche.
+- Avant de clore une session : `npx github:Hsbtqemy/pilote verifier` (code de retour
+  non nul = l'outil lira mal le dossier ; `--strict` rend les avertissements bloquants).
+- QA visuelle : écrire une passe dans `pilotage/qa/`, jamais dans le fil de
+  conversation. Regrouper les points par zone en H3.
+- Ne jamais cocher soi-même une case d'une passe de QA : l'agent la rédige, l'humain coche.
+- Ne pas créer de fiche pour un point traité en un seul commit.
+
+Le journal se lit avec `npx github:Hsbtqemy/pilote` puis `localhost:4123` — la commande
+est idempotente, se retaper sans vérifier si un serveur tourne est le geste prévu
+(`pilote arreter` ferme, `pilote aide` liste tout). Lecture seule sur le dépôt, sauf les
+cases à cocher, dont l'écriture est bornée à `pilotage/`.
