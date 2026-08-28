@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme 'a' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}">
+<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme 'a' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}" data-titre="{% firstof request.GET.titre request.COOKIES.titre 'systeme' %}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -111,6 +111,7 @@
     {# Sélecteur de thème/fond (DEV) — à retirer après choix ; persistance en cookie via le script ci-dessous. #}
     {% firstof request.GET.theme request.COOKIES.theme 'a' as theme_actif %}
     {% firstof request.GET.fond request.COOKIES.fond 'mesh' as fond_actif %}
+    {% firstof request.GET.titre request.COOKIES.titre 'systeme' as titre_actif %}
     <div class="theme-switch" role="group" aria-label="Réglages d'apparence (développement)">
       <div class="theme-switch__row">
         <span class="theme-switch__label">Palette</span>
@@ -128,6 +129,14 @@
         <a href="?fond=mesh"{% if fond_actif == 'mesh' %} aria-current="true"{% endif %}>Mesh animé</a>
         <a href="?fond=grain"{% if fond_actif == 'grain' %} aria-current="true"{% endif %}>Grain</a>
       </div>
+      <div class="theme-switch__row">
+        <span class="theme-switch__label">Titres</span>
+        <a href="?titre=systeme"{% if titre_actif == 'systeme' %} aria-current="true"{% endif %}>Système (actuel)</a>
+        <a href="?titre=fraunces"{% if titre_actif == 'fraunces' %} aria-current="true"{% endif %}>Fraunces</a>
+        <a href="?titre=playfair"{% if titre_actif == 'playfair' %} aria-current="true"{% endif %}>Playfair</a>
+        <a href="?titre=instrument"{% if titre_actif == 'instrument' %} aria-current="true"{% endif %}>Instrument</a>
+        <a href="?titre=bricolage"{% if titre_actif == 'bricolage' %} aria-current="true"{% endif %}>Bricolage</a>
+      </div>
     </div>
     <script>
       // Mémorise le thème passé en ?theme= dans un cookie pour qu'il persiste
@@ -138,6 +147,8 @@
         if (mt) document.cookie = "theme=" + mt[1] + ";path=/;max-age=604800;samesite=Lax";
         var mf = s.match(/[?&]fond=(plat|mesh|grain)/);
         if (mf) document.cookie = "fond=" + mf[1] + ";path=/;max-age=604800;samesite=Lax";
+        var mp = s.match(/[?&]titre=(systeme|fraunces|playfair|instrument|bricolage)/);
+        if (mp) document.cookie = "titre=" + mp[1] + ";path=/;max-age=604800;samesite=Lax";
       })();
     </script>
 

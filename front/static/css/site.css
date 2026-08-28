@@ -43,6 +43,7 @@
 
   /* Typographie */
   --police-titre: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --graisse-titre: 800;
   /* Contrat de variables pour le panneau d'accessibilité
      (taille du texte, interligne — bascule via une classe sur <html>). */
   --taille-base: 1rem;
@@ -256,7 +257,7 @@ main {
 .hero__titre {
   font-family: var(--police-titre);
   font-size: clamp(2.2rem, 6vw, 3.6rem);
-  font-weight: 800;
+  font-weight: var(--graisse-titre);
   letter-spacing: -0.03em;
   line-height: 1.02;
   margin: 0;
@@ -804,7 +805,7 @@ h1,
 h2,
 h3 {
   font-family: var(--police-titre);
-  font-weight: 800;
+  font-weight: var(--graisse-titre);
   letter-spacing: -0.02em;
 }
 h1 {
@@ -2017,6 +2018,54 @@ html.dyslexie body {
 html.anim-reduites * {
   animation: none !important;
   transition: none !important;
+}
+
+/* --- Polices de titre ------------------------------------------------------
+   Auto-hébergées : servir Google Fonts depuis leur CDN transmet l'IP des
+   visiteurs à Google, ce que la CNIL sanctionne pour un site français.
+   `font-weight: 100 900` couvre toute la plage avec un seul fichier et empêche
+   le navigateur de graisser artificiellement les fontes qui n'ont qu'une
+   graisse (Instrument Serif) — le faux gras est laid et illisible en grand.
+   Le choix se fait en direct via le sélecteur DEV en bas de page (`?titre=`).
+   Une fois la police arrêtée : ne garder que la sienne, la précharger, et
+   calculer un `size-adjust` sur la police de repli pour ne pas rouvrir le CLS. */
+@font-face {
+  font-family: "Fraunces";
+  src: url("../fonts/fraunces.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Playfair Display";
+  src: url("../fonts/playfair.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("../fonts/instrument.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("../fonts/bricolage.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+html[data-titre="fraunces"] {
+  --police-titre: "Fraunces", Georgia, "Times New Roman", serif;
+}
+html[data-titre="playfair"] {
+  --police-titre: "Playfair Display", Georgia, "Times New Roman", serif;
+}
+html[data-titre="instrument"] {
+  --police-titre: "Instrument Serif", Georgia, "Times New Roman", serif;
+  /* Une seule graisse, dessinée fine : le 800 des titres l'écraserait. */
+  --graisse-titre: 400;
+}
+html[data-titre="bricolage"] {
+  --police-titre: "Bricolage Grotesque", system-ui, sans-serif;
 }
 
 /* Messages (framework messages Django) */
