@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Déplacer {{ dossier.nom }} — Fichiers{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url url_dossier pk=dossier.pk %}">← Retour au dossier</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Espace membre · Fichiers</span>
+    <h1>Déplacer « {{ dossier.nom }} »</h1>
+  </header>
+
+  {% comment %}
+    Un déplacement n'est pas un renommage : il emmène tout le sous-arbre et, dans
+    l'espace personnel, réaligne sa visibilité sur celle du dossier d'accueil.
+    L'écran doit le dire AVANT le geste — le découvrir après serait découvrir que
+    des fichiers privés sont devenus visibles par la troupe.
+  {% endcomment %}
+  <div class="encart" role="note">
+    <p>
+      {% if nb_sous_dossiers %}
+        Ce dossier contient <strong>{{ nb_sous_dossiers }}</strong> sous-dossier{{ nb_sous_dossiers|pluralize }},
+        qui partiront avec lui.
+      {% else %}
+        Ce dossier n'a pas de sous-dossier.
+      {% endif %}
+      {% if avec_visibilite %}
+        Sa confidentialité — et celle de tout ce qu'il contient — s'alignera sur celle
+        du dossier d'accueil : rangé sous un dossier <strong>partagé</strong>, son
+        contenu devient visible par toute la troupe.
+      {% endif %}
+    </p>
+  </div>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{% include "_champ.html" with field=field %}{% endfor %}
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Déplacer</button>
+      <a class="lien-bouton" href="{% url url_dossier pk=dossier.pk %}">Annuler</a>
+    </div>
+  </form>
+{% endblock %}

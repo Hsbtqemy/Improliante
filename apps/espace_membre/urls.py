@@ -49,6 +49,9 @@ urlpatterns = [
         views.supprimer_document_membre,
         name="supprimer_document_membre",
     ),
+    # Une seule route pour les trois espaces : c'est la vue qui décide du
+    # droit selon l'espace du dossier.
+    path("espace/fichiers/<int:pk>/deplacer/", views.deplacer_dossier, name="deplacer_dossier"),
     path("espace/commun/<int:pk>/", views.dossier_commun, name="dossier_commun"),
     path(
         "espace/commun/<int:pk>/editer/",

@@ -1656,3 +1656,113 @@ def test_formulaire_lie_l_aide_via_aria_describedby(db):
 
     html = str(ProfilMembreForm()["role_public"])
     assert 'aria-describedby="id_role_public_aide"' in html
+
+
+# --- Déplacement d'un dossier (GED-1) ---------------------------------------
+
+
+def test_membre_deplace_son_dossier(client, db):
+    alice = _membre("alice")
+    source = _dossier_membre(alice, Visibilite.PRIVE, nom="Photos")
+    cible = _dossier_membre(alice, Visibilite.PRIVE, nom="Archives")
+    client.force_login(alice.user)
+
+    reponse = client.post(f"/espace/fichiers/{source.pk}/deplacer/", {"parent": cible.pk})
+
+    assert reponse.status_code == 302
+    source.refresh_from_db()
+    assert source.get_parent().pk == cible.pk
+
+
+def test_membre_ne_peut_pas_deplacer_le_dossier_d_un_autre(client, db):
+    """Règle 1 : le déplacement ne doit pas devenir la porte dérobée que le
+    renommage n'est pas."""
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Alice")
+    cible = _dossier_membre(alice, Visibilite.PRIVE, nom="Cible")
+    bob = _membre("bob")
+    client.force_login(bob.user)
+
+    assert client.get(f"/espace/fichiers/{dossier.pk}/deplacer/").status_code == 404
+    reponse = client.post(f"/espace/fichiers/{dossier.pk}/deplacer/", {"parent": cible.pk})
+    assert reponse.status_code == 404
+
+    dossier.refresh_from_db()
+    assert dossier.get_parent() is None
+
+
+def test_le_dossier_d_un_autre_membre_n_est_pas_une_cible_proposee(client, db):
+    """Anti-IDOR jusque dans la liste déroulante : un dossier qu'on ne peut
+    pas voir ne doit pas non plus être proposé comme destination."""
+    alice = _membre("alice")
+    bob = _membre("bob")
+    a_alice = _dossier_membre(alice, Visibilite.PRIVE, nom="Photos")
+    a_bob = _dossier_membre(bob, Visibilite.PRIVE, nom="Chez Bob")
+    client.force_login(alice.user)
+
+    reponse = client.get(f"/espace/fichiers/{a_alice.pk}/deplacer/")
+    cibles = list(reponse.context["form"].fields["parent"].queryset)
+
+    assert a_bob not in cibles
+
+
+def test_un_dossier_ne_se_propose_pas_lui_meme_ni_ses_sous_dossiers(client, db):
+    alice = _membre("alice")
+    parent = _dossier_membre(alice, Visibilite.PRIVE, nom="Photos")
+    enfant = _dossier_membre(alice, Visibilite.PRIVE, parent=parent, nom="2025")
+    client.force_login(alice.user)
+
+    reponse = client.get(f"/espace/fichiers/{parent.pk}/deplacer/")
+    cibles = list(reponse.context["form"].fields["parent"].queryset)
+
+    assert parent not in cibles
+    assert enfant not in cibles
+
+
+def test_deplacer_vers_un_dossier_partage_expose_le_sous_arbre(client, db):
+    """La conséquence que l'écran annonce doit être celle qui se produit."""
+    alice = _membre("alice")
+    prive = _dossier_membre(alice, Visibilite.PRIVE, nom="Brouillons")
+    enfant = _dossier_membre(alice, Visibilite.PRIVE, parent=prive, nom="2025")
+    partage = _dossier_membre(alice, Visibilite.PARTAGE, nom="Troupe")
+    client.force_login(alice.user)
+
+    client.post(f"/espace/fichiers/{prive.pk}/deplacer/", {"parent": partage.pk})
+
+    prive.refresh_from_db()
+    enfant.refresh_from_db()
+    assert prive.visibilite == Visibilite.PARTAGE
+    assert enfant.visibilite == Visibilite.PARTAGE
+
+
+def test_l_ecran_de_deplacement_annonce_ce_qui_part_avec_le_dossier(client, db):
+    alice = _membre("alice")
+    parent = _dossier_membre(alice, Visibilite.PRIVE, nom="Photos")
+    _dossier_membre(alice, Visibilite.PRIVE, parent=parent, nom="2025")
+    client.force_login(alice.user)
+
+    corps = client.get(f"/espace/fichiers/{parent.pk}/deplacer/").content.decode()
+
+    assert "sous-dossier" in corps
+    assert "confidentialité" in corps.lower() or "visible par toute la troupe" in corps
+
+
+def test_un_membre_ne_deplace_pas_un_dossier_officiel(client, db):
+    """L'espace ASSOCIATION est au bureau : un membre n'y touche pas."""
+    alice = _membre("alice")
+    officiel = doc_services.creer_dossier_association(nom="Statuts")
+    client.force_login(alice.user)
+
+    assert client.get(f"/espace/fichiers/{officiel.pk}/deplacer/").status_code == 404
+
+
+def test_le_bureau_deplace_un_dossier_officiel(client, db):
+    officiel = doc_services.creer_dossier_association(nom="Statuts")
+    cible = doc_services.creer_dossier_association(nom="Archives")
+    client.force_login(_staff())
+
+    reponse = client.post(f"/espace/fichiers/{officiel.pk}/deplacer/", {"parent": cible.pk})
+
+    assert reponse.status_code == 302
+    officiel.refresh_from_db()
+    assert officiel.get_parent().pk == cible.pk

@@ -3732,3 +3732,17 @@ html.contraste.sombre .viz {
     background: CanvasText;
   }
 }
+
+/* Encart de mise en garde : ce qu'une action va changer, dit AVANT le geste
+   (déplacement d'un dossier, par exemple). Discret mais pas escamotable. */
+.encart {
+  border-left: 3px solid var(--couleur-primaire);
+  background: var(--surface-alt);
+  border-radius: 0 var(--rayon) var(--rayon) 0;
+  padding: 0.9rem 1.1rem;
+  margin-block: 1.25rem;
+  max-width: var(--largeur-texte);
+}
+.encart p:last-child {
+  margin-bottom: 0;
+}

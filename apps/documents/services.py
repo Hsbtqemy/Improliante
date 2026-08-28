@@ -20,6 +20,14 @@ class DossierNonVide(Exception):
     """Levée lors d'une tentative de suppression d'un dossier non vide."""
 
 
+class DeplacementInterdit(Exception):
+    """Levée quand un déplacement casserait un invariant de l'arbre.
+
+    Trois cas : la cible est le dossier lui-même ou l'un de ses descendants
+    (l'arbre y perdrait sa racine), elle vit dans un autre espace, ou — dans
+    l'espace personnel — elle appartient à quelqu'un d'autre."""
+
+
 @transaction.atomic
 def creer_dossier_membre(membre, *, nom, description="", visibilite=None, parent=None) -> Dossier:
     """Crée un dossier PERSONNEL appartenant à `membre` (racine ou sous-dossier).
@@ -154,3 +162,75 @@ def remplacer_document(ancien: Document, *, fichier, par=None) -> Document:
     ancien.courant = False
     ancien.save(update_fields=["courant"])
     return nouveau
+
+
+@transaction.atomic
+def deplacer_dossier(dossier: Dossier, *, nouveau_parent: Dossier | None) -> Dossier:
+    """Déplace un dossier sous `nouveau_parent`, ou à la racine si None.
+
+    Le déplacement respecte les deux invariants du modèle. Le premier tient à
+    l'arbre : on ne descend pas un dossier dans son propre sous-arbre, sous
+    peine de détacher toute la branche. Le second tient à la confidentialité,
+    et c'est le vrai sujet — **la visibilité s'hérite du parent**. Déplacer un
+    dossier « Privé » sous un dossier « Partagé » ouvrirait son contenu à toute
+    la troupe ; l'alignement est donc explicite et PROPAGÉ à tout le sous-arbre,
+    plutôt que laissé à un dossier qui afficherait « Privé » en vivant dans une
+    branche partagée. L'appelant doit prévenir l'utilisateur de ce que ça change.
+
+    Le changement d'espace est refusé net : rien ne justifie qu'un dossier
+    personnel devienne un document officiel de l'association par glissement, et
+    l'inverse ferait fuiter des pièces du bureau vers un membre.
+
+    La vue appelante reste responsable de prouver la propriété (règle 1) : ce
+    service maintient les invariants, il n'autorise pas.
+    """
+    # Rechargement OBLIGATOIRE, et ce n'est pas de la prudence décorative :
+    # `node_order_by = ["nom"]` fait renuméroter les chemins matérialisés à
+    # chaque création. Créer « Archives » après « Photos » renumérote les deux,
+    # et l'instance « Photos » qu'on tenait garde un `path` périmé. `move`
+    # travaille alors sur un chemin qui ne désigne plus le bon nœud, et ne
+    # déplace rien — sans lever la moindre erreur.
+    dossier = Dossier.objects.get(pk=dossier.pk)
+    if nouveau_parent is not None:
+        nouveau_parent = Dossier.objects.get(pk=nouveau_parent.pk)
+
+    if nouveau_parent is not None:
+        if nouveau_parent.pk == dossier.pk:
+            raise DeplacementInterdit("Un dossier ne peut pas être déplacé dans lui-même.")
+        if nouveau_parent.is_descendant_of(dossier):
+            raise DeplacementInterdit(
+                "Un dossier ne peut pas être déplacé dans l'un de ses sous-dossiers."
+            )
+        if nouveau_parent.espace != dossier.espace:
+            raise DeplacementInterdit("Un dossier ne change pas d'espace en étant déplacé.")
+        if (
+            dossier.espace == Dossier.Espace.PERSO
+            and nouveau_parent.proprietaire_id != dossier.proprietaire_id
+        ):
+            raise DeplacementInterdit("Un dossier personnel reste chez son propriétaire.")
+
+    if nouveau_parent is None:
+        racine = dossier.get_root()
+        if racine.pk == dossier.pk:
+            return dossier  # déjà à la racine : rien à faire
+        # `sorted-sibling` est imposé par `node_order_by` : l'arbre se range
+        # tout seul par nom, il n'y a pas de position à choisir.
+        dossier.move(racine, "sorted-sibling")
+    else:
+        dossier.move(nouveau_parent, "sorted-child")
+        _propager_visibilite(dossier.pk, nouveau_parent.visibilite)
+
+    return Dossier.objects.get(pk=dossier.pk)
+
+
+def _propager_visibilite(dossier_pk: int, visibilite: str) -> None:
+    """Aligne un dossier et tout son sous-arbre sur une visibilité.
+
+    Relu depuis la base : `move` a réécrit les chemins matérialisés, et
+    l'instance qu'on tenait avant le déplacement ne connaît plus ses
+    descendants."""
+    dossier = Dossier.objects.get(pk=dossier_pk)
+    if dossier.espace != Dossier.Espace.PERSO:
+        return  # la visibilité ne s'applique qu'à l'espace personnel
+    pks = [dossier.pk, *dossier.get_descendants().values_list("pk", flat=True)]
+    Dossier.objects.filter(pk__in=pks).update(visibilite=visibilite)

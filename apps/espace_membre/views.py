@@ -48,6 +48,7 @@ from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 
 from .forms import (
+    DeplacerDossierForm,
     DocumentAssociationForm,
     DocumentMembreForm,
     DossierCommunForm,
@@ -739,6 +740,78 @@ def editer_dossier_membre(request, pk):
         request,
         "espace_membre/dossier_form.html",
         {"form": form, "dossier": dossier, "url_dossier": "espace_membre:dossier_membre"},
+    )
+
+
+# --- Déplacement d'un dossier ------------------------------------------------
+
+
+def _cibles_de_deplacement(dossier):
+    """Dossiers où `dossier` peut légitimement atterrir.
+
+    L'exclusion par `path__startswith` écarte d'un seul coup le dossier lui-même
+    et tout son sous-arbre — c'est ce que le chemin matérialisé de treebeard
+    permet de faire en une requête, là où un parcours des descendants en
+    coûterait une par nœud."""
+    cibles = Dossier.objects.filter(espace=dossier.espace).exclude(path__startswith=dossier.path)
+    if dossier.espace == PERSO:
+        cibles = cibles.filter(proprietaire_id=dossier.proprietaire_id)
+    return cibles.order_by("path")
+
+
+def _peut_deplacer(user, membre, dossier) -> bool:
+    """Qui a le droit de déplacer quoi, en un seul endroit.
+
+    Le déplacement est plus lourd de conséquences qu'un simple renommage : il
+    change la visibilité de tout un sous-arbre. Centraliser la décision ici
+    évite qu'une des trois branches de la GED se retrouve un jour plus permissive
+    que les autres par accident (règle 1)."""
+    if dossier.espace == PERSO:
+        return membre is not None and dossier.proprietaire_id == membre.pk
+    if dossier.espace == COMMUN:
+        return membre is not None
+    return est_bureau(user)
+
+
+@login_required
+def deplacer_dossier(request, pk):
+    """Range un dossier ailleurs dans SON espace.
+
+    Une seule vue pour les trois branches : le contrôle d'accès dépend de
+    l'espace du dossier, et le rassembler ici vaut mieux que de le répéter."""
+    dossier = get_object_or_404(Dossier, pk=pk)
+    membre = _membre_connecte(request)
+    if not _peut_deplacer(request.user, membre, dossier):
+        raise Http404
+
+    retours = {
+        PERSO: "espace_membre:dossier_membre",
+        COMMUN: "espace_membre:dossier_commun",
+        ASSOCIATION: "espace_membre:dossier_association",
+    }
+    cibles = _cibles_de_deplacement(dossier)
+    form = DeplacerDossierForm(request.POST or None, cibles=cibles)
+
+    if request.method == "POST" and form.is_valid():
+        try:
+            documents_services.deplacer_dossier(dossier, nouveau_parent=form.cleaned_data["parent"])
+        except documents_services.DeplacementInterdit as erreur:
+            messages.error(request, str(erreur))
+        else:
+            messages.success(request, f"« {dossier.nom} » a été déplacé.")
+            return redirect(retours[dossier.espace], pk=dossier.pk)
+
+    return render(
+        request,
+        "espace_membre/dossier_deplacer.html",
+        {
+            "form": form,
+            "dossier": dossier,
+            "url_dossier": retours[dossier.espace],
+            # Le sous-arbre suit : l'écran doit le dire avant, pas après.
+            "nb_sous_dossiers": dossier.get_descendant_count(),
+            "avec_visibilite": dossier.espace == PERSO,
+        },
     )
 
 

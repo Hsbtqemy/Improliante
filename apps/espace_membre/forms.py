@@ -167,6 +167,42 @@ class DossierCommunForm(forms.ModelForm):
         widgets = {"description": forms.Textarea(attrs={"rows": 2})}
 
 
+class _ChampDossierArborescent(forms.ModelChoiceField):
+    """Liste de dossiers qui laisse voir l'arborescence.
+
+    Un `<select>` de noms nus devient ambigu dès qu'un arbre porte deux
+    « 2025 » : on choisit une destination sans savoir laquelle. Les cibles
+    arrivant triées par chemin, une indentation par profondeur suffit à rendre
+    la structure lisible — sans composant ni script."""
+
+    def label_from_instance(self, obj):
+        indentation = "\u00a0\u00a0\u00a0\u00a0" * (obj.depth - 1)
+        return f"{indentation}{obj.nom}"
+
+
+class DeplacerDossierForm(forms.Form):
+    """Choix du dossier d'accueil, ou de la racine.
+
+    Les cibles proposées sont calculées par la vue : même espace, même
+    propriétaire pour un dossier personnel, et jamais le dossier lui-même ni
+    l'un de ses sous-dossiers. Le champ n'est donc pas seulement une commodité
+    d'affichage — c'est la **première** barrière, doublée par les invariants
+    que `documents.services.deplacer_dossier` refait valoir de son côté."""
+
+    parent = _ChampDossierArborescent(
+        queryset=Dossier.objects.none(),
+        required=False,
+        label="Ranger dans",
+        empty_label="— À la racine —",
+        help_text="Laisser vide pour sortir le dossier de son parent actuel.",
+    )
+
+    def __init__(self, *args, cibles=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if cibles is not None:
+            self.fields["parent"].queryset = cibles
+
+
 class DocumentMembreForm(forms.ModelForm):
     """Téléversement d'un fichier par un membre (le dossier et l'auteur sont
     posés par la vue ; l'audience est portée par le dossier, pas par le

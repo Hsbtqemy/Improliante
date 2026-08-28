@@ -30,6 +30,7 @@
       {% if peut_ecrire %}
         <div class="ged-actions-dossier">
           <a class="lien-bouton lien-bouton--discret" href="{% url url_editer pk=dossier.pk %}">Modifier le dossier</a>
+          <a class="lien-bouton lien-bouton--discret" href="{% url 'espace_membre:deplacer_dossier' pk=dossier.pk %}">Déplacer le dossier</a>
           <form method="post" action="{% url url_suppr_dossier pk=dossier.pk %}">
             {% csrf_token %}
             <button type="submit" class="lien-bouton lien-bouton--discret">Supprimer le dossier</button>
