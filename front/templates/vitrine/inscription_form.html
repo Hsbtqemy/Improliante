@@ -22,8 +22,9 @@
       {% else %}
         Cet événement est <strong>complet</strong>.
       {% endif %}
-      L'inscription est gratuite et sans compte : vous recevrez un lien pour retrouver
-      ou annuler votre réservation.
+      L'inscription est gratuite et sans compte. Une fois votre place réservée,
+      <strong>conservez le lien affiché</strong> : c'est lui, et lui seul, qui vous
+      permettra de retrouver ou d'annuler votre réservation.
     </p>
   </div>
 
@@ -33,7 +34,19 @@
       {% if form.non_field_errors %}
         <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
       {% endif %}
-      {% for field in form %}{% include "_champ.html" with field=field %}{% endfor %}
+      {% comment %}
+        Le champ piège est sorti de la boucle : rendu comme un champ ordinaire,
+        il s'affichait au milieu du formulaire avec son label « Ne pas remplir ».
+        On exclut par le nom plutôt que d'énumérer les autres champs, pour qu'un
+        champ ajouté plus tard apparaisse tout seul.
+      {% endcomment %}
+      {% for field in form %}
+        {% if field.name != "site_web" %}{% include "_champ.html" with field=field %}{% endif %}
+      {% endfor %}
+      <div class="pot-de-miel" aria-hidden="true">
+        <label for="{{ form.site_web.id_for_label }}">{{ form.site_web.label }}</label>
+        {{ form.site_web }}
+      </div>
       <div class="formulaire__actions">
         <button type="submit" class="lien-bouton lien-bouton--primaire">Réserver</button>
         <a class="lien-bouton" href="{% url 'vitrine:evenement' evenement.pk %}">Annuler</a>

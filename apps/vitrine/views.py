@@ -364,6 +364,14 @@ def inscription_evenement(request, pk: int):
             # ici plutôt que de laisser une erreur 500 sur un formulaire public.
             form.add_error(None, str(erreur))
         else:
+            # Sans ce message, le visiteur atterrit sur sa réservation sans
+            # savoir si elle a été prise : la page décrit un état, elle ne
+            # confirme pas un geste.
+            messages.success(
+                request,
+                f"Votre réservation est confirmée pour {inscription.places} "
+                f"place{'s' if inscription.places > 1 else ''}.",
+            )
             return redirect("vitrine:reservation", jeton=inscription.jeton)
 
     return render(

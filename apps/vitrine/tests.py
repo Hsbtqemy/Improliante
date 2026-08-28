@@ -634,3 +634,36 @@ def test_un_evenement_sans_jauge_n_affiche_aucune_mention_de_place(client, db):
 
     assert "Réserver ma place" not in corps
     assert "Complet" not in corps
+
+
+def test_le_champ_piege_ne_s_affiche_pas_comme_un_champ_ordinaire(client, db):
+    """Rendu dans la boucle des champs, le piège apparaissait à l'écran avec
+    son label « Ne pas remplir » — au milieu d'un formulaire public."""
+    evenement = _evenement_avec_jauge()
+
+    corps = client.get(f"/agenda/{evenement.pk}/inscription/").content.decode()
+
+    assert 'class="pot-de-miel"' in corps  # conteneur masqué (display: none)
+    assert '<p class="champ">\n  <label for="id_site_web"' not in corps
+
+
+def test_l_ecran_ne_promet_pas_un_e_mail_qui_n_est_pas_envoye(client, db):
+    """Aucun envoi n'est implémenté : annoncer « vous recevrez un lien » ferait
+    attendre un message qui ne viendrait jamais — et perdre le lien."""
+    evenement = _evenement_avec_jauge()
+
+    corps = client.get(f"/agenda/{evenement.pk}/inscription/").content.decode()
+
+    assert "vous recevrez" not in corps.lower()
+    assert "renvoyer le lien" not in corps.lower()
+    assert "conservez le lien affiché" in corps.lower()
+
+
+def test_la_reservation_est_confirmee_explicitement(client, db):
+    evenement = _evenement_avec_jauge()
+
+    reponse = client.post(
+        f"/agenda/{evenement.pk}/inscription/", _reservation_valide(places=2), follow=True
+    )
+
+    assert "réservation est confirmée" in reponse.content.decode()

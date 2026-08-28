@@ -173,3 +173,33 @@ def test_la_purge_efface_les_inscriptions_des_evenements_passes(db):
 
     # La date de l'ÉVÉNEMENT fait foi : la soirée récente garde ses inscrits.
     assert list(Inscription.objects.all()) == [gardee]
+
+
+def test_une_jauge_reduite_sous_les_places_prises_ne_casse_rien(db):
+    """Cas réel : le bureau réduit la jauge après des réservations. On ne
+    réécrit pas l'histoire — les places déjà prises le restent — mais plus
+    aucune nouvelle ne passe."""
+    evenement = _evenement(places_max=60)
+    inscrire(evenement, nom="Camille", email="c@example.org", places=20)
+
+    evenement.places_max = 10
+    evenement.save(update_fields=["places_max"])
+
+    assert places_prises(evenement) == 20
+    assert places_restantes(evenement) == 0  # jamais négatif
+    with pytest.raises(PlusAssezDePlaces):
+        inscrire(evenement, nom="Dominique", email="d@example.org")
+
+
+def test_une_meme_adresse_peut_reserver_plusieurs_fois(db):
+    """Comportement assumé : la borne de dix places vaut PAR RÉSERVATION, pas
+    par personne — un même foyer peut revenir en prendre d'autres. Bloquer par
+    e-mail donnerait une fausse sécurité (on en change en une seconde) tout en
+    gênant un cas légitime. Seule la jauge fait autorité."""
+    evenement = _evenement(places_max=50)
+
+    for _ in range(3):
+        inscrire(evenement, nom="Camille", email="camille@example.org", places=10)
+
+    assert places_prises(evenement) == 30
+    assert Inscription.objects.count() == 3

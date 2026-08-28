@@ -40,7 +40,10 @@ class InscriptionEvenementForm(forms.Form):
     nom = forms.CharField(max_length=200, label="Votre nom")
     email = forms.EmailField(
         label="Votre e-mail",
-        help_text="Sert à vous renvoyer le lien de votre réservation.",
+        # Ne rien promettre qu'on n'envoie : aucun message n'est expédié pour
+        # l'instant (l'envoi bute sur le même mur que VIT-1, celui d'une IP
+        # neuve). L'adresse sert à l'association le jour du spectacle.
+        help_text="Permet à l'association de vous joindre en cas de changement.",
     )
     places = forms.IntegerField(
         label="Nombre de places",
