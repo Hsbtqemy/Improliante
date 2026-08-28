@@ -1919,3 +1919,74 @@ def test_backoffice_formulaire_lie_l_aide_via_aria_describedby(db):
 
     html = str(ParametresAssociationForm()["mention_tva"])
     assert 'aria-describedby="id_mention_tva_aide"' in html
+
+
+# --- Tableau de bord budgétaire (BUD-1) -------------------------------------
+
+
+def _mouvement(saison, categorie, type_flux, statut, montant):
+    return Transaction.objects.create(
+        type_flux=type_flux,
+        statut=statut,
+        libelle="mouvement",
+        montant=Decimal(montant),
+        date=date(2026, 3, 1),
+        categorie=categorie,
+        saison=saison,
+    )
+
+
+def test_bilan_affiche_le_tableau_de_bord(client, db):
+    saison = Saison.objects.create(nom="2025-2026")
+    subventions = Categorie.objects.create(nom="Subventions")
+    materiel = Categorie.objects.create(nom="Matériel")
+    _mouvement(saison, subventions, Transaction.TypeFlux.RECETTE, Transaction.Statut.REALISE, "800")
+    _mouvement(saison, materiel, Transaction.TypeFlux.DEPENSE, Transaction.Statut.PREVU, "300")
+    _mouvement(saison, materiel, Transaction.TypeFlux.DEPENSE, Transaction.Statut.REALISE, "250")
+
+    client.force_login(_staff())
+    corps = client.get("/bureau/budget/bilan/").content.decode()
+
+    assert "Recettes réalisées" in corps
+    assert "Réalisé face au budget" in corps
+    assert "Où partent les dépenses" in corps
+    # Le tableau détaillé reste sur la page : c'est le jumeau accessible des
+    # graphiques, et il porte les valeurs que les barres ne disent pas.
+    assert "Détail par catégorie" in corps
+
+
+def test_bilan_ecrit_les_largeurs_avec_un_point_decimal(client, db):
+    """Le projet tourne en `LANGUAGE_CODE = "fr-fr"`. Un pourcentage rendu
+    « 12,5 » produirait `style="width: 12,5%"` — une déclaration invalide, donc
+    une barre à zéro. La part traverse le gabarit sous forme de chaîne."""
+    saison = Saison.objects.create(nom="2025-2026")
+    _mouvement(
+        saison,
+        Categorie.objects.create(nom="Petite"),
+        Transaction.TypeFlux.DEPENSE,
+        Transaction.Statut.REALISE,
+        "125",
+    )
+    _mouvement(
+        saison,
+        Categorie.objects.create(nom="Grosse"),
+        Transaction.TypeFlux.DEPENSE,
+        Transaction.Statut.REALISE,
+        "875",
+    )
+
+    client.force_login(_staff())
+    corps = client.get("/bureau/budget/bilan/").content.decode()
+
+    assert "flex-basis: 12.5%" in corps
+    assert "flex-basis: 12,5%" not in corps
+    assert "width: 100.0%" in corps  # la plus grosse barre occupe toute l'échelle
+
+
+def test_bilan_sans_saison_n_affiche_pas_de_graphiques(client, db):
+    client.force_login(_staff())
+    reponse = client.get("/bureau/budget/bilan/")
+
+    assert reponse.status_code == 200
+    assert "tuiles" not in reponse.context
+    assert "Créez d'abord une saison" in reponse.content.decode()

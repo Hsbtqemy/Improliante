@@ -24,6 +24,7 @@ from django.views.decorators.http import require_POST
 
 from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
+from apps.budget import graphiques as budget_graphiques
 from apps.budget.models import (
     Adhesion,
     Categorie,
@@ -1270,14 +1271,22 @@ def budget_supprimer_transaction(request, pk):
 
 @bureau_requis
 def budget_bilan(request):
-    """Bilan par catégorie (recettes/dépenses, prévu/réalisé) d'une saison."""
+    """Bilan par catégorie (recettes/dépenses, prévu/réalisé) d'une saison.
+
+    L'écran porte le tableau de bord — chiffres clés, réalisé face au budget,
+    répartition des dépenses — puis le tableau détaillé, qui en est le jumeau
+    accessible : chaque valeur mise en image y est lisible en toutes lettres."""
     saison = _saison_demandee(request, defaut_premiere=True)
     bilan = bilan_par_categorie(saison) if saison is not None else None
-    return render(
-        request,
-        "backoffice/budget_bilan.html",
-        {"saisons": Saison.objects.all(), "saison_courante": saison, "bilan": bilan},
-    )
+    contexte = {"saisons": Saison.objects.all(), "saison_courante": saison, "bilan": bilan}
+    if bilan is not None:
+        contexte.update(
+            tuiles=budget_graphiques.tuiles(bilan, tresorerie(saison)),
+            comparaison=budget_graphiques.comparaison_au_budget(bilan),
+            repartition=budget_graphiques.repartition_depenses(bilan),
+            etiquette_autres=budget_graphiques.ETIQUETTE_AUTRES,
+        )
+    return render(request, "backoffice/budget_bilan.html", contexte)
 
 
 @bureau_requis

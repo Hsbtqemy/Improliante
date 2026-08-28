@@ -1,0 +1,95 @@
+{% comment %}
+  Tableau de bord budgétaire — chiffres clés, réalisé face au budget, répartition
+  des dépenses. Dessiné en HTML/CSS : pas de SVG, pas de bibliothèque cliente.
+
+  Les barres sont `aria-hidden` : elles redisent ce que porte déjà le texte de
+  chaque ligne, et le tableau détaillé qui suit sur la même page est le jumeau
+  accessible de l'ensemble. Aucune valeur n'est accessible par la seule couleur.
+{% endcomment %}
+
+<div class="tuiles tuiles--montants">
+  {% for t in tuiles %}
+    {% comment %}
+      Montants arrondis à l'euro : une tuile est un repère, pas une pièce
+      comptable. Le centime vit dans le tableau détaillé, en bas de page.
+      L'espace avant le « € » est insécable — sinon le symbole tombe seul à la
+      ligne dès que la tuile se resserre.
+    {% endcomment %}
+    <div class="tuile tuile--montant{% if t.sens %} tuile--solde-{{ t.sens }}{% endif %}">
+      <span class="tuile__nombre">{{ t.valeur|floatformat:0 }}&nbsp;€</span>
+      <span class="tuile__label">{{ t.label }}</span>
+      <small class="tuile__detail">{{ t.detail }} {{ t.detail_montant|floatformat:0 }}&nbsp;€</small>
+    </div>
+  {% endfor %}
+</div>
+
+{% if comparaison.flux %}
+  <section class="viz" aria-labelledby="viz-budget">
+    <h2 id="viz-budget" class="viz__titre">Réalisé face au budget</h2>
+    <p class="viz__note">
+      Les deux graphiques partagent la même échelle : une barre deux fois plus longue
+      vaut deux fois plus d'euros, qu'il s'agisse d'une recette ou d'une dépense.
+    </p>
+    <p class="viz__legende">
+      <span class="viz__cle"><span class="viz__cle-barre" aria-hidden="true"></span> Réalisé</span>
+      <span class="viz__cle"><span class="viz__cle-repere" aria-hidden="true"></span> Budgété</span>
+    </p>
+
+    {% for f in comparaison.flux %}
+      <h3 class="viz__sous-titre">{{ f.titre }}</h3>
+      <ul class="viz-cibles">
+        {% for l in f.lignes %}
+          <li class="viz-cible">
+            <span class="viz-cible__nom">{{ l.categorie }}</span>
+            <span class="viz-cible__piste" aria-hidden="true">
+              <span class="viz-cible__barre" style="width: {{ l.part_realise }}%"></span>
+              <span class="viz-cible__repere" style="left: {{ l.part_prevu }}%"></span>
+            </span>
+            <span class="viz-cible__valeur">
+              {{ l.realise|floatformat:2 }} €
+              <small>
+                {% if l.sens == "conforme" %}
+                  conforme au budget
+                {% else %}
+                  {{ l.ecart_absolu|floatformat:2 }} € {{ l.sens }}
+                {% endif %}
+              </small>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  </section>
+{% endif %}
+
+{% if repartition.segments %}
+  <section class="viz" aria-labelledby="viz-repartition">
+    <h2 id="viz-repartition" class="viz__titre">Où partent les dépenses</h2>
+    <p class="viz__note">
+      Part de chaque catégorie dans les {{ repartition.total|floatformat:2 }} € de dépenses
+      réalisées.
+      {% if repartition.regroupees %}
+        Les {{ repartition.regroupees }} plus petites catégories sont regroupées sous
+        « {{ etiquette_autres }} » — au-delà de sept parts, les teintes cessent d'être
+        distinguables.
+      {% endif %}
+    </p>
+
+    <div class="viz-part" aria-hidden="true">
+      {% for s in repartition.segments %}
+        <span class="viz-part__seg viz-part__seg--{{ s.rang }}" style="flex-basis: {{ s.part }}%"></span>
+      {% endfor %}
+    </div>
+
+    <ul class="viz-part__legende">
+      {% for s in repartition.segments %}
+        <li>
+          <span class="viz-part__puce viz-part__seg--{{ s.rang }}" aria-hidden="true"></span>
+          <span class="viz-part__nom">{{ s.categorie }}</span>
+          <span class="viz-part__montant">{{ s.montant|floatformat:2 }} €</span>
+          <small class="viz-part__pourcent">{{ s.part_lisible }} %</small>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}

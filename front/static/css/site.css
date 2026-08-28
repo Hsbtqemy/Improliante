@@ -309,6 +309,14 @@ main {
        jusqu'à la hauteur du menu (plus de rail qui dépasse sous la box). */
     align-items: stretch;
   }
+  .espace-grille__contenu {
+    /* Sans ceci, la colonne « 1fr » garde son `min-width: auto` implicite et
+       s'élargit jusqu'au contenu le plus large — un tableau à sept colonnes
+       pousse alors toute la page hors de l'écran, et l'`overflow-x` de
+       `.tableau-wrap` ne s'active jamais. Le zéro rend la main au conteneur
+       défilant. */
+    min-width: 0;
+  }
   .espace-grille__nav {
     /* Le rail garde sa hauteur propre (compact + collant), c'est la box qui
        s'aligne dessus — pas l'inverse. Haut du rail aligné avec la box. */
@@ -3479,4 +3487,248 @@ html[data-fond="grain"] body::before {
   color: var(--ink);
   border-color: var(--accent);
   font-weight: 700;
+}
+
+/* ==========================================================================
+   Tableau de bord budgétaire (BUD-1)
+   Graphiques en HTML/CSS : aucune bibliothèque, aucun SVG. Le texte reste du
+   texte (zoom, lecteur d'écran, impression), et les modes sombre, contraste
+   élevé et couleurs forcées fonctionnent sans code de rendu supplémentaire.
+
+   Palette validée par la méthode dataviz contre les surfaces RÉELLES du site
+   (#ffffff en clair, #211b28 en sombre) : bande de clarté, plancher de chroma,
+   séparation sous protanopie/deutéranopie et contraste. Les sept teintes de
+   segments sont l'ordre catégoriel de référence — cet ordre EST le mécanisme
+   de sécurité daltonisme, il ne se réarrange pas.
+   ========================================================================== */
+.viz {
+  /* Réalisé : le bordeaux de l'identité — 7,62:1 sur blanc. */
+  --viz-realise: var(--couleur-primaire);
+  /* Budgété : un repère neutre, distingué par sa FORME (un trait, pas une
+     barre) et non par sa seule couleur — en sombre, teinte et accent se
+     retrouvent à luminance quasi égale. */
+  --viz-repere: var(--couleur-muet);
+  --viz-piste: var(--surface-alt);
+  --viz-seg-1: #2a78d6;
+  --viz-seg-2: #eb6834;
+  --viz-seg-3: #1baf7a;
+  --viz-seg-4: #eda100;
+  --viz-seg-5: #e87ba4;
+  --viz-seg-6: #008300;
+  --viz-seg-7: #4a3aa7;
+  margin-block: 2rem;
+}
+html.sombre .viz {
+  --viz-realise: #dd5c74; /* bordeaux éclairci : 4,68:1 sur la surface sombre */
+  --viz-seg-1: #3987e5;
+  --viz-seg-2: #d95926;
+  --viz-seg-3: #199e70;
+  --viz-seg-4: #c98500;
+  --viz-seg-5: #d55181;
+  --viz-seg-6: #008300;
+  --viz-seg-7: #9085e9;
+}
+.viz__titre {
+  margin-bottom: 0.35rem;
+}
+.viz__sous-titre {
+  margin: 1.5rem 0 0.6rem;
+  font-size: 1.05rem;
+}
+.viz__note {
+  max-width: var(--largeur-texte);
+  color: var(--couleur-muet);
+  margin-bottom: 0.9rem;
+}
+.viz__legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.viz__cle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+.viz__cle-barre {
+  width: 1.25rem;
+  height: 0.875rem;
+  border-radius: 0 4px 4px 0;
+  background: var(--viz-realise);
+}
+.viz__cle-repere {
+  width: 2px;
+  height: 1.25rem;
+  background: var(--viz-repere);
+}
+
+/* --- Réalisé (barre) face au budgété (repère de cible) ------------------- */
+.viz-cibles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+.viz-cible {
+  display: grid;
+  grid-template-columns: minmax(7rem, 13rem) 1fr minmax(8rem, auto);
+  align-items: center;
+  gap: 0.9rem;
+}
+.viz-cible__nom {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.viz-cible__piste {
+  position: relative;
+  display: block;
+  height: 0.875rem; /* barre fine : la donnée est fine, le blanc fait le reste */
+  background: var(--viz-piste);
+  border-radius: 4px;
+}
+.viz-cible__barre {
+  position: absolute;
+  inset: 0 auto 0 0;
+  /* Carrée au départ, arrondie du côté de la donnée. */
+  border-radius: 0 4px 4px 0;
+  background: var(--viz-realise);
+  min-width: 0;
+}
+.viz-cible__repere {
+  position: absolute;
+  top: -0.22rem;
+  bottom: -0.22rem;
+  width: 2px;
+  margin-left: -1px; /* centré sur la valeur, pas décalé à sa droite */
+  background: var(--viz-repere);
+  /* Anneau de surface : le repère reste lisible quand il tombe SUR la barre,
+     où sa luminance est presque celle du bordeaux. */
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.viz-cible__valeur {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  font-variant-numeric: tabular-nums; /* colonne de nombres : ils s'alignent */
+  font-weight: 700;
+}
+.viz-cible__valeur small {
+  font-weight: 400;
+  color: var(--couleur-muet);
+}
+
+/* --- Répartition des dépenses ------------------------------------------- */
+.viz-part {
+  display: flex;
+  gap: 2px; /* le blanc sépare les parts ; aucune bordure ne les entoure */
+  height: 1.5rem;
+  margin-bottom: 1rem;
+}
+.viz-part__seg {
+  min-width: 2px;
+  background: var(--viz-piste);
+}
+.viz-part__seg:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.viz-part__seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+.viz-part__seg--1 { background: var(--viz-seg-1); }
+.viz-part__seg--2 { background: var(--viz-seg-2); }
+.viz-part__seg--3 { background: var(--viz-seg-3); }
+.viz-part__seg--4 { background: var(--viz-seg-4); }
+.viz-part__seg--5 { background: var(--viz-seg-5); }
+.viz-part__seg--6 { background: var(--viz-seg-6); }
+.viz-part__seg--7 { background: var(--viz-seg-7); }
+.viz-part__legende {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0.45rem 1.5rem;
+}
+.viz-part__legende li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.viz-part__puce {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+  align-self: center;
+}
+.viz-part__nom {
+  overflow-wrap: anywhere;
+}
+.viz-part__montant {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.viz-part__pourcent {
+  color: var(--couleur-muet);
+  min-width: 3.5rem;
+  text-align: right;
+}
+
+/* --- Tuiles de montants -------------------------------------------------- */
+.tuile--montant .tuile__nombre {
+  font-size: 1.9rem; /* un montant à deux décimales est plus long qu'un compteur */
+  overflow-wrap: anywhere;
+  /* Chiffres proportionnels : `tabular-nums` fait paraître lâche un grand
+     nombre isolé. L'alignement vertical ne concerne que les colonnes. */
+  font-variant-numeric: normal;
+}
+.tuile__detail {
+  color: var(--couleur-muet);
+}
+
+/* --- Mobile : la ligne se replie, la barre garde sa pleine largeur -------- */
+@media (max-width: 40rem) {
+  .viz-cible {
+    grid-template-columns: 1fr auto;
+    gap: 0.3rem 0.75rem;
+  }
+  .viz-cible__nom {
+    grid-column: 1;
+  }
+  .viz-cible__valeur {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .viz-cible__piste {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --- Contraste élevé & couleurs forcées ---------------------------------- */
+html.contraste .viz {
+  --viz-piste: #d8d0c4;
+}
+html.contraste.sombre .viz {
+  --viz-piste: #000;
+}
+@media (forced-colors: active) {
+  /* Les fonds sont supprimés par le système : on redonne une forme lisible.
+     Les parts cessent d'être distinguables entre elles — la légende chiffrée
+     sous la barre porte alors seule l'information, ce qu'elle fait déjà. */
+  .viz-cible__piste,
+  .viz-part__seg,
+  .viz-part__puce,
+  .viz__cle-barre {
+    border: 1px solid CanvasText;
+  }
+  .viz-cible__barre {
+    background: Highlight;
+  }
+  .viz-cible__repere,
+  .viz__cle-repere {
+    background: CanvasText;
+  }
 }
