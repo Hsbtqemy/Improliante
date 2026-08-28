@@ -6,7 +6,8 @@ statut: clos
 # VIT-2 — billetterie et inscription aux spectacles (v3)
 
 **Arrêté sur** — feuille d'inscription gratuite du public : jauge sur l'`Evenement`,
-réservation sous verrou, consultation par jeton, purge RGPD, commit `2ac40ff`, 28 août.
+réservation sous verrou, consultation par jeton, purge RGPD, relue et corrigée sur ce
+que l'écran promet, commit `66df0aa`, 28 août.
 
 ## Reste
 
@@ -62,5 +63,28 @@ lit. Les deux sont là.
 
 **Reste ouvert, hors de cette fiche** : l'envoi d'un e-mail de confirmation au moment de
 la réservation. Le porteur repart avec son lien à l'écran, mais rien ne le lui envoie —
-et l'envoi d'e-mail bute sur le même mur que VIT-1, celui d'une IP neuve qui expédie en
-indésirable. À reprendre avec le déploiement.
+et l'envoi bute sur le même mur que VIT-1, celui d'une IP neuve qui expédie en
+indésirable. À reprendre avec le déploiement. **En attendant, aucun écran ne doit
+laisser croire le contraire** : c'est précisément l'erreur que la relecture a corrigée.
+
+## Relecture (même jour)
+
+Le mécanisme était juste ; l'interface mentait deux fois.
+
+Le formulaire promettait « vous recevrez un lien », et l'aide du champ e-mail « sert à
+vous renvoyer le lien » — alors que l'absence d'envoi était déjà écrite dans cette fiche
+au moment de la livraison. Le défaut n'était pas d'ignorer la limite, mais de ne pas
+avoir relu les textes de l'écran à sa lumière. Un visiteur aurait attendu un message
+jamais expédié, et perdu le seul lien donnant accès à sa réservation.
+
+Le champ piège anti-spam s'affichait par ailleurs comme un champ ordinaire, label « Ne
+pas remplir » compris. Il avait été copié du formulaire de contact avec sa logique mais
+sans sa mise en page — le contact l'enveloppe dans un conteneur masqué, la boucle
+générique des champs ne le savait pas.
+
+Deux cas limites ont été éprouvés et se sont révélés sains : une **jauge réduite sous les
+places déjà prises** (les réservations acquises le restent, plus aucune ne passe, le
+solde ne devient jamais négatif) et une **même adresse réservant plusieurs fois** — assumé,
+la borne de dix places vaut par réservation et non par personne. Bloquer par e-mail
+donnerait une fausse sécurité tout en gênant un cas légitime ; seule la jauge fait
+autorité. Les deux sont désormais tenus par des tests.
