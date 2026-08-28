@@ -10,12 +10,14 @@ import calendar
 from datetime import date, timedelta
 from itertools import groupby
 
+from django.contrib import messages
 from django.db.models import Prefetch
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from apps.agenda.models import Evenement, ImageEvenement
+from apps.agenda import services as agenda_services
+from apps.agenda.models import Evenement, ImageEvenement, Inscription
 from apps.coeur.models import LienReseau, Membre
 from apps.coeur.services import membres_en_vedette
 from apps.common.instagram import derniers_posts_instagram
@@ -24,7 +26,7 @@ from apps.spectacles.models import ImageSpectacle, Spectacle
 
 from . import seo
 from .calendrier import bornes_grille, construire_calendrier
-from .forms import ContactForm
+from .forms import ContactForm, InscriptionEvenementForm
 from .ical import generer_ical
 from .models import MessageContact
 
@@ -101,6 +103,9 @@ def detail_evenement(request, pk: int):
             request, evenement.affiche, spectacle.affiche if spectacle else None
         ),
         "jsonld": seo.evenement_json_ld(request, evenement),
+        # None quand l'événement n'ouvre pas d'inscription — le gabarit
+        # distingue « pas de jauge » de « plus de place ».
+        "restantes": agenda_services.places_restantes(evenement),
     }
     return render(request, "vitrine/evenement_detail.html", contexte)
 
@@ -327,3 +332,61 @@ def robots_txt(request):
         f"Sitemap: {request.build_absolute_uri('/sitemap.xml')}",
     ]
     return HttpResponse("\n".join(lignes) + "\n", content_type="text/plain")
+
+
+# --- Inscription du public à un événement (VIT-2) ----------------------------
+
+
+def _evenement_public_ou_404(pk: int) -> Evenement:
+    """Un événement non publié, ou réservé aux membres, n'accueille personne."""
+    return get_object_or_404(
+        Evenement, pk=pk, statut_moderation=_EVT_PUBLIE, visibilite=_EVT_PUBLIC
+    )
+
+
+def inscription_evenement(request, pk: int):
+    """Feuille d'inscription publique — sans compte, sans paiement."""
+    evenement = _evenement_public_ou_404(pk)
+    if evenement.places_max is None:
+        raise Http404  # aucune jauge : l'événement n'ouvre pas d'inscription
+
+    form = InscriptionEvenementForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            inscription = agenda_services.inscrire(
+                evenement,
+                nom=form.cleaned_data["nom"],
+                email=form.cleaned_data["email"],
+                places=form.cleaned_data["places"],
+            )
+        except (agenda_services.PlusAssezDePlaces, agenda_services.InscriptionFermee) as erreur:
+            # La jauge a pu se remplir entre l'affichage et l'envoi : on le dit
+            # ici plutôt que de laisser une erreur 500 sur un formulaire public.
+            form.add_error(None, str(erreur))
+        else:
+            return redirect("vitrine:reservation", jeton=inscription.jeton)
+
+    return render(
+        request,
+        "vitrine/inscription_form.html",
+        {
+            "evenement": evenement,
+            "form": form,
+            "restantes": agenda_services.places_restantes(evenement),
+        },
+    )
+
+
+def reservation(request, jeton):
+    """Réservation retrouvée par son jeton — le porteur n'a pas de compte.
+
+    L'identifiant de ligne serait devinable de proche en proche ; le jeton ne
+    l'est pas. C'est la règle 5 transposée à un visiteur anonyme : la pièce est
+    servie à qui détient le lien, et à personne d'autre."""
+    inscription = get_object_or_404(Inscription.objects.select_related("evenement"), jeton=jeton)
+    if request.method == "POST":
+        agenda_services.annuler_inscription(inscription)
+        messages.success(request, "Votre réservation a été annulée.")
+        return redirect("vitrine:reservation", jeton=inscription.jeton)
+
+    return render(request, "vitrine/reservation.html", {"inscription": inscription})

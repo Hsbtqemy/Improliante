@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import make_aware
 
+from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement, Intervention
 from apps.budget.models import (
     Adhesion,
@@ -1999,3 +2000,51 @@ def test_le_hub_finances_mene_au_tableau_de_bord(client, db):
     corps = client.get("/bureau/finances/").content.decode()
 
     assert "/bureau/budget/bilan/" in corps
+
+
+# --- Inscriptions du public (VIT-2) -----------------------------------------
+
+
+def test_le_bureau_regle_la_jauge_d_un_evenement(client, db):
+    """Sans ce champ au formulaire, la jauge ne serait réglable que depuis
+    l'admin Django et la feuille d'inscription resterait inaccessible."""
+    evenement = Evenement.objects.create(
+        titre="Représentation",
+        date_debut=make_aware(datetime(2026, 11, 1, 20, 0)),
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+    )
+    client.force_login(_staff())
+
+    client.post(
+        f"/bureau/evenements/{evenement.pk}/",
+        _donnees_evenement(titre="Représentation", places_max="50", action="publier"),
+    )
+
+    evenement.refresh_from_db()
+    assert evenement.places_max == 50
+
+
+def test_le_bureau_voit_qui_s_est_inscrit(client, db):
+    evenement = Evenement.objects.create(
+        titre="Représentation",
+        date_debut=make_aware(datetime(2026, 11, 1, 20, 0)),
+        places_max=20,
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+    )
+    agenda_services.inscrire(evenement, nom="Camille Martin", email="camille@example.org", places=3)
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/evenements/{evenement.pk}/inscriptions/").content.decode()
+
+    assert "Camille Martin" in corps
+    assert "camille@example.org" in corps
+
+
+def test_la_feuille_des_inscrits_est_reservee_au_bureau(client, db):
+    evenement = Evenement.objects.create(
+        titre="Représentation",
+        date_debut=make_aware(datetime(2026, 11, 1, 20, 0)),
+        places_max=20,
+    )
+    reponse = client.get(f"/bureau/evenements/{evenement.pk}/inscriptions/")
+    assert reponse.status_code in (302, 403, 404)

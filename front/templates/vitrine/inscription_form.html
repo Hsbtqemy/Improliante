@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Réserver — {{ evenement.titre }}{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'vitrine:evenement' evenement.pk %}">← Retour à l'événement</a></p>
+
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Agenda</span>
+    <h1>Réserver pour « {{ evenement.titre }} »</h1>
+    <p class="page-tete__sous">
+      {{ evenement.date_debut|date:"l j F Y" }}, {{ evenement.date_debut|date:"G\hi" }}
+      {% firstof evenement.lieu_texte evenement.lieu.nom as lieu_nom %}
+      {% if lieu_nom %} — {{ lieu_nom }}{% endif %}
+    </p>
+  </header>
+
+  <div class="encart" role="note">
+    <p>
+      {% if restantes %}
+        Il reste <strong>{{ restantes }}</strong> place{{ restantes|pluralize }}.
+      {% else %}
+        Cet événement est <strong>complet</strong>.
+      {% endif %}
+      L'inscription est gratuite et sans compte : vous recevrez un lien pour retrouver
+      ou annuler votre réservation.
+    </p>
+  </div>
+
+  {% if restantes %}
+    <form method="post" class="formulaire" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      {% for field in form %}{% include "_champ.html" with field=field %}{% endfor %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Réserver</button>
+        <a class="lien-bouton" href="{% url 'vitrine:evenement' evenement.pk %}">Annuler</a>
+      </div>
+    </form>
+    <p class="champ__aide">
+      Vos données servent uniquement à gérer cette réservation.
+      <a href="{% url 'vitrine:confidentialite' %}">En savoir plus</a>.
+    </p>
+  {% endif %}
+{% endblock %}

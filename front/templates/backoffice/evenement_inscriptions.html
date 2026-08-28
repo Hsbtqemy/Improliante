@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Inscrits — {{ evenement.titre }}{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:editer_evenement' evenement.pk %}">← Retour à l'événement</a></p>
+
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Bureau · Programmation</span>
+    <h1>Inscrits — {{ evenement.titre }}</h1>
+    <p class="page-tete__sous">
+      {{ evenement.date_debut|date:"l j F Y" }}, {{ evenement.date_debut|date:"G\hi" }}
+    </p>
+  </header>
+
+  {% if evenement.places_max %}
+    <div class="tuiles tuiles--montants">
+      <div class="tuile tuile--montant">
+        <span class="tuile__nombre">{{ places_prises }}</span>
+        <span class="tuile__label">place{{ places_prises|pluralize }} réservée{{ places_prises|pluralize }}</span>
+        <small class="tuile__detail">sur {{ evenement.places_max }}</small>
+      </div>
+      <div class="tuile tuile--montant">
+        <span class="tuile__nombre">{{ places_restantes }}</span>
+        <span class="tuile__label">place{{ places_restantes|pluralize }} restante{{ places_restantes|pluralize }}</span>
+      </div>
+    </div>
+  {% else %}
+    <p>Cet événement n'ouvre pas d'inscription : sa jauge n'est pas renseignée.</p>
+  {% endif %}
+
+  <div class="tableau-wrap">
+    <table class="tableau">
+      <caption class="sr-only">Personnes inscrites à {{ evenement.titre }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Nom</th>
+          <th scope="col">E-mail</th>
+          <th scope="col" class="montant">Places</th>
+          <th scope="col">Réservé le</th>
+          <th scope="col">État</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inscription in inscriptions %}
+          <tr>
+            <td>{{ inscription.nom }}</td>
+            <td><a href="mailto:{{ inscription.email }}">{{ inscription.email }}</a></td>
+            <td class="montant">{{ inscription.places }}</td>
+            <td>{{ inscription.date_creation|date:"d/m/Y à G\hi" }}</td>
+            <td>{% if inscription.annulee %}Annulée{% else %}Confirmée{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Personne ne s'est encore inscrit.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

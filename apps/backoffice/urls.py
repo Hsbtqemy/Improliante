@@ -60,6 +60,11 @@ urlpatterns = [
     path("bureau/evenements/nouveau/", views.creer_evenement, name="creer_evenement"),
     path("bureau/evenements/<int:pk>/", views.editer_evenement, name="editer_evenement"),
     path(
+        "bureau/evenements/<int:pk>/inscriptions/",
+        views.inscriptions_evenement,
+        name="inscriptions_evenement",
+    ),
+    path(
         "bureau/evenements/<int:pk>/supprimer/",
         views.supprimer_evenement,
         name="supprimer_evenement",

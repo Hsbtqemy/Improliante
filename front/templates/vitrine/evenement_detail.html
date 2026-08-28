@@ -47,6 +47,28 @@
         {% if evenement.description %}
           {{ evenement.description|linebreaks }}
         {% endif %}
+
+        {% comment %}
+          Inscription : seulement si une jauge est renseignée. L'état complet est
+          annoncé ici plutôt que derrière un clic — envoyer quelqu'un remplir un
+          formulaire pour lui refuser sa place au bout est une perte de temps.
+        {% endcomment %}
+        {% if restantes is not None %}
+          <div class="encart">
+            {% if restantes %}
+              <p>
+                <strong>{{ restantes }}</strong> place{{ restantes|pluralize }} encore
+                disponible{{ restantes|pluralize }} sur {{ evenement.places_max }}.
+              </p>
+              <p>
+                <a class="lien-bouton lien-bouton--primaire"
+                   href="{% url 'vitrine:inscription_evenement' evenement.pk %}">Réserver ma place</a>
+              </p>
+            {% else %}
+              <p><strong>Complet.</strong> Toutes les places de cet événement sont réservées.</p>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
     </div>
   </article>

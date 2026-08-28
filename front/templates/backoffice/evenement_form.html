@@ -39,6 +39,21 @@
   </form>
 
   {% if fiche %}
+    <section class="bloc-secondaire" aria-labelledby="t-inscrits">
+      <h2 id="t-inscrits">Inscriptions</h2>
+      <p>
+        {% if fiche.places_max %}
+          Jauge de {{ fiche.places_max }} place{{ fiche.places_max|pluralize }} : le public
+          peut réserver depuis la fiche publique.
+        {% else %}
+          Aucune jauge renseignée : cet événement n'ouvre pas d'inscription.
+        {% endif %}
+      </p>
+      <a class="lien-bouton" href="{% url 'backoffice:inscriptions_evenement' fiche.pk %}">
+        Voir les inscrits
+      </a>
+    </section>
+
     <section class="bloc-secondaire" aria-labelledby="t-suppr">
       <h2 id="t-suppr">Supprimer</h2>
       <form method="post" action="{% url 'backoffice:supprimer_evenement' fiche.pk %}" onsubmit="return confirm('Supprimer définitivement cet événement ?');">

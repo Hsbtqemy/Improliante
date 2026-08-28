@@ -1573,3 +1573,24 @@ def gouvernance_telecharger_pv(request, pk):
     return reponse_fichier_prive(
         reunion.compte_rendu.fichier, nom_telechargement=f"pv-{reunion.pk}.pdf"
     )
+
+
+@bureau_requis
+def inscriptions_evenement(request, pk):
+    """Feuille des inscrits à un événement — qui vient, et pour combien.
+
+    Sans cet écran, la feuille d'inscription publique collecterait des noms que
+    personne ne lit : c'est ici qu'elle sert. Les annulations restent affichées,
+    séparément, parce qu'un désistement de dernière minute se lit aussi."""
+    evenement = get_object_or_404(Evenement, pk=pk)
+    inscriptions = evenement.inscriptions.order_by("annulee", "-date_creation")
+    return render(
+        request,
+        "backoffice/evenement_inscriptions.html",
+        {
+            "evenement": evenement,
+            "inscriptions": inscriptions,
+            "places_prises": agenda_services.places_prises(evenement),
+            "places_restantes": agenda_services.places_restantes(evenement),
+        },
+    )

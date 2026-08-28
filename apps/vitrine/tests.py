@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 from django.test import override_settings
 from django.utils import timezone
+from django.utils.timezone import make_aware
 
-from apps.agenda.models import Evenement
+from apps.agenda import services as agenda_services
+from apps.agenda.models import Evenement, Inscription
 from apps.coeur.models import LienReseau, Lieu, Membre, Utilisateur
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, LigneDistribution, Spectacle
@@ -481,3 +483,154 @@ def test_page_404_personnalisee(client, db):
     corps = reponse.content.decode()
     assert "introuvable" in corps.lower()
     assert "Retour à l'accueil" in corps
+
+
+# --- Inscription du public à un événement (VIT-2) ----------------------------
+
+
+def _evenement_avec_jauge(places_max=10, **extra):
+    donnees = {
+        "titre": "Représentation",
+        "date_debut": make_aware(datetime(2026, 11, 1, 20, 0)),
+        "places_max": places_max,
+        "statut_moderation": Evenement.StatutModeration.PUBLIE,
+        "visibilite": Evenement.Visibilite.PUBLIC,
+    }
+    donnees.update(extra)
+    return Evenement.objects.create(**donnees)
+
+
+def _reservation_valide(places=2):
+    return {
+        "nom": "Camille Martin",
+        "email": "camille@example.org",
+        "places": places,
+        "consentement": "on",
+    }
+
+
+def test_un_evenement_sans_jauge_n_ouvre_pas_d_inscription(client, db):
+    evenement = _evenement_avec_jauge(places_max=None)
+    assert client.get(f"/agenda/{evenement.pk}/inscription/").status_code == 404
+
+
+def test_un_evenement_non_publie_n_accueille_personne(client, db):
+    """La feuille d'inscription ne doit pas devenir une porte vers une fiche
+    que la vitrine refuse d'afficher."""
+    brouillon = _evenement_avec_jauge(statut_moderation=Evenement.StatutModeration.BROUILLON)
+    interne = _evenement_avec_jauge(visibilite=Evenement.Visibilite.MEMBRES)
+
+    assert client.get(f"/agenda/{brouillon.pk}/inscription/").status_code == 404
+    assert client.get(f"/agenda/{interne.pk}/inscription/").status_code == 404
+
+
+def test_le_public_reserve_et_recoit_son_lien(client, db):
+    evenement = _evenement_avec_jauge(places_max=10)
+
+    reponse = client.post(f"/agenda/{evenement.pk}/inscription/", _reservation_valide(places=2))
+
+    inscription = Inscription.objects.get()
+    assert reponse.status_code == 302
+    assert reponse.url == f"/reservation/{inscription.jeton}/"
+    assert inscription.places == 2
+
+
+def test_la_reservation_se_retrouve_par_son_jeton_sans_compte(client, db):
+    """Ce que la fiche VIT-2 demandait : consultable par son porteur sans
+    compte, par un lien qu'aucun autre ne peut deviner."""
+    evenement = _evenement_avec_jauge()
+    client.post(f"/agenda/{evenement.pk}/inscription/", _reservation_valide())
+    inscription = Inscription.objects.get()
+
+    reponse = client.get(f"/reservation/{inscription.jeton}/")
+
+    assert reponse.status_code == 200
+    assert "Camille Martin" in reponse.content.decode()
+
+
+def test_un_jeton_inconnu_ne_donne_rien(client, db):
+    assert client.get("/reservation/11111111-1111-1111-1111-111111111111/").status_code == 404
+
+
+def test_la_reservation_ne_s_atteint_pas_par_son_identifiant(client, db):
+    """Le jeton n'est pas une commodité : c'est ce qui empêche de parcourir les
+    réservations en incrémentant un nombre."""
+    evenement = _evenement_avec_jauge()
+    client.post(f"/agenda/{evenement.pk}/inscription/", _reservation_valide())
+    inscription = Inscription.objects.get()
+
+    assert client.get(f"/reservation/{inscription.pk}/").status_code == 404
+
+
+def test_le_porteur_annule_sa_reservation_et_rend_les_places(client, db):
+    evenement = _evenement_avec_jauge(places_max=5)
+    client.post(f"/agenda/{evenement.pk}/inscription/", _reservation_valide(places=5))
+    inscription = Inscription.objects.get()
+
+    reponse = client.post(f"/reservation/{inscription.jeton}/")
+
+    assert reponse.status_code == 302
+    inscription.refresh_from_db()
+    assert inscription.annulee is True
+    assert agenda_services.places_restantes(evenement) == 5
+
+
+def test_une_demande_qui_depasse_la_jauge_est_refusee_avec_un_message(client, db):
+    """La jauge peut se remplir entre l'affichage et l'envoi : l'écran doit le
+    dire, pas rendre une erreur serveur."""
+    evenement = _evenement_avec_jauge(places_max=3)
+    agenda_services.inscrire(evenement, nom="Déjà là", email="d@example.org", places=3)
+
+    reponse = client.post(f"/agenda/{evenement.pk}/inscription/", _reservation_valide(places=1))
+
+    assert reponse.status_code == 200
+    assert "complet" in reponse.content.decode().lower()
+    assert Inscription.objects.count() == 1
+
+
+def test_le_consentement_est_obligatoire(client, db):
+    evenement = _evenement_avec_jauge()
+    donnees = _reservation_valide()
+    del donnees["consentement"]
+
+    reponse = client.post(f"/agenda/{evenement.pk}/inscription/", donnees)
+
+    assert reponse.status_code == 200
+    assert Inscription.objects.count() == 0
+
+
+def test_le_piege_anti_spam_bloque_l_inscription(client, db):
+    evenement = _evenement_avec_jauge()
+    donnees = _reservation_valide() | {"site_web": "http://spam.example"}
+
+    client.post(f"/agenda/{evenement.pk}/inscription/", donnees)
+
+    assert Inscription.objects.count() == 0
+
+
+def test_la_fiche_evenement_annonce_les_places_et_mene_a_la_reservation(client, db):
+    evenement = _evenement_avec_jauge(places_max=12)
+
+    corps = client.get(f"/agenda/{evenement.pk}/").content.decode()
+
+    assert f"/agenda/{evenement.pk}/inscription/" in corps
+    assert "12" in corps
+
+
+def test_la_fiche_d_un_evenement_complet_le_dit_sans_proposer_de_reserver(client, db):
+    evenement = _evenement_avec_jauge(places_max=2)
+    agenda_services.inscrire(evenement, nom="Déjà là", email="d@example.org", places=2)
+
+    corps = client.get(f"/agenda/{evenement.pk}/").content.decode()
+
+    assert "Complet" in corps
+    assert f"/agenda/{evenement.pk}/inscription/" not in corps
+
+
+def test_un_evenement_sans_jauge_n_affiche_aucune_mention_de_place(client, db):
+    evenement = _evenement_avec_jauge(places_max=None)
+
+    corps = client.get(f"/agenda/{evenement.pk}/").content.decode()
+
+    assert "Réserver ma place" not in corps
+    assert "Complet" not in corps

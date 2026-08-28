@@ -417,6 +417,10 @@ class EvenementBureauForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.Model
             "lieu_texte",
             "visibilite",
             "spectacle",
+            # Ouvre (ou non) la feuille d'inscription publique : vide = pas
+            # d'inscription. Sans ce champ, la jauge ne serait réglable que
+            # depuis l'admin Django, et la fonction resterait lettre morte.
+            "places_max",
         ]
         widgets = {
             "description": forms.Textarea(attrs={"rows": 3}),

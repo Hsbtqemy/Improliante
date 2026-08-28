@@ -9,6 +9,8 @@ En v1, un événement = une date (pas de récurrence).
 
 from __future__ import annotations
 
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -44,6 +46,16 @@ class Evenement(Horodatage, Moderation):
         max_length=8,
         choices=Visibilite.choices,
         default=Visibilite.PUBLIC,
+    )
+
+    places_max = models.PositiveIntegerField(
+        "nombre de places",
+        null=True,
+        blank=True,
+        help_text=(
+            "Laisser vide pour ne pas ouvrir d'inscription. Renseigné, le public "
+            "peut réserver jusqu'à épuisement de la jauge."
+        ),
     )
 
     spectacle = models.ForeignKey(
@@ -148,3 +160,36 @@ class ImageEvenement(models.Model):
 
     def __str__(self) -> str:
         return f"{self.evenement} — image {self.ordre}"
+
+
+class Inscription(Horodatage):
+    """Réservation de places par une personne du public, sans compte.
+
+    Feuille d'inscription GRATUITE, pas billetterie : aucun paiement, donc
+    aucune donnée bancaire à conserver. Le cahier §15 écrit les deux sur la
+    même ligne ; ce sont deux chantiers, et seul le premier est ouvert.
+
+    L'identification se fait par un `jeton` aléatoire, jamais par l'identifiant
+    de ligne : c'est ce qui permet à un porteur SANS COMPTE de retrouver et
+    d'annuler sa réservation par un lien que personne d'autre ne devine
+    (règle 5, transposée à un visiteur anonyme).
+    """
+
+    evenement = models.ForeignKey(
+        Evenement,
+        on_delete=models.CASCADE,
+        related_name="inscriptions",
+    )
+    nom = models.CharField("nom", max_length=200)
+    email = models.EmailField("adresse e-mail")
+    places = models.PositiveSmallIntegerField("nombre de places", default=1)
+    jeton = models.UUIDField("jeton", default=uuid.uuid4, unique=True, editable=False)
+    annulee = models.BooleanField("annulée", default=False)
+
+    class Meta:
+        verbose_name = "inscription"
+        verbose_name_plural = "inscriptions"
+        ordering = ["-date_creation"]
+
+    def __str__(self) -> str:
+        return f"{self.nom} — {self.places} place(s) pour {self.evenement}"

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Votre réservation — {{ inscription.evenement.titre }}{% endblock %}
+
+{% comment %}
+  Page atteinte par un lien porteur de jeton : personne n'est connecté ici. Elle
+  ne doit donc afficher que ce que le porteur du lien a lui-même saisi, et rien
+  de l'événement qui ne soit déjà public.
+{% endcomment %}
+
+{% block contenu %}
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Réservation</span>
+    <h1>{{ inscription.evenement.titre }}</h1>
+    <p class="page-tete__sous">
+      {{ inscription.evenement.date_debut|date:"l j F Y" }},
+      {{ inscription.evenement.date_debut|date:"G\hi" }}
+    </p>
+  </header>
+
+  {% if inscription.annulee %}
+    <div class="encart" role="status">
+      <p>
+        <strong>Réservation annulée.</strong> Vos places ont été remises à disposition.
+        Vous pouvez en réserver de nouvelles depuis
+        <a href="{% url 'vitrine:evenement' inscription.evenement.pk %}">la page de l'événement</a>.
+      </p>
+    </div>
+  {% else %}
+    <div class="encart">
+      <p>
+        <strong>{{ inscription.places }}</strong> place{{ inscription.places|pluralize }}
+        au nom de <strong>{{ inscription.nom }}</strong>.
+      </p>
+      <p class="champ__aide">
+        Conservez ce lien : c'est lui, et lui seul, qui donne accès à cette réservation.
+      </p>
+    </div>
+
+    <form method="post" class="formulaire">
+      {% csrf_token %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton">Annuler ma réservation</button>
+        <a class="lien-bouton" href="{% url 'vitrine:evenement' inscription.evenement.pk %}">
+          Retour à l'événement
+        </a>
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}
