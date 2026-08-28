@@ -22,6 +22,7 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] `/srv/asso/app.env` porte `DJANGO_SECRET_KEY` et les `DB_*`, en mode 0600, hors dépôt — règle 3 de CLAUDE.md, vérifiée par un `git check-ignore` et un `stat`
 - [ ] `DEBUG` vaut False en production et `manage.py check --deploy` sort sans avertissement — règle 6 de CLAUDE.md
 - [ ] `manage.py migrate` puis `collectstatic --noinput` passent sur le VPS, et Nginx sert bien le `STATIC_ROOT` produit
+- [ ] `TEST_POSTGRES=1 pytest` passe contre la base du VPS avant la première mise en ligne — la suite a été éprouvée sur un PostgreSQL local, pas encore sur celui-ci
 - [ ] `systemctl enable --now asso` laisse le service `active (running)` et le socket `/srv/asso/run/gunicorn.sock` présent
 
 ### Réseau et TLS
@@ -106,3 +107,19 @@ cahier, qui se contente de dire qu'elle existe. Elle est maintenant dans
 passages, le `tar` à deux `-C`, et `check --deploy --fail-level WARNING` qui rend 0 sur une
 configuration de production réaliste tout en bloquant une clé faible. **Non éprouvé** :
 `flock`, absent de macOS — et tout le reste, qui attend une machine.
+
+## PostgreSQL éprouvé en local (28 août)
+
+Avant la machine, la v1 a été rejouée sur le **moteur de production**, en local. Les 401
+tests passent sans modification : SQLite ne masquait aucun bug.
+
+Ce qui a changé, c'est ce qu'on peut désormais affirmer. La règle 4 — numérotation
+séquentielle, continue, sans trou — repose sur `select_for_update`, qui ne fait **rien**
+sous SQLite. La contrainte la plus sensible juridiquement du projet n'avait donc jamais
+été confrontée à son propre mécanisme. Deux tests neufs lancent huit validations de
+factures et huit émissions de reçus au même instant, derrière une barrière, et exigent
+huit numéros contigus. Verrou retiré, ils échouent sur des numéros dupliqués — c'est
+cette vérification par mutation qui leur donne leur valeur.
+
+Reste à refaire sur le VPS, contre SA base : `TEST_POSTGRES=1 pytest`. Un PostgreSQL
+local n'est pas celui d'Infomaniak (version, encodage, fuseau, droits du rôle).
