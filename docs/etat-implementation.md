@@ -203,6 +203,14 @@ pouvoirs). `coeur.Signataire` (référentiel de signataires habilités/délégat
   tourne sans WeasyPrint.
 - Zones traitées **test-first** : numérotation légale, quorum/résolutions,
   versionnement, anti-IDOR.
+- **`TEST_POSTGRES=1 pytest`** rejoue la suite sur PostgreSQL. À faire avant
+  toute mise en ligne : sous SQLite, `select_for_update` est un **no-op**, si
+  bien que la numérotation légale (règle 4) y est validée dans sa règle mais
+  jamais dans sa tenue en concurrence. Deux tests dédiés — factures et reçus
+  fiscaux — lancent huit validations simultanées derrière une barrière et
+  exigent huit numéros contigus ; ils se déclarent « skipped » sous SQLite
+  plutôt que de passer sans rien prouver. Vérifiés par mutation : verrou
+  retiré, ils échouent sur des numéros dupliqués.
 
 ---
 

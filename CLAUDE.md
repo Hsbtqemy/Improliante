@@ -157,6 +157,12 @@ python manage.py check --deploy
 # Tests (pytest + pytest-django ; base SQLite en mémoire, hors-ligne)
 pytest -q
 
+# Tests sur le MOTEUR DE PRODUCTION (PostgreSQL joignable requis).
+# Seul moyen d'éprouver `select_for_update`, donc la numérotation légale sous
+# concurrence : sous SQLite ce verrou ne fait rien et les deux tests dédiés
+# se déclarent « skipped » plutôt que de passer sans rien prouver.
+createdb asso_test && TEST_POSTGRES=1 pytest -q
+
 # Lint / format (ruff)
 ruff check .
 ruff format .

@@ -1,8 +1,10 @@
 """Tests de la numérotation des factures (zone à risque, cf. cahier §4).
 
-Note : ces tests tournent sur SQLite ; `select_for_update` y est un no-op, donc
-ils valident les RÈGLES fonctionnelles (séquentielle, continue, sans trou, à la
-validation), pas la sûreté concurrentielle — celle-ci repose sur PostgreSQL.
+Note : par défaut ces tests tournent sur SQLite, où `select_for_update` est un
+no-op — ils valident alors les RÈGLES (séquentielle, continue, sans trou, à la
+validation), pas leur tenue en concurrence. Le test de validations simultanées,
+en fin de fichier, éprouve le verrou lui-même et ne s'exécute que sur le moteur
+de production : `TEST_POSTGRES=1 pytest`.
 """
 
 from __future__ import annotations
@@ -227,3 +229,66 @@ def test_pdf_facture_sans_signataire_pas_de_bloc(client_facture, monkeypatch):
     facture = Facture.objects.create(client=client_facture)
     html = pdf_de_facture(facture).decode()
     assert 'class="signature"' not in html
+
+
+# --- Concurrence réelle (PostgreSQL uniquement) ------------------------------
+#
+# Tout ce qui précède tourne aussi bien sur SQLite, où `select_for_update` ne
+# fait rien : ces tests-là valident la règle, jamais sa tenue sous charge. Le
+# test ci-dessous est le seul à éprouver le VERROU, et il n'a de sens que sur
+# le moteur de production. Le lancer :
+#
+#   TEST_POSTGRES=1 pytest apps/facturation/tests.py -q
+
+NB_VALIDATIONS_SIMULTANEES = 8
+
+
+@pytest.mark.django_db(transaction=True)
+def test_la_numerotation_tient_sous_validations_simultanees():
+    """Huit validations lancées au même instant produisent huit numéros
+    distincts et contigus — aucun doublon, aucun trou.
+
+    C'est LA garantie légale du cahier §4, et elle ne peut pas être vérifiée
+    en séquentiel : sans verrou, deux transactions lisent le même compteur et
+    attribuent le même numéro. `transaction=True` est indispensable — sans lui
+    les données du test resteraient invisibles aux autres connexions."""
+    import threading
+
+    from django.db import connection, connections
+
+    if connection.vendor != "postgresql":
+        pytest.skip(
+            "select_for_update est un no-op sur SQLite : le test passerait "
+            "sans rien prouver. Relancer avec TEST_POSTGRES=1."
+        )
+
+    client = Client.objects.create(nom="Association X")
+    factures = [Facture.objects.create(client=client) for _ in range(NB_VALIDATIONS_SIMULTANEES)]
+
+    # La barrière fait partir tout le monde ensemble : sans elle, les threads
+    # s'égrènent et l'on retombe sur du séquentiel déguisé.
+    barriere = threading.Barrier(NB_VALIDATIONS_SIMULTANEES)
+    erreurs = []
+
+    def valider(facture):
+        try:
+            barriere.wait(timeout=10)
+            valider_facture(facture, date_emission=date(2026, 3, 1))
+        except Exception as exc:  # noqa: BLE001 — on veut TOUTE erreur de thread
+            erreurs.append(exc)
+        finally:
+            # Chaque thread a sa propre connexion : sans fermeture, elles
+            # fuient et la base de test refuse de se laisser détruire.
+            connections.close_all()
+
+    threads = [threading.Thread(target=valider, args=(f,)) for f in factures]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    assert not erreurs, f"validations en erreur : {erreurs}"
+
+    numeros = sorted(Facture.objects.exclude(numero=None).values_list("numero", flat=True))
+    attendus = [f"F2026-{i:04d}" for i in range(1, NB_VALIDATIONS_SIMULTANEES + 1)]
+    assert numeros == attendus, "numérotation trouée ou dupliquée sous concurrence"

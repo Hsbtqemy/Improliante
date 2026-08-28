@@ -10,6 +10,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from apps.budget import graphiques
 from apps.budget.models import (
     Adhesion,
@@ -484,3 +486,60 @@ def test_le_regroupement_met_toujours_au_moins_deux_categories_de_cote():
             bilan = _bilan(*[_ligne_bilan(f"Cat {i}", dr="100") for i in range(total)])
             regroupees = graphiques.repartition_depenses(bilan, maximum=maximum)["regroupees"]
             assert regroupees == 0 or regroupees >= 2, (total, maximum, regroupees)
+
+
+# --- Concurrence réelle (PostgreSQL uniquement) ------------------------------
+#
+# Le numéro de reçu fiscal porte la même contrainte légale que celui des
+# factures : séquentiel, continu, sans trou. Le verrou qui la garantit ne fait
+# RIEN sous SQLite, donc rien de ce qui précède ne l'éprouve.
+#
+#   TEST_POSTGRES=1 pytest apps/budget/tests.py -q
+
+NB_EMISSIONS_SIMULTANEES = 8
+
+
+@pytest.mark.django_db(transaction=True)
+def test_la_numerotation_des_recus_tient_sous_emissions_simultanees():
+    """Huit reçus émis au même instant portent huit numéros distincts et
+    contigus. Sans `select_for_update`, deux émissions lisent le même compteur
+    et réclament le même numéro — sur un document fiscal remis au donateur."""
+    import threading
+
+    from django.db import connection, connections
+
+    if connection.vendor != "postgresql":
+        pytest.skip(
+            "select_for_update est un no-op sur SQLite : le test passerait "
+            "sans rien prouver. Relancer avec TEST_POSTGRES=1."
+        )
+
+    barriere = threading.Barrier(NB_EMISSIONS_SIMULTANEES)
+    erreurs = []
+
+    def emettre(indice):
+        try:
+            barriere.wait(timeout=10)
+            emettre_recu(
+                type_versement=RecuFiscal.TypeVersement.DON,
+                montant=Decimal("50.00"),
+                date_versement=date(2026, 3, 1),
+                donateur_nom=f"Donateur {indice}",
+                date_emission=date(2026, 3, 1),
+            )
+        except Exception as exc:  # noqa: BLE001 — on veut TOUTE erreur de thread
+            erreurs.append(exc)
+        finally:
+            connections.close_all()
+
+    threads = [threading.Thread(target=emettre, args=(i,)) for i in range(NB_EMISSIONS_SIMULTANEES)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    assert not erreurs, f"émissions en erreur : {erreurs}"
+
+    numeros = sorted(RecuFiscal.objects.values_list("numero", flat=True))
+    attendus = [f"R2026-{i:04d}" for i in range(1, NB_EMISSIONS_SIMULTANEES + 1)]
+    assert numeros == attendus, "numérotation des reçus trouée ou dupliquée"

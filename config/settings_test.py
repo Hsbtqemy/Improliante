@@ -15,12 +15,37 @@ os.environ.setdefault("DJANGO_DEBUG", "1")
 
 from config.settings import *  # noqa: E402, F403
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+# SQLite en mémoire par défaut : la suite reste rapide et tourne hors-ligne.
+#
+# `TEST_POSTGRES=1` bascule sur le moteur de production. C'est le SEUL moyen
+# d'éprouver ce que SQLite ne sait pas faire — au premier chef `select_for_update`,
+# sur lequel repose la numérotation légale des factures et des reçus (règle 4).
+# Sous SQLite, ce verrou ne fait RIEN : la suite valide alors la règle
+# fonctionnelle, jamais sa tenue en concurrence.
+#
+#   createdb asso_test
+#   TEST_POSTGRES=1 pytest -q
+#
+# Les identifiants suivent les mêmes DB_* que la production ; l'utilisateur
+# doit avoir le droit de créer une base (Django en crée une préfixée « test_ »).
+if os.environ.get("TEST_POSTGRES"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "asso_test"),
+            "USER": os.environ.get("DB_USER", os.environ.get("USER", "postgres")),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("DB_HOST", "localhost"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
 
 # Hachage rapide pour accélérer les tests (pas d'Argon2 ici).
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
