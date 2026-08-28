@@ -1980,7 +1980,7 @@ def test_bilan_ecrit_les_largeurs_avec_un_point_decimal(client, db):
 
     assert "flex-basis: 12.5%" in corps
     assert "flex-basis: 12,5%" not in corps
-    assert "width: 100.0%" in corps  # la plus grosse barre occupe toute l'échelle
+    assert "width: 100%" in corps  # la plus grosse barre occupe toute l'échelle
 
 
 def test_bilan_sans_saison_n_affiche_pas_de_graphiques(client, db):

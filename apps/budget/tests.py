@@ -341,7 +341,7 @@ def test_comparaison_partage_une_seule_echelle_entre_les_deux_flux():
 
     assert comparaison["echelle"] == Decimal("1000")
     par_titre = {f["titre"]: f for f in comparaison["flux"]}
-    assert par_titre["Recettes"]["lignes"][0]["part_realise"] == "100.0"
+    assert par_titre["Recettes"]["lignes"][0]["part_realise"] == "100"
     assert par_titre["Dépenses"]["lignes"][0]["part_realise"] == "50.0"
 
 
@@ -448,4 +448,39 @@ def test_le_tableau_de_bord_consomme_la_vraie_sortie_du_bilan(db):
     assert comparaison["echelle"] == Decimal("800")
     assert {f["titre"] for f in comparaison["flux"]} == {"Recettes", "Dépenses"}
     assert repartition["segments"][0]["categorie"] == "Matériel"
-    assert repartition["segments"][0]["part"] == "100.0"
+    assert repartition["segments"][0]["part"] == "100"
+
+
+def test_repartition_borne_la_part_des_montants_negatifs():
+    """Le formulaire du back-office refuse les montants négatifs, mais l'admin
+    Django ne passe pas par lui. Une part négative produirait `width: -6.3%` —
+    ignorée en silence par le navigateur."""
+    bilan = _bilan(_ligne_bilan("Remboursement", dr="-500"), _ligne_bilan("Salaires", dr="8000"))
+    lignes = {
+        ligne["categorie"]: ligne
+        for ligne in graphiques.comparaison_au_budget(bilan)["flux"][0]["lignes"]
+    }
+
+    assert lignes["Remboursement"]["part_realise"] == "0"
+    # Le montant réel n'est pas escamoté : il reste écrit à côté de la barre.
+    assert lignes["Remboursement"]["realise"] == Decimal("-500")
+
+
+def test_repartition_ne_depasse_jamais_le_nombre_de_teintes_disponibles():
+    """`maximum` ne peut que réduire le plafond : au-delà, les rangs n'ont plus
+    de teinte en face côté feuille de style."""
+    bilan = _bilan(*[_ligne_bilan(f"Cat {i}", dr="100") for i in range(20)])
+    segments = graphiques.repartition_depenses(bilan, maximum=15)["segments"]
+
+    assert len(segments) == graphiques.MAX_SEGMENTS
+    assert max(s["rang"] for s in segments) == graphiques.MAX_SEGMENTS
+
+
+def test_le_regroupement_met_toujours_au_moins_deux_categories_de_cote():
+    """Invariant qui dispense le gabarit d'un cas singulier : regrouper la
+    traîne suppose d'avoir dépassé le plafond, donc d'en mettre deux de côté."""
+    for total in range(1, 14):
+        for maximum in range(2, graphiques.MAX_SEGMENTS + 1):
+            bilan = _bilan(*[_ligne_bilan(f"Cat {i}", dr="100") for i in range(total)])
+            regroupees = graphiques.repartition_depenses(bilan, maximum=maximum)["regroupees"]
+            assert regroupees == 0 or regroupees >= 2, (total, maximum, regroupees)

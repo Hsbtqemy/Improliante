@@ -33,10 +33,21 @@ ETIQUETTE_AUTRES = "Autres catégories"
 def _part(montant: Decimal, total: Decimal) -> str:
     """Part de `montant` dans `total`, en pourcentage, prête pour un `style=`.
 
-    Renvoie « 0 » quand le total est nul — un budget vide ne divise pas."""
+    Renvoie « 0 » quand le total est nul — un budget vide ne divise pas.
+
+    Le résultat est borné à [0, 100] : le formulaire du back-office refuse les
+    montants négatifs, mais l'admin Django ne passe pas par lui, et un montant
+    négatif produirait `width: -6.3%` — une déclaration que le navigateur
+    ignore en silence, laissant une barre dont on ne sait pas si elle vaut zéro
+    ou si elle est cassée. Bornée, elle vaut zéro et le dit ; le montant réel
+    reste écrit en toutes lettres à côté de la barre."""
     if total <= _ZERO:
         return "0"
     part = (montant / total * _CENT).quantize(_DIXIEME, rounding=ROUND_HALF_UP)
+    if part <= _ZERO:
+        return "0"
+    if part >= _CENT:
+        return "100"
     return str(part)
 
 
@@ -145,16 +156,8 @@ def comparaison_au_budget(bilan: dict) -> dict:
     echelle = max(montants) if montants else _ZERO
 
     flux = [
-        {
-            "titre": "Recettes",
-            "cle": "recette",
-            "lignes": _lignes_dun_flux(bilan, "recette", echelle),
-        },
-        {
-            "titre": "Dépenses",
-            "cle": "depense",
-            "lignes": _lignes_dun_flux(bilan, "depense", echelle),
-        },
+        {"titre": "Recettes", "lignes": _lignes_dun_flux(bilan, "recette", echelle)},
+        {"titre": "Dépenses", "lignes": _lignes_dun_flux(bilan, "depense", echelle)},
     ]
     return {"echelle": echelle, "flux": [f for f in flux if f["lignes"]]}
 
@@ -164,7 +167,19 @@ def repartition_depenses(bilan: dict, maximum: int = MAX_SEGMENTS) -> dict:
 
     Au-delà de `maximum` segments, la traîne est regroupée sous « Autres
     catégories » : une teinte de plus ne serait plus distinguable de ses
-    voisines, et la barre cesserait d'être lisible."""
+    voisines, et la barre cesserait d'être lisible.
+
+    Le `total` renvoyé est celui des dépenses **positives**, seules à avoir une
+    part dans un tout. En présence d'un montant négatif — que le formulaire du
+    back-office refuse, mais que l'admin Django laisse passer — il diffère donc
+    du `depense_realise` des totaux du bilan, et l'écran affiche deux nombres
+    différents. C'est voulu : une part de −500 € dans un camembert ne veut rien
+    dire. La tuile porte la somme comptable, cette barre porte la structure.
+
+    `maximum` ne peut que RÉDUIRE ce plafond : au-delà de `MAX_SEGMENTS`, les
+    rangs n'ont plus de teinte en face côté feuille de style, et les segments
+    surnuméraires sortiraient de la couleur du fond."""
+    maximum = min(maximum, MAX_SEGMENTS)
     depenses = [
         (ligne["categorie"], ligne["depense_realise"])
         for ligne in bilan["lignes"]

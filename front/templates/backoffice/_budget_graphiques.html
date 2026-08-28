@@ -15,7 +15,7 @@
       L'espace avant le « € » est insécable — sinon le symbole tombe seul à la
       ligne dès que la tuile se resserre.
     {% endcomment %}
-    <div class="tuile tuile--montant{% if t.sens %} tuile--solde-{{ t.sens }}{% endif %}">
+    <div class="tuile tuile--montant">
       <span class="tuile__nombre">{{ t.valeur|floatformat:0 }}&nbsp;€</span>
       <span class="tuile__label">{{ t.label }}</span>
       <small class="tuile__detail">{{ t.detail }} {{ t.detail_montant|floatformat:0 }}&nbsp;€</small>
@@ -68,6 +68,10 @@
     <p class="viz__note">
       Part de chaque catégorie dans les {{ repartition.total|floatformat:2 }} € de dépenses
       réalisées.
+      {% comment %}
+        Toujours le pluriel : regrouper la traîne en met au minimum DEUX de côté
+        (verrouillé par un test), le cas « la plus petite catégorie » n'existe pas.
+      {% endcomment %}
       {% if repartition.regroupees %}
         Les {{ repartition.regroupees }} plus petites catégories sont regroupées sous
         « {{ etiquette_autres }} » — au-delà de sept parts, les teintes cessent d'être
