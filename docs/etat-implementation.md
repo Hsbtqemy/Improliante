@@ -77,7 +77,11 @@ la volée**, avec ou sans compte — et **reçus fiscaux** Cerfa),
 d'accès** a posteriori), **fichiers transmis** (agrégat en lecture des dossiers
 que les membres marquent « transmis au bureau » ; la gestion documentaire
 officielle est passée dans la branche **Association** de l'explorateur « Fichiers »),
-**budget** (mouvements + bilan par catégorie + export Excel ; **trésorerie** =
+**budget** (mouvements + bilan par catégorie + export Excel ; l'écran Bilan porte
+un **tableau de bord** — chiffres clés, réalisé face au budget par catégorie,
+répartition des dépenses — dessiné en **HTML/CSS**, sans SVG ni bibliothèque
+cliente, avec le tableau détaillé pour jumeau accessible ; séries préparées par
+`budget/graphiques.py`, qui ne calcule aucun montant ; **trésorerie** =
 solde en banque de référence saisi par le trésorier + prévisionnel = solde +
 reste à réaliser du budget de la saison — repère de gestion à rapprocher des
 comptes, pas une compta),
@@ -209,4 +213,9 @@ pouvoirs). `coeur.Signataire` (référentiel de signataires habilités/délégat
   `libgdk-pixbuf`, `libffi`). Fichiers prêts dans `deploiement/`.
 - Pistes v2/v3 (hors périmètre sans demande, cf. cahier §15) : relances
   automatiques, interfaces sur mesure (explorateur de fichiers, éditeur de
-  facture, dashboard budget), newsletter, billetterie, gestion des bénévoles.
+  facture), newsletter, billetterie, gestion des bénévoles.
+- Le **tableau de bord budget** (cahier §15, v2) est **fait** — cf. back-office
+  ci-dessus et la fiche `pilotage/BUD-1.md`. Une courbe d'évolution mensuelle
+  reste possible : c'est la seule vue écartée, faute d'agrégation temporelle.
+- Le reste à faire vit dans `pilotage/`, confronté aux commits par l'outil
+  `pilote` — un chantier par fiche, une QA visuelle par passe.

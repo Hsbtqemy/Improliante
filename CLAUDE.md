@@ -5,7 +5,7 @@ Ce fichier est court par nature : il **oriente**. Le détail fonctionnel complet
 vit dans `docs/cahier-des-charges-asso.md` — s'y référer pour toute question métier.
 
 > État du projet : **v1 fonctionnelle implémentée** (modèles, services, front
-> public, espace membre, back-office). ~168 tests pytest verts, `ruff` propre,
+> public, espace membre, back-office). ~400 tests pytest verts, `ruff` propre,
 > `manage.py check` et `check --deploy` passent. Carte détaillée des modules et
 > des conventions transverses → `docs/etat-implementation.md`.
 > **Reste à faire** : le déploiement VPS (fichiers prêts dans `deploiement/`).
@@ -52,7 +52,8 @@ Priorité du projet : **sur-mesure et flexible**. Détails → `docs/cahier-des-
 │   ├── facturation/        # Client, Devis, Facture (+ avoir), lignes ; services.py
 │   │                       #   (valider_facture, avoirs, PDF devis/facture)
 │   ├── budget/             # Adhesion, Saison, Transaction, Categorie, RecuFiscal ;
-│   │                       #   services.py (emettre_recu, bilan_par_categorie)
+│   │                       #   services.py (emettre_recu, bilan_par_categorie) ;
+│   │                       #   graphiques.py (séries du tableau de bord, sans calcul)
 │   ├── gouvernance/        # Sujet, Reunion, Resolution, Pouvoir, Presence, Parametres
 │   │                       #   ; services.py (quorum, résolutions)
 │   ├── vitrine/            # front public : vues + urls, calendrier/ical, contact
@@ -108,7 +109,8 @@ Ces règles découlent du cahier des charges et doivent être respectées dans t
 ## Périmètre v1 vs plus tard
 
 - **v1** = tous les modules ci-dessus (voir cahier des charges §15).
-- **v2/v3** (ne pas coder sans demande explicite) : relances auto, interfaces sur mesure (explorateur de fichiers, éditeur de facture, dashboard budget), newsletter, billetterie, bénévoles.
+- **v2/v3** (ne pas coder sans demande explicite) : relances auto, interfaces sur mesure (explorateur de fichiers, éditeur de facture), newsletter, billetterie, bénévoles.
+- **Fait, sur demande** : le *tableau de bord budget* de cette liste (fiche `pilotage/BUD-1.md`). Le reste attend une demande.
 
 Concevoir les modèles v1 en gardant v2/v3 possibles, mais **ne coder que la v1**.
 
