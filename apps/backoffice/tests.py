@@ -2238,3 +2238,38 @@ def test_le_tableau_de_bord_nomme_ce_qui_attend_une_decision(client, db):
 
     assert "En attente d'une décision" in contenu
     assert "Cabaret de printemps" in contenu
+
+
+def test_chaque_page_du_rail_ouvre_un_et_un_seul_groupe(client, db):
+    """Depuis que le rail ne déplie que le groupe courant, une page dont aucune
+    entrée ne porte `aria-current` ouvre le premier groupe par défaut : on perd
+    le repère de position. Ce test parcourt toutes les destinations du rail et
+    exige qu'exactement un groupe s'y reconnaisse.
+
+    Il couvre les conditions fragiles du gabarit, du type `{% if 'facture' in
+    vn %}` : une URL renommée les casse en silence.
+    """
+    import re
+
+    client.force_login(_staff())
+    rail = client.get("/bureau/").content.decode().split('<nav id="nav-espace"', 1)[1]
+    rail = rail.split("</nav>", 1)[0]
+    destinations = sorted(set(re.findall(r'href="(/(?:bureau|espace)/[^"#?]*)"', rail)))
+    assert len(destinations) >= 15, f"{len(destinations)} destinations : le rail a rétréci"
+
+    fautives = []
+    testees = 0
+    for url in destinations:
+        reponse = client.get(url)
+        if reponse.status_code != 200:
+            continue
+        testees += 1
+        corps = reponse.content.decode().split('<nav id="nav-espace"', 1)[1].split("</nav>", 1)[0]
+        # Un `<details>` par groupe : on compte ceux qui contiennent la page courante.
+        groupes = corps.split("<details")[1:]
+        marques = sum('aria-current="page"' in g for g in groupes)
+        if marques != 1:
+            fautives.append(f"{url} → {marques} groupe(s) marqué(s)")
+
+    assert testees >= 15, f"{testees} pages réellement testées sur {len(destinations)}"
+    assert not fautives, "position non reconnue dans le rail :\n  " + "\n  ".join(fautives)

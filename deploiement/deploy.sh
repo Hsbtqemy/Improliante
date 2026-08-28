@@ -101,8 +101,16 @@ log "Application des migrations…"
 "$PYTHON" manage.py migrate --noinput
 
 # --- 5. Fichiers statiques -------------------------------------------
+# PAS de --clear : les fichiers collectés portent une empreinte de contenu
+# (ManifestStaticFilesStorage). --clear viderait STATIC_ROOT avant la collecte,
+# donc (a) Nginx servirait des 404 sur tout /static/ pendant quelques secondes,
+# (b) le manifeste disparaîtrait le temps d'être réécrit, et (c) les pages déjà
+# envoyées au navigateur, qui référencent les ANCIENS noms empreintés, perdraient
+# leur CSS. Les anciennes versions doivent survivre au déploiement : c'est
+# précisément ce que l'empreinte permet. Elles pèsent quelques centaines de ko
+# et se purgent à part, hors fenêtre de déploiement.
 log "Collecte des fichiers statiques…"
-"$PYTHON" manage.py collectstatic --noinput --clear
+"$PYTHON" manage.py collectstatic --noinput
 
 # --- 6. Redémarrage de l'application ----------------------------------
 # On redémarre Gunicorn. systemctl est appelé via sudo restreint : la règle

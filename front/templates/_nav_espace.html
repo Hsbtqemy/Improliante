@@ -14,10 +14,10 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
     <summary class="nav-espace__titre">Le site</summary>
     <ul class="nav-espace__liste">
       <li><a href="{% url 'vitrine:accueil' %}"><svg class="ico" aria-hidden="true"><use href="#ico-globe"></use></svg><span>Accueil</span></a></li>
+      <li><a href="{% url 'vitrine:association' %}"><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg><span>L'association</span></a></li>
       <li><a href="{% url 'vitrine:spectacles' %}"><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Spectacles</span></a></li>
       <li><a href="{% url 'vitrine:agenda' %}"><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Agenda</span></a></li>
       <li><a href="{% url 'vitrine:galerie' %}"><svg class="ico" aria-hidden="true"><use href="#ico-document"></use></svg><span>Galerie</span></a></li>
-      <li><a href="{% url 'vitrine:association' %}"><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg><span>L'association</span></a></li>
       <li><a href="{% url 'vitrine:contact' %}"><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Contact</span></a></li>
       <li>
         <form method="post" action="{% url 'espace_membre:deconnexion' %}" class="nav-espace__deco">
@@ -32,11 +32,10 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
     <summary class="nav-espace__titre">Mon espace</summary>
     <ul class="nav-espace__liste">
       <li><a href="{% url 'espace_membre:tableau_de_bord' %}" {% if vn == 'espace_membre:tableau_de_bord' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Tableau de bord</span></a></li>
-      <li><a href="{% url 'espace_membre:mes_projets' %}" {% if vn == 'espace_membre:mes_projets' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Mes projets</span></a></li>
-      <li><a href="{% url 'espace_membre:mes_evenements' %}" {% if vn == 'espace_membre:mes_evenements' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Mes événements</span></a></li>
-      <li><a href="{% url 'espace_membre:mes_convocations' %}" {% if vn == 'espace_membre:mes_convocations' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Mes convocations</span></a></li>
+      <li><a href="{% url 'espace_membre:mes_projets' %}" {% if vn == 'espace_membre:mes_projets' or vn == 'espace_membre:creer_projet' or vn == 'espace_membre:voir_projet' or vn == 'espace_membre:editer_projet' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Mes projets</span></a></li>
+      <li><a href="{% url 'espace_membre:mes_evenements' %}" {% if vn == 'espace_membre:mes_evenements' or vn == 'espace_membre:creer_evenement' or vn == 'espace_membre:voir_evenement' or vn == 'espace_membre:editer_evenement' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Mes événements</span></a></li>
+      <li><a href="{% url 'espace_membre:mes_convocations' %}" {% if vn == 'espace_membre:mes_convocations' or vn == 'espace_membre:detail_convocation' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Mes convocations</span></a></li>
       <li><a href="{% url 'espace_membre:mes_fichiers' %}" {% if vn == 'espace_membre:mes_fichiers' or vn == 'espace_membre:dossier_membre' or vn == 'espace_membre:editer_dossier_membre' or vn == 'espace_membre:dossier_commun' or vn == 'espace_membre:editer_dossier_commun' or vn == 'espace_membre:dossier_association' or vn == 'espace_membre:editer_dossier_association' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Fichiers</span></a></li>
-      <li><a href="{% url 'espace_membre:mes_recus' %}" {% if vn == 'espace_membre:mes_recus' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Mes reçus</span></a></li>
       <li><a href="{% url 'espace_membre:mon_profil' %}" {% if vn == 'espace_membre:mon_profil' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>
     </ul>
   </details>

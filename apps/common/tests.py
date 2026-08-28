@@ -261,3 +261,33 @@ def test_la_page_d_erreur_500_se_rend_sans_contexte():
 
     assert "{#" not in html and "{%" not in html  # rien de non interprété
     assert "<html" in html
+
+
+def test_chaque_reference_static_des_gabarits_pointe_vers_un_fichier_existant():
+    """Avec `ManifestStaticFilesStorage`, un `{% static %}` visant un fichier
+    absent ne produit plus un lien mort : il lève une erreur AU RENDU, donc un
+    500 en production. Le défaut ne se voit qu'en prod, et sur la page qui
+    porte la référence — ce test le ramène ici.
+
+    On passe par les finders de Django plutôt que par un chemin en dur : un
+    asset peut venir d'une app (admin, treebeard) et pas seulement de
+    `front/static`.
+    """
+    import pathlib
+    import re
+
+    from django.conf import settings
+    from django.contrib.staticfiles import finders
+
+    fautifs = []
+    trouvees = 0
+    for dossier in settings.TEMPLATES[0]["DIRS"]:
+        for gabarit in sorted(pathlib.Path(dossier).rglob("*.html")):
+            texte = gabarit.read_text()
+            for reference in re.findall(r"""\{%\s*static\s+["']([^"']+)["']""", texte):
+                trouvees += 1
+                if finders.find(reference) is None:
+                    fautifs.append(f"{gabarit.name} → {reference}")
+
+    assert trouvees >= 8, f"{trouvees} références trouvées : le balayage ne voit plus rien"
+    assert not fautifs, "fichiers statiques référencés mais absents : " + ", ".join(fautifs)
