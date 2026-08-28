@@ -793,7 +793,7 @@ def _couleur(jetons, valeur, fond=None):
 # désigne des JETONS : si le CSS rebranche un jeton, la mesure suit.
 # 3.0 pour l'accent : il ne sert qu'en gros titre dans le hero (AA gros texte).
 _PAIRES_AA = [
-    ("lien sur carte blanche", "--couleur-lien", "#ffffff", None, 4.5),
+    ("lien sur carte", "--couleur-lien", "--surface", None, 4.5),
     ("lien sur canvas", "--couleur-lien", "--canvas", None, 4.5),
     ("lien sur surface alternée", "--couleur-lien", "--surface-alt", None, 4.5),
     ("blanc sur bouton primaire", "#ffffff", "--couleur-primaire", None, 4.5),
@@ -841,26 +841,48 @@ def test_les_palettes_respectent_le_contraste_AA():
 
     fautifs = []
     for lettre in palettes:
-        jetons = dict(racine)
-        jetons.update(_jetons_du_theme(css, f'html[data-theme="{lettre}"]'))
-        mesurees = 0
-        for label, avant, arriere, derriere, seuil in _PAIRES_AA:
-            fond = _couleur(jetons, derriere) if derriere else None
-            texte, support = _couleur(jetons, avant, fond), _couleur(jetons, arriere, fond)
-            if texte is None or support is None:
-                continue
-            mesurees += 1
-            rapport = _contraste(texte, support)
-            if rapport < seuil:
-                fautifs.append(f"{lettre} · {label} : {rapport:.2f} < {seuil}")
-        # Un jeton renommé ferait passer le test en ne mesurant plus rien :
-        # exiger le compte plein est ce qui empêche ce faux vert.
-        assert mesurees == len(_PAIRES_AA), (
-            f"palette {lettre} : {mesurees} paires mesurées sur {len(_PAIRES_AA)} — "
-            "un jeton a changé de nom, le test ne prouve plus rien"
-        )
+        # Les deux modes, dans l'ordre de la cascade. En sombre, `html.sombre`
+        # et `html[data-theme=N]` pèsent la même spécificité (0,1,1) : la
+        # palette, écrite plus bas, l'emportait et posait ses couleurs de
+        # papier kraft sur un fond noir. `html.sombre[data-theme=N]` pèse
+        # (0,2,1) et tranche. Ne mesurer que le mode clair laissait passer
+        # quinze palettes sur dix-huit sous AA.
+        for mode, selecteurs in (
+            ("clair", [f'html[data-theme="{lettre}"]']),
+            (
+                "sombre",
+                [
+                    "html.sombre",
+                    f'html[data-theme="{lettre}"]',
+                    f'html.sombre[data-theme="{lettre}"]',
+                ],
+            ),
+        ):
+            _mesurer(css, racine, selecteurs, lettre, mode, fautifs)
 
     assert not fautifs, "contraste sous le seuil AA :\n  " + "\n  ".join(fautifs)
+
+
+def _mesurer(css, racine, selecteurs, lettre, mode, fautifs):
+    jetons = dict(racine)
+    for selecteur in selecteurs:
+        jetons.update(_jetons_du_theme(css, selecteur))
+    mesurees = 0
+    for label, avant, arriere, derriere, seuil in _PAIRES_AA:
+        fond = _couleur(jetons, derriere) if derriere else None
+        texte, support = _couleur(jetons, avant, fond), _couleur(jetons, arriere, fond)
+        if texte is None or support is None:
+            continue
+        mesurees += 1
+        rapport = _contraste(texte, support)
+        if rapport < seuil:
+            fautifs.append(f"{lettre} ({mode}) · {label} : {rapport:.2f} < {seuil}")
+    # Un jeton renommé ferait passer le test en ne mesurant plus rien :
+    # exiger le compte plein est ce qui empêche ce faux vert.
+    assert mesurees == len(_PAIRES_AA), (
+        f"palette {lettre} ({mode}) : {mesurees} paires mesurées sur "
+        f"{len(_PAIRES_AA)} — un jeton a changé de nom, le test ne prouve plus rien"
+    )
 
 
 # --- Présentation de l'association ------------------------------------------
@@ -898,6 +920,38 @@ def test_la_presentation_n_est_ecrite_qu_a_un_endroit(client, db):
 
     assert "Texte de présentation unique et reconnaissable." in accueil
     assert "Texte de présentation unique et reconnaissable." in association
+
+
+def test_le_hero_nomme_l_association_sur_une_installation_neuve(client, db):
+    """Sans aucune saisie, le titre doit porter le nom — pas commencer par un
+    saut de ligne orphelin. Mes deux scripts de rendu remplissaient `nom` avant
+    de capturer : la capture était juste, l'installation neuve ne l'était pas."""
+    import re
+
+    from django.utils.html import escape
+
+    parametres = ParametresAssociation.load()  # rien n'a été saisi
+
+    html = client.get("/").content.decode()
+    titre = re.search(r'<h1 class="hero__titre">(.*?)</h1>', html, re.S).group(1)
+
+    assert parametres.nom, "le nom par défaut est vide"
+    # `escape` : l'apostrophe de « L'Improliante » sort en `&#x27;` dans le HTML.
+    assert titre.strip().startswith(escape(parametres.nom)), titre.strip()[:80]
+
+
+def test_un_nom_vide_ne_laisse_pas_de_saut_de_ligne_orphelin(client, db):
+    """Le champ reste effaçable : le titre doit alors se réduire à l'accroche."""
+    import re
+
+    parametres = ParametresAssociation.load()
+    parametres.nom = ""
+    parametres.save()
+
+    html = client.get("/").content.decode()
+    titre = re.search(r'<h1 class="hero__titre">(.*?)</h1>', html, re.S).group(1)
+
+    assert "<br />" not in titre, titre.strip()[:80]
 
 
 def test_l_accroche_vide_ne_casse_pas_le_hero(client, db):

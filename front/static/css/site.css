@@ -3571,6 +3571,94 @@ html[data-theme="3"] .hero .lien-bouton--ghost:hover {
   background: var(--couleur-primaire-clair);
 }
 
+
+/* =========================================================================
+   MODE SOMBRE × PALETTE
+   `html.sombre` (plus haut) et `html[data-theme=N]` pèsent la même
+   spécificité — (0,1,1) — donc c'est l'ORDRE qui tranchait, et la palette,
+   écrite plus bas, écrasait le sombre. Les couleurs calibrées pour le papier
+   kraft atterrissaient sur un fond quasi noir : liens à 1,4-3,4 et texte clair
+   sur teinte claire à 1,05, soit invisible. Quinze palettes sur dix-huit.
+
+   `html.sombre[data-theme=N]` pèse (0,2,1) et tranche donc dans les deux sens.
+   Chaque palette garde SA teinte : le lien est éclairci jusqu'à tenir 4,6 sur
+   la surface élevée, la teinte d'accroche est assombrie jusqu'à porter le texte
+   clair. Valeurs calculées en OKLCh, vérifiées par le test de contraste, qui
+   couvre désormais les deux modes.
+   ========================================================================= */
+html.sombre[data-theme="1"] {
+  --couleur-lien: #fc3362;
+  --couleur-primaire-clair: #430111;
+}
+html.sombre[data-theme="2"] {
+  --couleur-lien: #fc3362;
+  --couleur-primaire-clair: #430111;
+}
+html.sombre[data-theme="3"] {
+  --couleur-lien: #fc3362;
+  --couleur-primaire-clair: #430111;
+}
+html.sombre[data-theme="4"] {
+  --couleur-lien: #fc2f71;
+  --couleur-primaire-clair: #430117;
+}
+html.sombre[data-theme="5"] {
+  --couleur-lien: #fc3745;
+  --couleur-primaire-clair: #440107;
+}
+html.sombre[data-theme="6"] {
+  --couleur-lien: #fc364f;
+  --couleur-primaire-clair: #44010b;
+}
+html.sombre[data-theme="7"] {
+  --couleur-lien: #fd7415;
+  --couleur-primaire-clair: #582301;
+}
+html.sombre[data-theme="8"] {
+  --couleur-lien: #23e7fe;
+  --couleur-primaire-clair: #06636e;
+}
+html.sombre[data-theme="9"] {
+  --couleur-lien: #7577fc;
+  --couleur-primaire-clair: #1c0268;
+}
+html.sombre[data-theme="10"] {
+  --couleur-lien: #e0ff25;
+  --couleur-primaire-clair: #535f04;
+}
+html.sombre[data-theme="11"] {
+  --couleur-lien: #fc4911;
+  --couleur-primaire-clair: #470d01;
+}
+html.sombre[data-theme="12"] {
+  --couleur-lien: #fc3b1b;
+  --couleur-primaire-clair: #420500;
+}
+html.sombre[data-theme="13"] {
+  --couleur-lien: #fc18a8;
+  --couleur-primaire-clair: #420129;
+}
+html.sombre[data-theme="14"] {
+  --couleur-lien: #a463fc;
+  --couleur-primaire-clair: #2e0155;
+}
+html.sombre[data-theme="15"] {
+  --couleur-lien: #4e7ffc;
+  --couleur-primaire-clair: #020271;
+}
+html.sombre[data-theme="16"] {
+  --couleur-lien: #fc383f;
+  --couleur-primaire-clair: #440105;
+}
+html.sombre[data-theme="17"] {
+  --couleur-lien: #25fe7b;
+  --couleur-primaire-clair: #066a2f;
+}
+html.sombre[data-theme="18"] {
+  --couleur-lien: #fc6d14;
+  --couleur-primaire-clair: #551f01;
+}
+
 /* =========================================================================
    FONDS DE PAGE (data-fond) — canvas teinté + traitement dynamique / texture
    Couche fixe derrière le contenu (z-index négatif) : les cartes blanches et
