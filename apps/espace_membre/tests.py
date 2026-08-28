@@ -1766,3 +1766,74 @@ def test_le_bureau_deplace_un_dossier_officiel(client, db):
     assert reponse.status_code == 302
     officiel.refresh_from_db()
     assert officiel.get_parent().pk == cible.pk
+
+
+def test_un_post_force_vers_le_dossier_d_un_autre_est_refuse(client, db):
+    """Le champ ne PROPOSE pas la cible d'un autre membre — encore faut-il que
+    la forcer à la main échoue. Deux barrières le refusent : le queryset du
+    formulaire, puis les invariants du service."""
+    alice = _membre("alice")
+    bob = _membre("bob")
+    a_alice = _dossier_membre(alice, Visibilite.PRIVE, nom="Photos")
+    chez_bob = _dossier_membre(bob, Visibilite.PRIVE, nom="Chez Bob")
+    client.force_login(alice.user)
+
+    reponse = client.post(f"/espace/fichiers/{a_alice.pk}/deplacer/", {"parent": chez_bob.pk})
+
+    assert reponse.status_code == 200  # réaffiché avec l'erreur, pas exécuté
+    a_alice.refresh_from_db()
+    assert a_alice.get_parent() is None
+
+
+def test_les_destinations_annoncent_leur_confidentialite(client, db):
+    """L'audience se décide en choisissant la destination : « partagé » et
+    « transmis au bureau » n'exposent pas au même monde, et le choix se fait
+    dans la liste, pas dans l'encart."""
+    alice = _membre("alice")
+    source = _dossier_membre(alice, Visibilite.PRIVE, nom="Brouillons")
+    _dossier_membre(alice, Visibilite.PARTAGE, nom="Troupe")
+    _dossier_membre(alice, Visibilite.BUREAU, nom="Transmis")
+    client.force_login(alice.user)
+
+    corps = client.get(f"/espace/fichiers/{source.pk}/deplacer/").content.decode()
+
+    assert "Partagé (toute la troupe)" in corps
+    assert "Transmis au bureau" in corps
+
+
+def test_deplacer_vers_la_branche_bureau_expose_au_bureau(client, db):
+    """La troisième audience, que l'écran passait sous silence."""
+    alice = _membre("alice")
+    prive = _dossier_membre(alice, Visibilite.PRIVE, nom="Brouillons")
+    enfant = _dossier_membre(alice, Visibilite.PRIVE, parent=prive, nom="Notes")
+    bureau = _dossier_membre(alice, Visibilite.BUREAU, nom="Transmis")
+    client.force_login(alice.user)
+
+    client.post(f"/espace/fichiers/{prive.pk}/deplacer/", {"parent": bureau.pk})
+
+    prive.refresh_from_db()
+    enfant.refresh_from_db()
+    assert prive.visibilite == Visibilite.BUREAU
+    assert enfant.visibilite == Visibilite.BUREAU
+
+
+def test_l_ecran_d_un_dossier_mene_a_son_deplacement(client, db):
+    """Une fonction qu'aucun écran ne propose n'existe pas pour l'utilisateur."""
+    alice = _membre("alice")
+    dossier = _dossier_membre(alice, Visibilite.PRIVE, nom="Photos")
+    client.force_login(alice.user)
+
+    corps = client.get(f"/espace/fichiers/{dossier.pk}/").content.decode()
+
+    assert f"/espace/fichiers/{dossier.pk}/deplacer/" in corps
+
+
+def test_le_lecteur_sans_droit_d_ecriture_ne_voit_pas_le_deplacement(client, db):
+    """Le lien suit `peut_ecrire` : un membre qui consulte un dossier commun en
+    lecture ne doit pas se voir proposer de le déranger."""
+    alice = _membre("alice")
+    officiel = doc_services.creer_dossier_association(nom="Statuts")
+    client.force_login(alice.user)
+
+    # Un membre non-bureau n'atteint même pas l'écran d'un dossier officiel.
+    assert client.get(f"/espace/fichiers/{officiel.pk}/deplacer/").status_code == 404

@@ -177,6 +177,12 @@ class _ChampDossierArborescent(forms.ModelChoiceField):
 
     def label_from_instance(self, obj):
         indentation = "\u00a0\u00a0\u00a0\u00a0" * (obj.depth - 1)
+        # Dans l'espace personnel, la destination DÉCIDE de la confidentialité
+        # du dossier déplacé. La taire jusqu'à l'encart général reviendrait à
+        # faire choisir à l'aveugle entre « partagé avec la troupe » et
+        # « transmis au bureau » — deux audiences très différentes.
+        if obj.espace == Dossier.Espace.PERSO:
+            return f"{indentation}{obj.nom} — {obj.get_visibilite_display()}"
         return f"{indentation}{obj.nom}"
 
 
