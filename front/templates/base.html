@@ -46,7 +46,7 @@
           type="button"
           class="site-burger"
           data-bascule-nav
-          aria-controls="{% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %}nav-espace{% else %}site-nav{% endif %}"
+          aria-controls="{% if dans_espace_connecte %}nav-espace{% else %}site-nav{% endif %}"
           aria-expanded="true"
           hidden
         >
@@ -54,14 +54,15 @@
         </button>
         <nav id="site-nav" aria-label="Navigation principale">
           <ul class="site-nav">
-            <li><a href="{% url 'vitrine:accueil' %}">Accueil</a></li>
-            <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
-            <li><a href="{% url 'vitrine:spectacles' %}">Spectacles</a></li>
-            <li><a href="{% url 'vitrine:agenda' %}">Agenda</a></li>
-            <li><a href="{% url 'vitrine:galerie' %}">Galerie</a></li>
-            <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
-            {% if request.user.is_authenticated %}
-              <li><a href="{% url 'espace_membre:tableau_de_bord' %}">Mon espace</a></li>
+            {% comment %}
+              Dans l'espace connecté, le rail latéral porte déjà la navigation :
+              déployer en plus les six liens publics mettait deux navigations
+              concurrentes à l'écran. Une seule porte suffit — le site public
+              rouvre sa nav complète dès qu'on la franchit. En mobile, le tiroir
+              (`_nav_espace.html`, groupe « Le site ») garde les six liens.
+            {% endcomment %}
+            {% if dans_espace_connecte %}
+              <li><a href="{% url 'vitrine:accueil' %}">Voir le site</a></li>
               <li>
                 <form
                   method="post"
@@ -73,14 +74,34 @@
                 </form>
               </li>
             {% else %}
-              <li><a href="{% url 'espace_membre:connexion' %}">Connexion</a></li>
+              <li><a href="{% url 'vitrine:accueil' %}">Accueil</a></li>
+              <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
+              <li><a href="{% url 'vitrine:spectacles' %}">Spectacles</a></li>
+              <li><a href="{% url 'vitrine:agenda' %}">Agenda</a></li>
+              <li><a href="{% url 'vitrine:galerie' %}">Galerie</a></li>
+              <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
+              {% if request.user.is_authenticated %}
+                <li><a href="{% url 'espace_membre:tableau_de_bord' %}">Mon espace</a></li>
+                <li>
+                  <form
+                    method="post"
+                    action="{% url 'espace_membre:deconnexion' %}"
+                    class="nav-deconnexion"
+                  >
+                    {% csrf_token %}
+                    <button type="submit">Déconnexion</button>
+                  </form>
+                </li>
+              {% else %}
+                <li><a href="{% url 'espace_membre:connexion' %}">Connexion</a></li>
+              {% endif %}
             {% endif %}
           </ul>
         </nav>
       </div>
     </header>
 
-    <div class="conteneur espace-grille{% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %} espace-grille--avec-nav{% endif %}">
+    <div class="conteneur espace-grille{% if dans_espace_connecte %} espace-grille--avec-nav{% endif %}">
       {% if request.user.is_authenticated and request.resolver_match and request.resolver_match.namespace in 'espace_membre backoffice' %}
         <aside class="espace-grille__nav">
           {% include "_nav_espace.html" %}

@@ -1045,3 +1045,13 @@ def test_les_interlocuteurs_publics_apparaissent(client, db):
     assert "Camille Roux" in corps
     assert "resa@improliante.test" in corps
     assert "Presse" in corps
+
+
+def test_l_entete_public_garde_sa_navigation(client, db):
+    """Le repli de l'en-tête ne vaut QUE dans l'espace connecté : sur la vitrine,
+    la navigation complète reste en place."""
+    entete = client.get("/").content.decode().split("<header", 1)[1].split("</header>", 1)[0]
+
+    for lien in ("Accueil", "L'association", "Spectacles", "Agenda", "Galerie", "Contact"):
+        assert lien in entete, lien
+    assert "Voir le site" not in entete

@@ -50,10 +50,12 @@
 
   document.querySelectorAll("[data-bascule-nav]").forEach(activer);
 
-  // Groupes repliables de la nav de l'espace (<details>). Sur petit écran, seul
-  // le groupe de la page courante reste ouvert (le reste est replié pour tenir
-  // dans le tiroir). Sur grand écran, tous les groupes sont dépliés (rail
-  // latéral). Sans JS, tous restent ouverts (attribut `open` du gabarit).
+  // Groupes repliables de la nav de l'espace (<details>). Seul le groupe de la
+  // page courante reste ouvert — en mobile comme en desktop. Le rail comptait
+  // 19 entrées dépliées en permanence pour un membre du bureau, dont la
+  // dernière tombait 406 px sous le pli d'un portable : il fallait faire
+  // défiler la page pour atteindre « Paramètres ». Sans JS, tous les groupes
+  // restent ouverts (attribut `open` du gabarit) : rien n'est inatteignable.
   function gererGroupes() {
     var groupes = document.querySelectorAll(
       "#nav-espace details.nav-espace__groupe"
@@ -62,37 +64,22 @@
       return;
     }
 
-    // Desktop : le rail reste toujours déplié. Le CSS neutralise la souris
-    // (pointer-events), mais pas le clavier (Entrée sur le summary) : on bloque
-    // donc le repli ici. En mobile, le repli fonctionne normalement.
+    var courant = null;
     groupes.forEach(function (details) {
-      var resume = details.querySelector("summary");
-      if (resume) {
-        resume.addEventListener("click", function (evenement) {
-          if (!petitEcran.matches) {
-            evenement.preventDefault();
-          }
-        });
+      if (details.querySelector('[aria-current="page"]')) {
+        courant = details;
       }
     });
-
-    function synchroniser() {
-      groupes.forEach(function (details) {
-        if (petitEcran.matches) {
-          details.open = !!details.querySelector('[aria-current="page"]');
-        } else {
-          details.open = true;
-        }
-      });
+    // Écran atteint sans entrée de rail correspondante (formulaire profond,
+    // fiche de détail) : ouvrir le premier groupe utile plutôt qu'un rail muet.
+    if (!courant) {
+      courant = document.querySelector(
+        "#nav-espace details.nav-espace__groupe:not(.nav-espace__groupe--site)"
+      );
     }
-
-    if (petitEcran.addEventListener) {
-      petitEcran.addEventListener("change", synchroniser);
-    } else if (petitEcran.addListener) {
-      petitEcran.addListener(synchroniser);
-    }
-
-    synchroniser();
+    groupes.forEach(function (details) {
+      details.open = details === courant;
+    });
   }
 
   gererGroupes();

@@ -111,6 +111,7 @@ from .forms import (
 )
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
+Publie = Spectacle.StatutModeration.PUBLIE
 
 
 def paginer(request, objets, par_page=20):
@@ -159,8 +160,85 @@ def tableau_de_bord(request):
         "reunions_a_venir": Reunion.objects.filter(
             statut=Reunion.Statut.CONVOQUEE, date__gte=timezone.now()
         ).count(),
+        "en_attente": _fiches_en_attente(),
+        "echeances": _prochaines_echeances(),
     }
     return render(request, "backoffice/tableau_de_bord.html", contexte)
+
+
+def _fiches_en_attente(limite=6):
+    """Ce qui attend une décision du bureau, projets et événements mêlés.
+
+    Le tableau de bord montrait dix cartes qui rouvraient les entrées du rail :
+    la même navigation deux fois à l'écran. Il montre désormais l'état — ce qui
+    attend, ce qui arrive — et laisse la navigation au rail.
+    """
+    fiches = []
+    for objet in Spectacle.objects.filter(statut_moderation=Propose).order_by("date_modification")[
+        :limite
+    ]:
+        fiches.append(
+            {
+                "titre": objet.titre,
+                "genre": "Projet",
+                "motif": "proposé",
+                "quand": objet.date_modification,
+            }
+        )
+    for objet in Evenement.objects.filter(statut_moderation=Propose).order_by("date_debut")[
+        :limite
+    ]:
+        fiches.append(
+            {
+                "titre": objet.titre,
+                "genre": "Événement",
+                "motif": "proposé",
+                "quand": objet.date_modification,
+            }
+        )
+    for objet in Spectacle.objects.filter(modifie_apres_publication=True).order_by(
+        "-date_modification"
+    )[:limite]:
+        fiches.append(
+            {
+                "titre": objet.titre,
+                "genre": "Projet",
+                "motif": "retouché après publication",
+                "quand": objet.date_modification,
+            }
+        )
+    for objet in Evenement.objects.filter(modifie_apres_publication=True).order_by(
+        "-date_modification"
+    )[:limite]:
+        fiches.append(
+            {
+                "titre": objet.titre,
+                "genre": "Événement",
+                "motif": "retouché après publication",
+                "quand": objet.date_modification,
+            }
+        )
+    fiches.sort(key=lambda f: f["quand"])
+    return fiches[:limite]
+
+
+def _prochaines_echeances(limite=6):
+    """Réunions convoquées et dates publiées à venir, dans l'ordre du calendrier."""
+    maintenant = timezone.now()
+    echeances = [
+        {"titre": r.titre, "genre": "Réunion", "quand": r.date}
+        for r in Reunion.objects.filter(
+            statut=Reunion.Statut.CONVOQUEE, date__gte=maintenant
+        ).order_by("date")[:limite]
+    ]
+    echeances += [
+        {"titre": e.titre, "genre": "Date", "quand": e.date_debut}
+        for e in Evenement.objects.filter(
+            statut_moderation=Publie, date_debut__gte=maintenant
+        ).order_by("date_debut")[:limite]
+    ]
+    echeances.sort(key=lambda e: e["quand"])
+    return echeances[:limite]
 
 
 @bureau_requis

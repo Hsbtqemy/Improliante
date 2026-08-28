@@ -725,15 +725,6 @@ summary.nav-espace__titre::after {
   .nav-espace__groupe--site {
     display: none;
   }
-  /* Rail latéral : groupes toujours dépliés et non repliables (JS force `open`,
-     CSS neutralise le clic et masque le chevron). */
-  .espace-grille__nav summary.nav-espace__titre {
-    cursor: default;
-    pointer-events: none;
-  }
-  .espace-grille__nav summary.nav-espace__titre::after {
-    display: none;
-  }
 }
 /* Déconnexion présentée comme un lien de la nav (dans le groupe « Le site »). */
 .nav-espace__deco {
@@ -4035,6 +4026,42 @@ html.contraste.sombre .viz {
      dans un encart il pousserait le titre hors de sa boîte. */
   margin: 0 0 0.6rem;
   font-size: 1.1rem;
+}
+
+/* Liste d'état du tableau de bord : genre · titre · note · date. Une ligne
+   dit CE QUI EST, pas où aller — les destinations restent dans le rail. */
+.liste-etat {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  border-top: 1px solid var(--bordure);
+}
+.liste-etat__ligne {
+  display: grid;
+  gap: 0.15rem 0.9rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--bordure);
+}
+.liste-etat__genre {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--couleur-lien);
+}
+.liste-etat__titre {
+  font-weight: 600;
+}
+.liste-etat__note,
+.liste-etat__quand {
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+}
+@media (min-width: 40rem) {
+  .liste-etat__ligne {
+    grid-template-columns: 7rem 1fr auto auto;
+    align-items: baseline;
+  }
 }
 
 /* Coordonnées publiques (page Contact) : étiquette + valeur, en colonnes dès

@@ -30,81 +30,47 @@
     </div>
   </div>
 
-  <h2>Modules</h2>
-  <ul class="actions-rapides" aria-label="Modules du back-office">
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:file_moderation' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-bouclier"></use></svg></span>
-        Modération
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:facturation' %}?onglet=devis">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-document-check"></use></svg></span>
-        Devis
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:facturation' %}?onglet=factures">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg></span>
-        Factures
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:liste_recus' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-ruban"></use></svg></span>
-        Reçus fiscaux
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'espace_membre:mes_fichiers' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg></span>
-        Documents
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:budget_transactions' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg></span>
-        Budget
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:gouvernance_reunions' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-balance"></use></svg></span>
-        Gouvernance
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-  </ul>
+  {% comment %}
+    Ici vivaient deux grilles de cartes — « Modules » et « Réglages » — qui
+    rouvraient dix entrées déjà présentes dans le rail : sept des huit liens de
+    la page y figuraient à l'identique. Le tableau de bord montre maintenant
+    l'ÉTAT (ce qui attend, ce qui arrive) et laisse les portes au rail.
+  {% endcomment %}
 
-  <h2>Réglages</h2>
-  <ul class="actions-rapides" aria-label="Réglages du back-office">
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:parametres_association' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-batiment"></use></svg></span>
-        Paramètres de l'association
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:liste_membres' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg></span>
-        Membres
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-    <li>
-      <a class="action-carte" href="{% url 'backoffice:equipe_bureau' %}">
-        <span class="action-carte__ico"><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg></span>
-        Équipe du bureau
-        <span class="action-carte__fleche" aria-hidden="true">→</span>
-      </a>
-    </li>
-  </ul>
+  <section aria-labelledby="titre-attente">
+    <h2 id="titre-attente">En attente d'une décision</h2>
+    {% if en_attente %}
+      <ul class="liste-etat">
+        {% for fiche in en_attente %}
+          <li class="liste-etat__ligne">
+            <span class="liste-etat__genre">{{ fiche.genre }}</span>
+            <span class="liste-etat__titre">{{ fiche.titre }}</span>
+            <span class="liste-etat__note">{{ fiche.motif }}</span>
+            <time class="liste-etat__quand" datetime="{{ fiche.quand|date:"c" }}">{{ fiche.quand|date:"d/m/Y" }}</time>
+          </li>
+        {% endfor %}
+      </ul>
+      <p><a href="{% url 'backoffice:file_moderation' %}">Ouvrir la file de modération →</a></p>
+    {% else %}
+      <p>Rien n'attend de décision.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-echeances">
+    <h2 id="titre-echeances">Ce qui arrive</h2>
+    {% if echeances %}
+      <ul class="liste-etat">
+        {% for echeance in echeances %}
+          <li class="liste-etat__ligne">
+            <span class="liste-etat__genre">{{ echeance.genre }}</span>
+            <span class="liste-etat__titre">{{ echeance.titre }}</span>
+            <span class="liste-etat__note"></span>
+            <time class="liste-etat__quand" datetime="{{ echeance.quand|date:"c" }}">{{ echeance.quand|date:"d/m/Y" }}</time>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Aucune réunion convoquée ni date publiée à venir.</p>
+    {% endif %}
+  </section>
 {% endblock %}

@@ -2184,3 +2184,57 @@ def test_le_bureau_ajoute_un_interlocuteur_public(client, db):
     assert ParametresAssociation.load().email_public == "bonjour@improliante.test"
     contact = ContactPublic.objects.get()
     assert (contact.role, contact.nom) == ("Réservations", "Camille Roux")
+
+
+# --- Densité de l'espace connecté -------------------------------------------
+#
+# Mesuré avant correction sur le tableau de bord bureau : 37 cibles de
+# navigation à l'écran (8 en-tête + 19 rail + 10 cartes « Modules ») pour 4
+# tuiles d'information, et 7 des 8 liens de la page dupliquaient le rail.
+
+
+def test_l_entete_ne_deploie_pas_la_nav_publique_dans_l_espace_connecte(client, db):
+    """Le rail porte déjà la navigation : déployer en plus les six liens publics
+    mettait deux navigations concurrentes à l'écran."""
+    client.force_login(_staff())
+
+    corps = client.get("/bureau/").content.decode()
+    entete = corps.split("<header", 1)[1].split("</header>", 1)[0]
+
+    assert "Voir le site" in entete
+    for lien_public in ("Galerie", "Spectacles", "Agenda", "L'association"):
+        assert lien_public not in entete, lien_public
+
+
+def test_le_tableau_de_bord_ne_reprend_plus_les_entrees_du_rail(client, db):
+    """La grille « Modules » rouvrait dix destinations déjà dans le rail. Le
+    tableau de bord montre l'état, le rail garde les portes."""
+    import re
+
+    client.force_login(_staff())
+    corps = client.get("/bureau/").content.decode()
+    rail = corps.split('<nav id="nav-espace"', 1)[1].split("</nav>", 1)[0]
+    contenu = corps.split('<main id="contenu"', 1)[1].split("</main>", 1)[0]
+
+    def cibles(texte):
+        return set(re.findall(r'href="(/[^"#?]*)"', texte))
+
+    communes = cibles(rail) & cibles(contenu)
+
+    assert "Modules" not in contenu
+    # Une ou deux destinations partagées restent légitimes (la file de
+    # modération, vers laquelle le tableau de bord renvoie explicitement) ;
+    # dix, c'était la navigation en double.
+    assert len(communes) <= 2, sorted(communes)
+
+
+def test_le_tableau_de_bord_nomme_ce_qui_attend_une_decision(client, db):
+    """Une tuile qui affiche « 3 » ne dit pas QUOI : le tableau de bord liste
+    les fiches en attente, pas seulement leur nombre."""
+    _projet_propose(titre="Cabaret de printemps")
+    client.force_login(_staff())
+
+    contenu = client.get("/bureau/").content.decode().split('<main id="contenu"', 1)[1]
+
+    assert "En attente d'une décision" in contenu
+    assert "Cabaret de printemps" in contenu
