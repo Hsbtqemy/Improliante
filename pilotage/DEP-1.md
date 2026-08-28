@@ -35,7 +35,9 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] Une requête au webhook portant une signature HMAC fausse est rejetée en 403 et laisse une trace dans le journal
 - [ ] GitHub affiche la livraison en vert : le récepteur répond `202` en moins de dix secondes, sans attendre la fin du déploiement
 - [ ] Un second push pendant un déploiement laisse « Déploiement déjà en cours » dans `deploy.log` au lieu de lancer un doublon — `flock` n'existe pas sur macOS, ce verrou n'a jamais été exécuté
-- [ ] Le socket sort bien en 0770 (`ls -l /srv/asso/run/gunicorn.sock`) : c'est `--umask 007` qui l'obtient, et son absence donnait un 502 systématique
+- [ ] Le socket sort bien en 0770 (`ls -l /srv/asso/run/gunicorn.sock`) : c'est `--umask 0o007` qui l'obtient, et son absence donnait un 502 systématique — la forme `007` ferait échouer le démarrage de Gunicorn, qui la passe à `int(val, 0)`
+- [ ] `staticfiles.json` existe après déploiement et `/static/css/site.<empreinte>.css` répond 200 : sans le manifeste, chaque `{% static %}` lève une erreur et toutes les pages rendent 500
+- [ ] Un second déploiement ne casse pas les pages déjà ouvertes : `collectstatic` tourne SANS `--clear`, les anciens fichiers empreintés restent servis
 
 ### Sauvegardes
 - [ ] `backup.sh` tourne en cron et dépose un dump daté sur Swiss Backup — l'externalisation est demandée dès le départ (cahier §14)
