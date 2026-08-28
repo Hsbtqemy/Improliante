@@ -3317,12 +3317,14 @@ summary.lien-bouton::-webkit-details-marker {
 }
 
 /* =========================================================================
-   THÈMES DE TEST — palettes & dosage du sombre (bascule ?theme=1..12, dev only)
+   THÈMES DE TEST — palettes & dosage du sombre (bascule ?theme=1..18, dev only)
    À figer sur le choix retenu, puis retirer le sélecteur + les variantes.
    Rail : sombre par défaut ; « rail clair » = bundle de tokens partagé.
    1 bordeaux chaud · 2 sombre chaud · 3 clair · 4 prune/rose · 5 nuit bleue ·
    6 charbon/corail · 7 forêt/terracotta · 8 bleu canard/cuivre · 9 indigo/or ·
-   10 olive/ambre · 11 rouille/sable · 12 encre neutre/rouge sec
+   10 olive/ambre · 11 rouille/sable · 12 encre neutre/rouge sec ·
+   13 magenta/cyan · 14 violet/lime · 15 bleu électrique/jaune ·
+   16 rouge vif/turquoise · 17 vert néon/jaune acide · 18 orange sanguine/ciel
 
    Toute palette doit franchir les seuils AA mesurés par
    `apps/vitrine/tests.py::test_les_palettes_respectent_le_contraste_AA`.
@@ -3337,7 +3339,13 @@ html[data-theme="8"],
 html[data-theme="9"],
 html[data-theme="10"],
 html[data-theme="11"],
-html[data-theme="12"] {
+html[data-theme="12"],
+html[data-theme="13"],
+html[data-theme="14"],
+html[data-theme="15"],
+html[data-theme="16"],
+html[data-theme="17"],
+html[data-theme="18"] {
   --rail-bg: var(--surface-alt);
   --rail-bordure: var(--bordure);
   --rail-texte: var(--couleur-texte);
@@ -3448,6 +3456,74 @@ html[data-theme="12"] {
   --couleur-primaire-clair: #ecebee;
   --couleur-lien: #3a353d;
   --accent: #e06a55;
+}
+
+/* --- Palettes vives : chroma maximale tenant encore les seuils AA ---------
+   Calculées en OKLCh plutôt que choisies à l'œil : pour chaque teinte, la
+   couleur la plus saturée qui franchisse encore sa contrainte (blanc sur la
+   primaire, lien sur le canvas, encre sur l'accent). L'accent doit porter du
+   texte d'encre, donc rester CLAIR : ce sont les jaunes-verts et les cyans qui
+   restent chromatiques à cette clarté — un magenta clair vire au rose pâle,
+   d'où le jaune acide de la 17 plutôt que le magenta espéré. */
+
+/* 13 — magenta électrique & cyan · rail clair */
+html[data-theme="13"] {
+  --ink: #810754;
+  --couleur-primaire: #dc1392;
+  --couleur-primaire-vif: #fb22a8;
+  --couleur-primaire-clair: #f6e2eb;
+  --couleur-lien: #c00f7f;
+  --accent: #28fefe;
+}
+
+/* 14 — violet électrique & lime · rail clair */
+html[data-theme="14"] {
+  --ink: #5f09a7;
+  --couleur-primaire: #9215fb;
+  --couleur-primaire-vif: #a76dfa;
+  --couleur-primaire-clair: #ebe6f6;
+  --couleur-lien: #9014f8;
+  --accent: #abfe23;
+}
+
+/* 15 — bleu électrique & jaune · rail clair */
+html[data-theme="15"] {
+  --ink: #0a0fda;
+  --couleur-primaire: #0d14fa;
+  --couleur-primaire-vif: #5e8cfa;
+  --couleur-primaire-clair: #ccd8ef;
+  --couleur-lien: #0d14fa;
+  --accent: #fed621;
+}
+
+/* 16 — rouge vif & turquoise · rail clair */
+html[data-theme="16"] {
+  --ink: #880715;
+  --couleur-primaire: #e7142b;
+  --couleur-primaire-vif: #fb4749;
+  --couleur-primaire-clair: #f6e4e2;
+  --couleur-lien: #cb1024;
+  --accent: #27fef5;
+}
+
+/* 17 — vert néon & jaune acide · rail clair */
+html[data-theme="17"] {
+  --ink: #044d21;
+  --couleur-primaire: #0e873f;
+  --couleur-primaire-vif: #1fae55;
+  --couleur-primaire-clair: #bbf5c5;
+  --couleur-lien: #0b7535;
+  --accent: #fee322;
+}
+
+/* 18 — orange sanguine & ciel · rail clair */
+html[data-theme="18"] {
+  --ink: #722d04;
+  --couleur-primaire: #c3520d;
+  --couleur-primaire-vif: #e76519;
+  --couleur-primaire-clair: #f6e4dc;
+  --couleur-lien: #aa4709;
+  --accent: #2fbbfd;
 }
 
 /* 3 — clair : en-tête bordeaux, hero crème, pied bordeaux (rail clair) */
