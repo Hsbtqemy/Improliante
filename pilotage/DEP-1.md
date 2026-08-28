@@ -6,7 +6,8 @@ statut: interrompu
 # DEP-1 — déploiement VPS
 
 **Arrêté sur** — audit des six fichiers de `deploiement/` face à `config/settings.py`,
-six défauts corrigés dont quatre bloquants, commit `1146628`, 28 août. Rien n'est encore
+six défauts corrigés dont quatre bloquants, puis l'audit lui-même relu et deux de
+ses corrections refaites, commit `5a673b6`, 28 août. Rien n'est encore
 provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 
 ## Reste
@@ -15,6 +16,7 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] PostgreSQL répond sur le VPS, avec la base et le rôle de l'application créés — `psql -c 'select version()'` sort une version, pas une erreur de socket
 - [ ] Les libs natives de WeasyPrint sont installées (libpango, libcairo, libgdk-pixbuf, libffi) — `python -c "import weasyprint"` passe sans trace d'appel manquant
 - [ ] L'utilisateur `deploy` existe et possède `/srv/asso/{app,venv,run,logs}`, groupe `www-data` — l'arborescence attendue par `asso.service`
+- [ ] La règle sudoers est installée et vérifiée : `sudo -n /bin/systemctl restart asso` passe depuis `deploy`, `… restart nginx` est refusé — fichier `deploiement/sudoers-asso-deploy`
 
 ### Application
 - [ ] `/srv/asso/app.env` porte `DJANGO_SECRET_KEY` et les `DB_*`, en mode 0600, hors dépôt — règle 3 de CLAUDE.md, vérifiée par un `git check-ignore` et un `stat`
@@ -36,6 +38,7 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 
 ### Sauvegardes
 - [ ] `backup.sh` tourne en cron et dépose un dump daté sur Swiss Backup — l'externalisation est demandée dès le départ (cahier §14)
+- [ ] `pg_dump` s'authentifie sans terminal : crontab de `postgres`, ou `.pgpass` en 0600 — sinon la sauvegarde échoue chaque nuit sans bruit
 - [ ] Une restauration d'essai repart d'un dump : la base restaurée porte les dernières adhésions, pas un schéma vide
 - [ ] L'archive des médias contient `media` **et** `media_prive` — `tar tzf` le montre ; sans le privé, ni facture ni reçu fiscal n'est sauvegardé
 - [ ] `RCLONE_REMOTE` est renseigné : sans lui le script crie sur stderr et les sauvegardes restent sur le VPS
@@ -79,3 +82,27 @@ ci-dessus restent donc entières — l'audit réduit le risque, il ne le remplac
 Ce qu'il faut pour reprendre : un VPS joignable en `ssh`, un nom de domaine pointant
 dessus, et les valeurs de `app.env` (`DJANGO_SECRET_KEY`, `DB_*`,
 `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`).
+
+## Relecture de l'audit (même jour)
+
+L'audit a été relu à froid, et **deux de ses six corrections étaient fausses** — vues en
+les éprouvant, pas en les relisant.
+
+`--umask 007` empêchait Gunicorn de démarrer : la valeur passe par `int(valeur, 0)`, et
+Python 3 refuse l'octal à l'ancienne. La correction censée éviter un 502 installait donc
+une panne plus grave. La forme juste est `0o007`.
+
+Le témoin d'installation des dépendances ne corrigeait rien : après un `git clone`, HEAD
+existe et ne bouge pas au `reset`, si bien que la comparaison concluait « inchangées » sur
+un venv nu, exactement comme la version qu'elle remplaçait. La bonne question n'était pas
+« le dépôt a-t-il bougé ? » mais « le venv correspond-il au fichier ? » — c'est une
+empreinte sha256 qui y répond désormais.
+
+S'y ajoute un manque : la règle sudoers n'existait nulle part. `deploy.sh` renvoyait au
+cahier, qui se contente de dire qu'elle existe. Elle est maintenant dans
+`deploiement/sudoers-asso-deploy`.
+
+Éprouvé pour de bon : le parsing de l'umask par Gunicorn, la logique d'empreinte sur trois
+passages, le `tar` à deux `-C`, et `check --deploy --fail-level WARNING` qui rend 0 sur une
+configuration de production réaliste tout en bloquant une clé faible. **Non éprouvé** :
+`flock`, absent de macOS — et tout le reste, qui attend une machine.
