@@ -61,6 +61,40 @@
       }
     }
 
+    // Déplacement : on échange les VALEURS entre deux lignes, jamais les <tr>.
+    // Les noms de champs d'un formset Django portent leur index (`lignes-0-…`) ;
+    // permuter les lignes dans le DOM ne changerait donc rien à ce que le
+    // serveur reçoit. En échangeant les valeurs, `_renumeroter_lignes` attribue
+    // l'ordre d'après la position d'affichage et tout retombe juste.
+    var CHAMPS_ECHANGEABLES = ["designation", "quantite", "prix_unitaire_ht", "taux_tva"];
+
+    function echangerValeurs(a, b) {
+      CHAMPS_ECHANGEABLES.forEach(function (suffixe) {
+        var ca = a.querySelector('[name$="-' + suffixe + '"]');
+        var cb = b.querySelector('[name$="-' + suffixe + '"]');
+        if (ca && cb) {
+          var tampon = ca.value;
+          ca.value = cb.value;
+          cb.value = tampon;
+        }
+      });
+    }
+
+    function deplacer(tr, versLeHaut, selecteurBouton) {
+      var voisine = versLeHaut ? tr.previousElementSibling : tr.nextElementSibling;
+      if (!voisine) {
+        return;
+      }
+      echangerValeurs(tr, voisine);
+      recalculer();
+      // Le contenu a changé de ligne : le focus suit ce que la personne
+      // déplaçait, pas la position qu'elle occupait.
+      var suivant = voisine.querySelector(selecteurBouton);
+      if (suivant) {
+        suivant.focus();
+      }
+    }
+
     function preparerLigne(tr) {
       var del = tr.querySelector('input[type="checkbox"][name$="-DELETE"]');
       var bouton = tr.querySelector("[data-supprimer-ligne]");
@@ -77,6 +111,21 @@
         bouton.setAttribute("aria-pressed", String(del.checked));
         recalculer();
       });
+
+      var monter = tr.querySelector("[data-monter-ligne]");
+      var descendre = tr.querySelector("[data-descendre-ligne]");
+      if (monter) {
+        monter.hidden = false;
+        monter.addEventListener("click", function () {
+          deplacer(tr, true, "[data-monter-ligne]");
+        });
+      }
+      if (descendre) {
+        descendre.hidden = false;
+        descendre.addEventListener("click", function () {
+          deplacer(tr, false, "[data-descendre-ligne]");
+        });
+      }
     }
 
     function ajouterLigne() {

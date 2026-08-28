@@ -64,6 +64,7 @@ from apps.facturation.services import (
     FactureNonAvoirable,
     assurer_pdf_facture,
     creer_avoir,
+    dupliquer_facture,
     numeroter_devis,
     pdf_de_devis,
     pdf_de_facture,
@@ -909,6 +910,20 @@ def creer_avoir_vue(request, pk):
         request, "Avoir créé (brouillon). Vérifiez les lignes, puis validez pour le numéroter."
     )
     return redirect("backoffice:editer_facture", pk=avoir.pk)
+
+
+@bureau_requis
+@require_POST
+def dupliquer_facture_vue(request, pk):
+    """Recopie une facture (ou un avoir) en brouillon, prêt à être ajusté."""
+    facture = get_object_or_404(Facture, pk=pk)
+    copie = dupliquer_facture(facture)
+    messages.success(
+        request,
+        "Copie créée en brouillon. Ajustez-la, puis validez-la pour lui "
+        "attribuer son propre numéro.",
+    )
+    return redirect("backoffice:editer_facture", pk=copie.pk)
 
 
 @bureau_requis

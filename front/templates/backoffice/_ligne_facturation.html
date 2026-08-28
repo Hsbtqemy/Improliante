@@ -18,6 +18,25 @@ supprimée à l'enregistrement ; une ligne vide est simplement ignorée).
   <td>{{ ligne.prix_unitaire_ht }}</td>
   <td>{{ ligne.taux_tva }}</td>
   <td class="ligne-facturation__suppr">
+    {% comment %}
+      Déplacement : boutons révélés par JS seulement. Sans JS, l'ordre reste
+      celui de la saisie — `_renumeroter_lignes` le fixe déjà côté serveur
+      d'après la position d'affichage, il n'y a donc rien à rattraper.
+    {% endcomment %}
+    <button
+      type="button"
+      class="ligne-facturation__deplacer"
+      data-monter-ligne
+      aria-label="Monter cette ligne"
+      hidden
+    >▲</button>
+    <button
+      type="button"
+      class="ligne-facturation__deplacer"
+      data-descendre-ligne
+      aria-label="Descendre cette ligne"
+      hidden
+    >▼</button>
     <label class="ligne-facturation__del">{{ ligne.DELETE }} Retirer</label>
     <button
       type="button"

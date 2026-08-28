@@ -97,6 +97,43 @@ def creer_avoir(facture: Facture) -> Facture:
     return avoir
 
 
+@transaction.atomic
+def dupliquer_facture(facture: Facture) -> Facture:
+    """Recopie une facture en un BROUILLON neuf, prêt à être ajusté.
+
+    Le geste courant d'un trésorier : la même prestation revient d'une saison à
+    l'autre, avec deux chiffres à changer. Le copier à la main, c'est risquer
+    d'oublier une ligne.
+
+    Ce que la copie NE reprend PAS est le cœur de la fonction, et découle de la
+    règle 4 : ni le numéro, ni le statut, ni la date d'émission, ni le lien
+    d'avoir. Une pièce dupliquée est un brouillon sans identité légale, qui
+    recevra son propre numéro à SA validation — reprendre le numéro d'origine
+    créerait un doublon dans une série qui doit rester unique et continue.
+
+    Un avoir se duplique aussi : le résultat est un brouillon de même type,
+    mais détaché de la facture annulée, car un avoir ne s'annule pas deux fois.
+    """
+    copie = Facture.objects.create(
+        client=facture.client,
+        type_piece=facture.type_piece,
+        objet=facture.objet,
+        mentions_legales=facture.mentions_legales,
+        signataire=facture.signataire,
+        # `avoir_de` volontairement omis : la copie ne rejoue pas l'annulation.
+    )
+    for ligne in facture.lignes.all():
+        LigneFacture.objects.create(
+            facture=copie,
+            designation=ligne.designation,
+            quantite=ligne.quantite,
+            prix_unitaire_ht=ligne.prix_unitaire_ht,
+            taux_tva=ligne.taux_tva,
+            ordre=ligne.ordre,
+        )
+    return copie
+
+
 def pdf_de_facture(facture: Facture, *, apercu: bool = False) -> bytes:
     """Rend le PDF d'une facture. `apercu=True` produit un brouillon filigrané
     « sans valeur » (dry-run avant validation), sans numéro légal."""

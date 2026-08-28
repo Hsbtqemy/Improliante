@@ -3746,3 +3746,18 @@ html.contraste.sombre .viz {
 .encart p:last-child {
   margin-bottom: 0;
 }
+
+/* Boutons de déplacement d'une ligne de facture / devis (révélés par JS). */
+.ligne-facturation__deplacer {
+  border: 1px solid var(--bordure);
+  background: var(--surface);
+  color: var(--couleur-texte);
+  border-radius: var(--rayon);
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+  line-height: 1.2;
+}
+.ligne-facturation__deplacer:hover {
+  border-color: var(--couleur-primaire);
+  color: var(--couleur-primaire);
+}

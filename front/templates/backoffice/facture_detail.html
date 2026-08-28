@@ -63,6 +63,19 @@
     <a class="lien-bouton" href="{% url 'backoffice:facturation' %}?onglet=factures">Retour à la liste</a>
   </p>
 
+  <section aria-labelledby="titre-dupliquer">
+    <h2 id="titre-dupliquer">Réutiliser</h2>
+    <p class="carte-projet__meta">
+      La même prestation revient d'une saison à l'autre ? Recopiez cette pièce en
+      brouillon : les lignes sont reprises, mais ni le numéro ni la date — la copie
+      recevra son propre numéro à sa validation.
+    </p>
+    <form method="post" action="{% url 'backoffice:dupliquer_facture' pk=facture.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="lien-bouton">Dupliquer en brouillon</button>
+    </form>
+  </section>
+
   {% if facture.type_piece != "avoir" %}
     <section aria-labelledby="titre-avoir">
       <h2 id="titre-avoir">Correction</h2>

@@ -22,6 +22,7 @@ from apps.facturation.services import (
     FactureDejaValidee,
     FactureNonAvoirable,
     creer_avoir,
+    dupliquer_facture,
     numeroter_devis,
     pdf_de_facture,
     transformer_en_facture,
@@ -292,3 +293,86 @@ def test_la_numerotation_tient_sous_validations_simultanees():
     numeros = sorted(Facture.objects.exclude(numero=None).values_list("numero", flat=True))
     attendus = [f"F2026-{i:04d}" for i in range(1, NB_VALIDATIONS_SIMULTANEES + 1)]
     assert numeros == attendus, "numérotation trouée ou dupliquée sous concurrence"
+
+
+# --- Duplication (FAC-1) -----------------------------------------------------
+
+
+def test_dupliquer_une_facture_rend_un_brouillon_sans_identite_legale(client_facture):
+    """Le point de vigilance : une copie ne rejoue pas le numéro. Reprendre
+    celui de l'original créerait un doublon dans une série qui doit rester
+    unique et continue (règle 4)."""
+    origine = Facture.objects.create(client=client_facture, objet="Représentation")
+    LigneFacture.objects.create(
+        facture=origine, designation="Cachet", quantite=2, prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(origine, date_emission=date(2026, 3, 1))
+    origine.refresh_from_db()
+
+    copie = dupliquer_facture(origine)
+
+    assert copie.pk != origine.pk
+    assert copie.numero is None
+    assert copie.statut == Facture.Statut.BROUILLON
+    assert copie.date is None
+    assert copie.date_validation is None
+    # L'original n'est pas touché : c'est une pièce légale déjà émise.
+    assert origine.numero == "F2026-0001"
+
+
+def test_la_copie_reprend_les_lignes_et_leur_ordre(client_facture):
+    origine = Facture.objects.create(client=client_facture, objet="Tournée")
+    for rang, designation in enumerate(["Cachet", "Transport", "Repas"]):
+        LigneFacture.objects.create(
+            facture=origine,
+            designation=designation,
+            quantite=1,
+            prix_unitaire_ht=Decimal("100"),
+            ordre=rang,
+        )
+
+    copie = dupliquer_facture(origine)
+
+    assert [ligne.designation for ligne in copie.lignes.all()] == [
+        "Cachet",
+        "Transport",
+        "Repas",
+    ]
+    assert copie.client == origine.client
+    assert copie.objet == origine.objet
+
+
+def test_la_copie_recoit_son_propre_numero_a_sa_validation(client_facture):
+    """La série reste continue et sans trou malgré la duplication."""
+    origine = Facture.objects.create(client=client_facture)
+    valider_facture(origine, date_emission=date(2026, 3, 1))
+
+    copie = dupliquer_facture(origine)
+    valider_facture(copie, date_emission=date(2026, 3, 1))
+
+    origine.refresh_from_db()
+    copie.refresh_from_db()
+    assert [origine.numero, copie.numero] == ["F2026-0001", "F2026-0002"]
+
+
+def test_dupliquer_un_avoir_ne_le_relie_pas_a_la_facture_annulee(client_facture):
+    """Un avoir ne s'annule pas deux fois : la copie est détachée."""
+    origine = Facture.objects.create(client=client_facture)
+    valider_facture(origine, date_emission=date(2026, 3, 1))
+    avoir = creer_avoir(origine)
+
+    copie = dupliquer_facture(avoir)
+
+    assert copie.type_piece == Facture.TypePiece.AVOIR
+    assert copie.avoir_de is None
+
+
+def test_dupliquer_un_brouillon_est_possible(client_facture):
+    """Rien n'oblige à valider avant de dupliquer : préparer deux pièces
+    voisines est un usage légitime."""
+    brouillon = Facture.objects.create(client=client_facture, objet="Modèle")
+
+    copie = dupliquer_facture(brouillon)
+
+    assert copie.statut == Facture.Statut.BROUILLON
+    assert copie.objet == "Modèle"

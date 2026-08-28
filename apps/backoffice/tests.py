@@ -25,6 +25,7 @@ from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
+from apps.facturation.services import valider_facture
 from apps.gouvernance.models import (
     BlocCompteRendu,
     Pouvoir,
@@ -2048,3 +2049,93 @@ def test_la_feuille_des_inscrits_est_reservee_au_bureau(client, db):
     )
     reponse = client.get(f"/bureau/evenements/{evenement.pk}/inscriptions/")
     assert reponse.status_code in (302, 403, 404)
+
+
+# --- Duplication de facture (FAC-1) -----------------------------------------
+
+
+def test_le_bureau_duplique_une_facture_validee(client, db):
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c, objet="Représentation")
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", quantite=2, prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    client.force_login(_staff())
+
+    reponse = client.post(f"/bureau/factures/{facture.pk}/dupliquer/")
+
+    copie = Facture.objects.exclude(pk=facture.pk).get()
+    assert reponse.status_code == 302
+    assert reponse.url == f"/bureau/factures/{copie.pk}/"
+    assert copie.numero is None
+    assert copie.lignes.count() == 1
+
+
+def test_l_ecran_d_une_facture_propose_de_la_dupliquer(client, db):
+    """Sans ce bouton, la duplication n'existerait que pour qui connaît l'URL."""
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/factures/{facture.pk}/").content.decode()
+
+    assert f"/bureau/factures/{facture.pk}/dupliquer/" in corps
+
+
+def test_la_duplication_est_reservee_au_bureau(client, db):
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    reponse = client.post(f"/bureau/factures/{facture.pk}/dupliquer/")
+    assert reponse.status_code in (302, 403, 404)
+    assert Facture.objects.count() == 1
+
+
+def test_l_ordre_des_lignes_suit_leur_position_dans_le_formulaire(client, db):
+    """L'invariant sur lequel repose le déplacement côté client : les valeurs
+    postées à l'index N deviennent la ligne N. Le JS se contente d'échanger les
+    valeurs entre deux lignes — c'est le serveur qui fixe l'ordre."""
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    client.force_login(_staff())
+
+    client.post(
+        f"/bureau/factures/{facture.pk}/",
+        {
+            "client": str(c.pk),
+            "objet": "Tournée",
+            "date_echeance": "",
+            "mentions_legales": "",
+            "signataire": "",
+            "lignes-TOTAL_FORMS": "2",
+            "lignes-INITIAL_FORMS": "0",
+            "lignes-MIN_NUM_FORMS": "0",
+            "lignes-MAX_NUM_FORMS": "1000",
+            "lignes-0-designation": "Transport",
+            "lignes-0-quantite": "1",
+            "lignes-0-prix_unitaire_ht": "80",
+            "lignes-0-taux_tva": "20",
+            "lignes-1-designation": "Cachet",
+            "lignes-1-quantite": "1",
+            "lignes-1-prix_unitaire_ht": "300",
+            "lignes-1-taux_tva": "20",
+        },
+    )
+
+    assert [ligne.designation for ligne in facture.lignes.all()] == ["Transport", "Cachet"]
+    assert [ligne.ordre for ligne in facture.lignes.all()] == [0, 1]
+
+
+def test_l_editeur_propose_de_deplacer_une_ligne(client, db):
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", quantite=1, prix_unitaire_ht=Decimal("300")
+    )
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/factures/{facture.pk}/").content.decode()
+
+    assert "data-monter-ligne" in corps
+    assert "data-descendre-ligne" in corps
