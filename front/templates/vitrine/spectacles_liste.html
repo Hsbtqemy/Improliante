@@ -30,9 +30,11 @@
       </select>
     </div>
 
-    {# Bouton toujours visible : contrôle explicite (sans JS, et pour éviter une
-       soumission-surprise au clavier — WCAG 3.2.2). Avec JS, les <select>
-       ci-dessus déclenchent aussi le filtrage à la volée. #}
+    {% comment %}
+      Bouton toujours visible : contrôle explicite (sans JS, et pour éviter une
+      soumission-surprise au clavier — WCAG 3.2.2). Avec JS, les <select>
+      ci-dessus déclenchent aussi le filtrage à la volée.
+    {% endcomment %}
     <button type="submit" class="lien-bouton">Filtrer</button>
   </form>
 

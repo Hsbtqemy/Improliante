@@ -1,7 +1,14 @@
-{# Page d'erreur serveur : VOLONTAIREMENT autonome (n'étend pas base.html).
-   Un 500 signifie qu'une brique a échoué et le rendu se fait sans contexte ni
-   context processors : on n'utilise donc ni {% url %}, ni {% static %}, ni
-   variables — tout est en dur pour rester affichable quoi qu'il arrive. #}
+{% comment %}
+Page d'erreur serveur : VOLONTAIREMENT autonome (n'étend pas base.html).
+Un 500 signifie qu'une brique a échoué et le rendu se fait sans contexte ni
+context processors : on n'utilise donc aucun tag d'URL ou de statique, ni
+variable — tout est en dur pour rester affichable quoi qu'il arrive.
+
+En `{% comment %}` et non en `{# … #}` : la syntaxe courte est MONO-LIGNE.
+Étalée sur plusieurs lignes, elle n'est plus un commentaire, et Django exécute
+ce qu'elle contient — c'est ce qui rendait cette page-ci impossible à afficher,
+la mention d'un tag d'URL dans le texte étant prise pour un vrai tag.
+{% endcomment %}
 <!doctype html>
 <html lang="fr">
   <head>

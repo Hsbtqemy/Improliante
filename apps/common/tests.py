@@ -224,3 +224,40 @@ def test_reponse_fichier_prive_delegue_a_nginx_en_prod(db, settings):
     assert reponse["X-Accel-Redirect"] == "/media-prive/" + document.fichier.name
     assert reponse.content == b""  # pas de corps : Nginx s'en charge
     assert "attachment" in reponse["Content-Disposition"]
+
+
+# --- Garde-fou sur les commentaires de gabarit ------------------------------
+
+
+def test_aucun_gabarit_n_utilise_un_commentaire_court_multiligne():
+    """`{# … #}` est MONO-LIGNE. Étalé sur plusieurs lignes, il cesse d'être un
+    commentaire : son texte s'affiche en clair, et Django exécute les tags qu'il
+    contient. C'est ce qui rendait `500.html` impossible à afficher — la page
+    d'erreur elle-même levait une TemplateSyntaxError, en production, au pire
+    moment. Le commentaire multi-ligne s'écrit `{% comment %} … {% endcomment %}`.
+    """
+    import pathlib
+
+    from django.conf import settings
+
+    fautifs = []
+    for dossier in settings.TEMPLATES[0]["DIRS"]:
+        for gabarit in sorted(pathlib.Path(dossier).rglob("*.html")):
+            for numero, ligne in enumerate(gabarit.read_text().splitlines(), 1):
+                depart = ligne.find("{#")
+                if depart != -1 and "#}" not in ligne[depart:]:
+                    fautifs.append(f"{gabarit}:{numero}")
+
+    assert not fautifs, "commentaires courts non fermés sur leur ligne : " + ", ".join(fautifs)
+
+
+def test_la_page_d_erreur_500_se_rend_sans_contexte():
+    """Un 500 survient quand une brique a lâché : la page doit s'afficher avec
+    un contexte vide, sans context processor, sans variable. La rendre ici est
+    le seul moyen de s'en assurer — aucune vue ne l'appelle en temps normal."""
+    from django.template.loader import render_to_string
+
+    html = render_to_string("500.html", {})
+
+    assert "{#" not in html and "{%" not in html  # rien de non interprété
+    assert "<html" in html
