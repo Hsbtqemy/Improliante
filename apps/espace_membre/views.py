@@ -405,8 +405,12 @@ def editer_evenement(request, pk):
     return render(
         request,
         "espace_membre/evenement_form.html",
-        {"form": form, "evenement": evenement, "editable": editable,
-         "peut_soumettre": peut_etre_soumis(evenement)},
+        {
+            "form": form,
+            "evenement": evenement,
+            "editable": editable,
+            "peut_soumettre": peut_etre_soumis(evenement),
+        },
     )
 
 
