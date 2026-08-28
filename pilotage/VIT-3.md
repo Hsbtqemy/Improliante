@@ -3,47 +3,59 @@ chantier: VIT-3
 statut: interrompu
 ---
 
-# VIT-3 — identité typographique de la vitrine
+# VIT-3 — identité visuelle de la vitrine : palette, fond, titres
 
-**Arrêté sur** — sélecteur de police de titre dans le panneau DEV, quatre
+**Arrêté sur** — sélecteur de police de titre ajouté au panneau DEV, quatre
 candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 
 ## Reste
 
 ### Arbitrages
-- [ ] Arrêter la police de titre parmi les cinq du sélecteur (système, Fraunces, Playfair, Instrument, Bricolage)
+- [ ] Arrêter la palette parmi les sept du sélecteur (A bordeaux chaud … G forêt)
+- [ ] Arrêter le fond parmi les trois (plat teinté, mesh animé, grain)
+- [ ] Arrêter la police de titre parmi les cinq (système, Fraunces, Playfair, Instrument, Bricolage)
 
-### Mise en production
+### Retrait du panneau DEV
+- [ ] Supprimer le bloc `.theme-switch` et son script de `base.html`, une fois les trois choix faits
+- [ ] Figer les trois choix dans `:root` et retirer les attributs `data-theme` / `data-fond` / `data-titre` de `<html>`
+- [ ] Purger le CSS des six palettes et des deux fonds écartés, et supprimer leurs blocs `html[data-theme=…]`
 - [ ] Ne garder que le `.woff2` retenu dans `front/static/fonts/` ; supprimer les trois autres et leurs `@font-face`
-- [ ] Retirer la rangée « Titres » du sélecteur DEV et figer `--police-titre` dans `:root`
+
+### Mise en production de la fonte
 - [ ] Sous-régler la fonte retenue sur le latin utilisé par le site, et vérifier que le fichier reste sous 30 ko
 - [ ] Précharger la fonte (`<link rel="preload" as="font" crossorigin>`) dans `base.html`
 - [ ] Calculer `size-adjust` / `ascent-override` sur la police de repli et vérifier au DevTools que le CLS des pages à gros titre reste à 0
 
 ### Vérifications
 - [ ] Contrôler le rendu des titres longs sur 375 px (« Politique de confidentialité », titres de spectacles)
-- [ ] Vérifier le contraste AA des titres sur les sept palettes du sélecteur, la fonte retenue en place
+- [ ] Vérifier le contraste AA des titres sur la palette retenue, la fonte retenue en place
 
 ## Contexte
 
-Le défaut de départ : `--police-titre` et la pile du corps résolvaient vers la
-**même fonte** sur toutes les plateformes (macOS et Android ignorent « Segoe UI »
-et tombent sur system-ui ; sur Windows system-ui *est* Segoe UI). Il n'y avait
-donc pas de police de titre, seulement une police d'interface en gras 800 — ce
-qui explique que les titres aient paru « pas adaptés ».
+**Décision du 28 août 2026** : le panneau DEV reste en place tant que les trois
+choix ne sont pas arrêtés. Il n'est donc **pas** conditionné à `settings.DEBUG` —
+il sera retiré d'un bloc, avec les variantes écartées, quand les choix seront
+faits. C'est le geste que décrit la zone « Retrait du panneau DEV » ci-dessus.
 
-Le sélecteur est un outil de décision, pas une fonctionnalité : il vit dans le
-même panneau DEV que Palette et Fond et doit disparaître avec lui.
+Conséquence à ne pas perdre de vue : en l'état, le panneau est servi à **tous les
+visiteurs**. Il doit donc disparaître avant DEP-1, et cette fiche est ce qui le
+garantit — aucun garde technique ne le fera à notre place.
 
-Auto-hébergement décidé et non négociable : servir les fontes depuis
-fonts.gstatic.com transmet l'IP des visiteurs à Google, ce que la CNIL
-sanctionne pour un site français. Les quatre `.woff2` sont versionnés dans
+Le défaut de départ, côté typographie : `--police-titre` et la pile du corps
+résolvaient vers la **même fonte** sur toutes les plateformes (macOS et Android
+ignorent « Segoe UI » et tombent sur system-ui ; sur Windows, system-ui *est*
+Segoe UI). Il n'y avait pas de police de titre, seulement la police d'interface
+en gras 800 — ce qui explique que les titres aient paru « pas adaptés ».
+
+Auto-hébergement des fontes décidé et non négociable : servir depuis
+fonts.gstatic.com transmet l'IP des visiteurs à Google, ce que la CNIL sanctionne
+pour un site français. Les quatre `.woff2` sont versionnés dans
 `front/static/fonts/`.
 
 La police de titre pilote aussi `.site-logo` : changer de fonte change le logo
 « L'Improliante » en même temps que les titres. C'est voulu, mais c'est à
 regarder au moment du choix.
 
-Point à trancher au passage : le panneau DEV (Palette / Fond / Titres) est servi
-à **tous les visiteurs**, y compris en production. Il devra être conditionné à
-`settings.DEBUG` ou supprimé avant DEP-1.
+Les trois choix ne sont pas indépendants : le contraste des titres se juge sur la
+palette retenue, et le mesh animé change la lisibilité d'un titre à serif fine.
+Les arrêter dans l'ordre palette → fond → titres évite de revenir en arrière.
