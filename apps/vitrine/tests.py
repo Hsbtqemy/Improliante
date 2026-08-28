@@ -966,3 +966,82 @@ def test_l_accroche_vide_ne_casse_pas_le_hero(client, db):
 
     assert reponse.status_code == 200
     assert 'class="hero__intro"' not in reponse.content.decode()
+
+
+# --- Coordonnées publiques ---------------------------------------------------
+#
+# La page de contact n'offrait qu'un formulaire : aucune adresse, aucun nom,
+# aucun moyen de joindre l'association autrement. Le bureau les saisit
+# maintenant dans les paramètres. Le point sensible est l'adresse : celle du
+# modèle est l'adresse DÉCLARÉE, très souvent le domicile d'un membre — elle ne
+# doit sortir que sur demande explicite.
+
+
+def test_les_coordonnees_saisies_apparaissent_sur_la_page_contact(client, db):
+    parametres = ParametresAssociation.load()
+    parametres.email_public = "bonjour@improliante.test"
+    parametres.telephone_public = "01 23 45 67 89"
+    parametres.save()
+
+    corps = client.get("/contact/").content.decode()
+
+    assert "bonjour@improliante.test" in corps
+    assert "01 23 45 67 89" in corps
+    assert 'href="tel:0123456789"' in corps  # espaces retirés dans le lien
+
+
+def test_la_page_contact_ne_montre_rien_quand_rien_n_est_saisi(client, db):
+    """Champs vides = pas de bloc vide : une association qui ne publie pas de
+    coordonnées garde la page telle qu'elle était."""
+    ParametresAssociation.load()
+
+    corps = client.get("/contact/").content.decode()
+
+    assert "Nous joindre directement" not in corps
+
+
+def test_l_adresse_postale_reste_privee_sans_demande_explicite(client, db):
+    """L'adresse déclarée est souvent un domicile. La renseigner pour les reçus
+    fiscaux ne doit JAMAIS suffire à la publier."""
+    parametres = ParametresAssociation.load()
+    parametres.adresse = "12 rue des Lilas"
+    parametres.code_postal = "75011"
+    parametres.ville = "Paris"
+    parametres.save()  # la case n'est pas cochée
+
+    corps = client.get("/contact/").content.decode()
+
+    assert "12 rue des Lilas" not in corps
+    assert parametres.adresse_affichable() == ""
+
+    parametres.afficher_adresse_postale = True
+    parametres.save()
+
+    corps = client.get("/contact/").content.decode()
+
+    assert "12 rue des Lilas" in corps
+    assert "75011 Paris" in corps
+
+
+def test_les_interlocuteurs_publics_apparaissent(client, db):
+    from apps.coeur.models import ContactPublic
+
+    parametres = ParametresAssociation.load()
+    ContactPublic.objects.create(
+        parametres=parametres,
+        role="Réservations",
+        nom="Camille Roux",
+        email="resa@improliante.test",
+        ordre=1,
+    )
+    # Une fonction peut être publiée sans nommer personne.
+    ContactPublic.objects.create(
+        parametres=parametres, role="Presse", telephone="0600000000", ordre=2
+    )
+
+    corps = client.get("/contact/").content.decode()
+
+    assert "Réservations" in corps
+    assert "Camille Roux" in corps
+    assert "resa@improliante.test" in corps
+    assert "Presse" in corps

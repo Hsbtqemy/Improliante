@@ -221,6 +221,24 @@ class ParametresAssociation(models.Model):
     code_postal = models.CharField("code postal", max_length=16, blank=True)
     ville = models.CharField(max_length=120, blank=True)
 
+    # Coordonnées PUBLIQUES, affichées sur la page de contact. L'adresse
+    # ci-dessus est l'adresse DÉCLARÉE : très souvent le domicile d'un membre.
+    # Elle ne sort donc jamais toute seule — d'où l'opt-in explicite.
+    email_public = models.EmailField(
+        "e-mail public",
+        blank=True,
+        help_text="Affiché sur la page Contact. À distinguer de CONTACT_EMAIL "
+        "(variable d'environnement), qui est la destination technique des "
+        "messages du formulaire et n'est jamais montrée.",
+    )
+    telephone_public = models.CharField("téléphone public", max_length=40, blank=True)
+    afficher_adresse_postale = models.BooleanField(
+        "afficher l'adresse postale sur le site",
+        default=False,
+        help_text="L'adresse déclarée plus haut est souvent le domicile d'un "
+        "membre : elle reste privée tant que cette case n'est pas cochée.",
+    )
+
     numero_rna = models.CharField("n° RNA", max_length=20, blank=True)
     numero_siret = models.CharField("SIRET", max_length=20, blank=True)
 
@@ -257,11 +275,58 @@ class ParametresAssociation(models.Model):
         self.pk = 1
         super().save(*args, **kwargs)
 
+    def adresse_affichable(self) -> str:
+        """L'adresse postale, et seulement si sa publication a été demandée.
+
+        Passer par une méthode plutôt que par trois conditions de gabarit : la
+        décision « publier ou non le domicile d'un membre » se prend à UN seul
+        endroit, et se teste."""
+        if not self.afficher_adresse_postale:
+            return ""
+        commune = " ".join(x for x in (self.code_postal, self.ville) if x)
+        return ", ".join(x for x in (self.adresse, commune) if x)
+
     @classmethod
     def load(cls) -> ParametresAssociation:
         """Retourne l'unique instance, en la créant au besoin."""
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class ContactPublic(models.Model):
+    """Interlocuteur affiché sur la page de contact.
+
+    Distinct de `Membre` : un contact public est d'abord une FONCTION
+    (« Réservations », « Contact presse ») qui peut n'être portée par personne
+    de nommé, ou l'être par quelqu'un d'extérieur à l'association. Rattaché aux
+    paramètres — qui sont un singleton — pour être édité sur le même écran."""
+
+    parametres = models.ForeignKey(
+        "coeur.ParametresAssociation",
+        on_delete=models.CASCADE,
+        related_name="contacts_publics",
+    )
+    role = models.CharField(
+        "rôle",
+        max_length=120,
+        help_text="Ex. « Réservations », « Contact presse », « Présidence ».",
+    )
+    nom = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Facultatif : une fonction peut être publiée sans nommer personne.",
+    )
+    email = models.EmailField(blank=True)
+    telephone = models.CharField("téléphone", max_length=40, blank=True)
+    ordre = models.PositiveSmallIntegerField("ordre d'affichage", default=0)
+
+    class Meta:
+        ordering = ["ordre", "role"]
+        verbose_name = "contact public"
+        verbose_name_plural = "contacts publics"
+
+    def __str__(self) -> str:
+        return f"{self.role} — {self.nom}" if self.nom else self.role
 
 
 class Signataire(models.Model):

@@ -88,6 +88,12 @@ def test_editer_parametres_association(client, db):
             "article_cgi": "200",
             "signataire_nom": "Alice",
             "signataire_qualite": "Présidente",
+            # Les interlocuteurs publics sont un formset inline sur cet écran :
+            # sans ses données de gestion, tout POST est rejeté.
+            "contacts_publics-TOTAL_FORMS": "0",
+            "contacts_publics-INITIAL_FORMS": "0",
+            "contacts_publics-MIN_NUM_FORMS": "0",
+            "contacts_publics-MAX_NUM_FORMS": "1000",
         },
     )
     assert reponse.status_code == 302
@@ -2139,3 +2145,42 @@ def test_l_editeur_propose_de_deplacer_une_ligne(client, db):
 
     assert "data-monter-ligne" in corps
     assert "data-descendre-ligne" in corps
+
+
+def test_le_bureau_ajoute_un_interlocuteur_public(client, db):
+    """L'écran des paramètres porte le formset des contacts : le bureau saisit
+    ses interlocuteurs sans passer par l'admin Django."""
+    from apps.coeur.models import ContactPublic, ParametresAssociation
+
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/parametres/",
+        {
+            "nom": "L'Improliante",
+            "objet": "",
+            "adresse": "",
+            "code_postal": "",
+            "ville": "",
+            "email_public": "bonjour@improliante.test",
+            "telephone_public": "",
+            "numero_rna": "",
+            "numero_siret": "",
+            "article_cgi": "200",
+            "signataire_nom": "",
+            "signataire_qualite": "",
+            "contacts_publics-TOTAL_FORMS": "1",
+            "contacts_publics-INITIAL_FORMS": "0",
+            "contacts_publics-MIN_NUM_FORMS": "0",
+            "contacts_publics-MAX_NUM_FORMS": "1000",
+            "contacts_publics-0-role": "Réservations",
+            "contacts_publics-0-nom": "Camille Roux",
+            "contacts_publics-0-email": "resa@improliante.test",
+            "contacts_publics-0-telephone": "",
+            "contacts_publics-0-ordre": "1",
+        },
+    )
+
+    assert reponse.status_code == 302
+    assert ParametresAssociation.load().email_public == "bonjour@improliante.test"
+    contact = ContactPublic.objects.get()
+    assert (contact.role, contact.nom) == ("Réservations", "Camille Roux")

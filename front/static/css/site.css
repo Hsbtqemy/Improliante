@@ -4030,6 +4030,43 @@ html.contraste.sombre .viz {
 .encart p:last-child {
   margin-bottom: 0;
 }
+.encart__titre {
+  /* Le H2 global porte une grosse marge haute pensée pour le fil du document ;
+     dans un encart il pousserait le titre hors de sa boîte. */
+  margin: 0 0 0.6rem;
+  font-size: 1.1rem;
+}
+
+/* Coordonnées publiques (page Contact) : étiquette + valeur, en colonnes dès
+   qu'il y a la place, empilées sinon. */
+.coordonnees {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.coordonnees li {
+  display: grid;
+  gap: 0.1rem 0.9rem;
+}
+.coordonnees__label {
+  font-weight: 700;
+  color: var(--couleur-muet);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.coordonnees address {
+  font-style: normal;
+  display: inline;
+}
+@media (min-width: 34rem) {
+  .coordonnees li {
+    grid-template-columns: 9rem 1fr;
+    align-items: baseline;
+  }
+}
 
 /* Boutons de déplacement d'une ligne de facture / devis (révélés par JS). */
 .ligne-facturation__deplacer {

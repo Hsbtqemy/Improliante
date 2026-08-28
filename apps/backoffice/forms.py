@@ -15,7 +15,13 @@ from apps.budget.models import (
     SoldeTresorerie,
     Transaction,
 )
-from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
+from apps.coeur.models import (
+    ContactPublic,
+    Membre,
+    ParametresAssociation,
+    Signataire,
+    Utilisateur,
+)
 from apps.common.fiches import ImagesFicheFormMixin
 from apps.common.forms import AideAccessibleMixin
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
@@ -222,6 +228,9 @@ class ParametresAssociationForm(AideAccessibleMixin, forms.ModelForm):
             "adresse",
             "code_postal",
             "ville",
+            "email_public",
+            "telephone_public",
+            "afficher_adresse_postale",
             "numero_rna",
             "numero_siret",
             "article_cgi",
@@ -235,6 +244,17 @@ class ParametresAssociationForm(AideAccessibleMixin, forms.ModelForm):
             "objet": forms.Textarea(attrs={"rows": 2}),
             "presentation": forms.Textarea(attrs={"rows": 3}),
         }
+
+
+# Interlocuteurs publics, édités sur le même écran que les paramètres : les
+# paramètres étant un singleton, l'inline formset y a exactement un parent.
+ContactPublicFormSet = forms.inlineformset_factory(
+    ParametresAssociation,
+    ContactPublic,
+    fields=["role", "nom", "email", "telephone", "ordre"],
+    extra=1,
+    can_delete=True,
+)
 
 
 # --- Gouvernance ------------------------------------------------------------

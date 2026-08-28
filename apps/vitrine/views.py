@@ -313,7 +313,16 @@ def contact(request):
             return redirect("vitrine:contact_merci")
     else:
         form = ContactForm()
-    return render(request, "vitrine/contact.html", {"form": form})
+    association = ParametresAssociation.load()
+    return render(
+        request,
+        "vitrine/contact.html",
+        {
+            "form": form,
+            "association": association,
+            "contacts": association.contacts_publics.all(),
+        },
+    )
 
 
 def contact_merci(request):

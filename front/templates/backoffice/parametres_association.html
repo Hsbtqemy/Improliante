@@ -8,7 +8,8 @@
     <span class="page-tete__eyebrow">Bureau</span>
     <h1>Paramètres de l'association</h1>
     <p class="page-tete__sous">
-      Ces informations constituent l'en-tête des documents officiels (reçus fiscaux, factures…).
+      Deux usages sur un même écran : ce qui s'imprime sur les documents officiels
+      (reçus fiscaux, factures…) et ce qui s'affiche sur le site public.
     </p>
   </header>
 
@@ -30,6 +31,19 @@
       {% include "_champ.html" with field=form.code_postal %}
       {% include "_champ.html" with field=form.ville %}
     </fieldset>
+
+    <fieldset class="bloc-form">
+      <legend>Contact public</legend>
+      <p class="champ__aide">
+        Ce que voit un visiteur sur la page Contact, en plus du formulaire.
+        Laisser vide un champ, c'est ne pas l'afficher.
+      </p>
+      {% include "_champ.html" with field=form.email_public %}
+      {% include "_champ.html" with field=form.telephone_public %}
+      {% include "_champ.html" with field=form.afficher_adresse_postale %}
+    </fieldset>
+
+    {% include "backoffice/_fiche_formset.html" with titre="Interlocuteurs affichés sur la page Contact" %}
 
     <fieldset class="bloc-form">
       <legend>Immatriculation</legend>

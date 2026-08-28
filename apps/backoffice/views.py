@@ -87,6 +87,7 @@ from .forms import (
     AdhesionForm,
     CategorieForm,
     ClientForm,
+    ContactPublicFormSet,
     DevisForm,
     EvenementBureauForm,
     FactureForm,
@@ -189,11 +190,17 @@ def parametres_association(request):
     """Édition de l'identité légale de l'association (en-tête des documents)."""
     params = ParametresAssociation.load()
     form = ParametresAssociationForm(request.POST or None, instance=params)
-    if request.method == "POST" and form.is_valid():
+    formset = ContactPublicFormSet(request.POST or None, instance=params)
+    if request.method == "POST" and form.is_valid() and formset.is_valid():
         form.save()
+        formset.save()
         messages.success(request, "Paramètres de l'association enregistrés.")
         return redirect("backoffice:parametres_association")
-    return render(request, "backoffice/parametres_association.html", {"form": form})
+    return render(
+        request,
+        "backoffice/parametres_association.html",
+        {"form": form, "formset": formset},
+    )
 
 
 @bureau_requis

@@ -5,6 +5,46 @@
 {% block contenu %}
   <header class="page-tete"><h1>Contact</h1></header>
 
+  {% if association.email_public or association.telephone_public or association.adresse_affichable or contacts %}
+    <section class="encart" aria-labelledby="titre-coordonnees">
+      <h2 id="titre-coordonnees" class="encart__titre">Nous joindre directement</h2>
+      <ul class="coordonnees">
+        {% if association.email_public %}
+          <li>
+            <span class="coordonnees__label">E-mail</span>
+            <a href="mailto:{{ association.email_public }}">{{ association.email_public }}</a>
+          </li>
+        {% endif %}
+        {% if association.telephone_public %}
+          <li>
+            <span class="coordonnees__label">Téléphone</span>
+            <a href="tel:{{ association.telephone_public|cut:" " }}">{{ association.telephone_public }}</a>
+          </li>
+        {% endif %}
+        {% if association.adresse_affichable %}
+          <li>
+            <span class="coordonnees__label">Adresse</span>
+            <address>{{ association.adresse_affichable }}</address>
+          </li>
+        {% endif %}
+        {% for contact in contacts %}
+          <li>
+            <span class="coordonnees__label">{{ contact.role }}</span>
+            <span>
+              {% if contact.nom %}{{ contact.nom }}{% endif %}
+              {% if contact.email %}
+                <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+              {% endif %}
+              {% if contact.telephone %}
+                <a href="tel:{{ contact.telephone|cut:" " }}">{{ contact.telephone }}</a>
+              {% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   <form method="post" class="formulaire" novalidate>
     {% csrf_token %}
 
