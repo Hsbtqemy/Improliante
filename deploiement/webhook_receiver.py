@@ -99,24 +99,32 @@ class WebhookHandler(BaseHTTPRequestHandler):
             self._repondre(200, "Branche ignorée")
             return
 
-        # 4. Déclenchement du déploiement
-        log.info("Push valide sur %s — lancement du déploiement.", WATCHED_BRANCH)
+        # 4. Déclenchement du déploiement, EN ARRIÈRE-PLAN
+        #
+        # GitHub coupe une livraison de webhook au bout d'une dizaine de
+        # secondes et finit par désactiver un point d'entrée qui échoue en
+        # série. Un déploiement (dépendances, migrations, collectstatic) dure
+        # bien davantage : l'attendre pour répondre, c'est se garantir un
+        # webhook rouge à chaque fois, alors même que le déploiement réussit.
+        #
+        # On répond donc 202 « accepté » tout de suite et on laisse deploy.sh
+        # vivre sa vie dans sa propre session — il survit ainsi au
+        # redémarrage de Gunicorn qu'il déclenche lui-même. Le compte rendu
+        # n'est pas perdu : deploy.sh journalise chaque étape dans
+        # /srv/asso/logs/deploy.log, et c'est là qu'on lit le résultat.
+        log.info("Push valide sur %s — lancement du déploiement en arrière-plan.", WATCHED_BRANCH)
         try:
-            resultat = subprocess.run(
+            subprocess.Popen(  # noqa: S603 — chemin fixé par l'environnement, pas par la requête
                 ["/usr/bin/env", "bash", DEPLOY_SCRIPT],
-                capture_output=True,
-                text=True,
-                timeout=600,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
             )
-            if resultat.returncode == 0:
-                log.info("Déploiement réussi.")
-                self._repondre(200, "Déploiement réussi")
-            else:
-                log.error("Échec du déploiement :\n%s", resultat.stderr)
-                self._repondre(500, "Échec du déploiement")
-        except subprocess.TimeoutExpired:
-            log.error("Déploiement interrompu (timeout).")
-            self._repondre(500, "Timeout du déploiement")
+        except OSError:
+            log.exception("Impossible de lancer %s", DEPLOY_SCRIPT)
+            self._repondre(500, "Lancement du déploiement impossible")
+            return
+        self._repondre(202, "Déploiement lancé")
 
     def log_message(self, *args):
         # On désactive le log par défaut (bruyant) au profit du nôtre.

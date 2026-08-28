@@ -29,7 +29,14 @@ Restart=on-failure
 RestartSec=5
 
 # Durcissement : on limite ce que le service peut faire sur le système.
-NoNewPrivileges=true
+#
+# PAS de `NoNewPrivileges=true` ici, contrairement à asso.service : ce service
+# lance deploy.sh, qui redémarre Gunicorn par `sudo systemctl`. `sudo` est un
+# binaire setuid, et NoNewPrivileges interdit précisément l'élévation de
+# privilèges — le déploiement échouerait à sa toute dernière étape, à chaque
+# fois, avec un « sudo: effective uid is not 0 » au fond d'un journal.
+# Le périmètre reste étroit : la règle sudoers n'autorise que le redémarrage
+# de ce service-là, pour l'utilisateur deploy.
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
