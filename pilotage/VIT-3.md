@@ -11,14 +11,14 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 ## Reste
 
 ### Arbitrages
-- [ ] Arrêter la palette parmi les douze du sélecteur (numérotées 1 à 12, voir la table ci-dessous)
+- [ ] Arrêter la palette parmi les dix-huit du sélecteur (numérotées 1 à 18, voir la table ci-dessous)
 - [ ] Arrêter le fond parmi les trois (plat teinté, mesh animé, grain)
 - [ ] Arrêter la police de titre parmi les cinq (système, Fraunces, Playfair, Instrument, Bricolage)
 
 ### Retrait du panneau DEV
 - [ ] Supprimer le bloc `.theme-switch` et son script de `base.html`, une fois les trois choix faits
 - [ ] Figer les trois choix dans `:root` et retirer les attributs `data-theme` / `data-fond` / `data-titre` de `<html>`
-- [ ] Purger le CSS des onze palettes et des deux fonds écartés, et supprimer leurs blocs `html[data-theme=…]`
+- [ ] Purger le CSS des dix-sept palettes et des deux fonds écartés, et supprimer leurs blocs `html[data-theme=…]`
 - [ ] Ne garder que le `.woff2` retenu dans `front/static/fonts/` ; supprimer les trois autres et leurs `@font-face`
 
 ### Mise en production de la fonte
@@ -29,7 +29,7 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 ### Vérifications
 - [ ] Contrôler le rendu des titres longs sur 375 px (« Politique de confidentialité », titres de spectacles)
 - [ ] Vérifier le contraste AA des titres sur la palette retenue, la fonte retenue en place
-- [ ] Regarder les douze palettes en mode sombre (`html.sombre`) : le test ne couvre que le mode clair
+- [ ] Regarder les dix-huit palettes en mode sombre (`html.sombre`) : le test ne couvre que le mode clair
 
 ## Contexte
 
@@ -64,6 +64,13 @@ bouton, en commentaire dans le CSS, et ici — c'est le seul endroit durable :
 | 1 bordeaux chaud | 2 sombre chaud | 3 clair | 4 prune/rose |
 | 5 nuit bleue | 6 charbon/corail | 7 forêt/terracotta | 8 bleu canard/cuivre |
 | 9 indigo/or | 10 olive/ambre | 11 rouille/sable | 12 encre neutre/rouge sec |
+| 13 magenta/cyan | 14 violet/lime | 15 bleu électrique/jaune | 16 rouge vif/turquoise |
+| 17 vert néon/jaune acide | 18 orange sanguine/ciel | | |
+
+Les palettes 13 à 18 sont **calculées**, pas choisies : un solveur OKLCh cherche,
+par teinte, la couleur la plus saturée qui franchisse encore sa contrainte AA.
+Les retoucher à la main, c'est sortir de la plage — passer par le solveur
+(`scratchpad`, à reconstruire au besoin) ou vérifier avec le test.
 
 Un cookie `theme=` d'avant la renumérotation ne correspond plus à aucune règle :
 la page retombe alors sur `:root`, qui est la palette 1. Dégradation propre, rien
