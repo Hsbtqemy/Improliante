@@ -363,6 +363,8 @@ main {
 .page-tete__sous {
   margin: 0.4rem 0 0;
   color: var(--couleur-muet);
+  font-size: 1.1rem;
+  max-width: var(--largeur-texte);
 }
 .page-tete__actions {
   display: flex;
@@ -818,12 +820,6 @@ h3 {
   font-size: 1.15rem;
   font-weight: 700;
 }
-.intro {
-  font-size: 1.2rem;
-  color: var(--couleur-muet);
-  max-width: var(--largeur-texte);
-}
-
 /* Sur-titre / étiquette (uppercase, tracké) — accent « punchy » */
 .eyebrow {
   display: inline-block;
@@ -980,11 +976,6 @@ h3 {
 
 /* Fiche membre : portrait à gauche, parcours (spectacles / collaborations) à
    droite. Mobile : empilé. Desktop (≥48rem) : deux colonnes, photo sticky. */
-.fiche-membre__role {
-  color: var(--couleur-muet);
-  font-size: 1.1rem;
-  margin-top: 0;
-}
 .fiche-membre__corps {
   display: flex;
   flex-direction: column;

@@ -8,13 +8,17 @@
 {% block og_description %}{{ membre.role_public|default:membre.bio|truncatewords:25 }}{% endblock %}
 
 {% block contenu %}
-  <article class="fiche fiche-membre">
-    <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>
+  <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>
 
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">L'association</span>
     <h1>{{ membre }}</h1>
     {% if membre.role_public %}
-      <p class="fiche-membre__role">{{ membre.role_public }}</p>
+      <p class="page-tete__sous">{{ membre.role_public }}</p>
     {% endif %}
+  </header>
+
+  <article class="fiche fiche-membre">
 
     <div class="fiche-membre__corps">
       <div class="fiche-membre__col-photo">

@@ -6,7 +6,7 @@
   <p><a href="{% url 'vitrine:evenement' evenement.pk %}">← Retour à l'événement</a></p>
 
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Agenda</span>
+    <span class="page-tete__eyebrow">Agenda · Réservation</span>
     <h1>Réserver pour « {{ evenement.titre }} »</h1>
     <p class="page-tete__sous">
       {{ evenement.date_debut|date:"l j F Y" }}, {{ evenement.date_debut|date:"G\hi" }}

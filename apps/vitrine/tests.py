@@ -667,3 +667,50 @@ def test_la_reservation_est_confirmee_explicitement(client, db):
     )
 
     assert "réservation est confirmée" in reponse.content.decode()
+
+
+# --- Cohérence des en-têtes de page -----------------------------------------
+#
+# Trois règles, tenues par les deux tests qui suivent :
+#   1. toute page porte un et un seul `<header class="page-tete">` — c'est lui
+#      qui fixe la taille du titre, sa place et le filet qui le souligne ;
+#   2. le sur-titre nomme la SECTION PARENTE, jamais le site ni la page
+#      elle-même (« L'Improliante » au-dessus de « Agenda » ne disait rien que
+#      le logo et la navigation ne disent déjà) ;
+#   3. une page de premier niveau, présente dans la navigation, n'en porte pas.
+
+
+def _gabarits_vitrine():
+    import pathlib
+
+    from django.conf import settings
+
+    racine = pathlib.Path(settings.TEMPLATES[0]["DIRS"][0]) / "vitrine"
+    # Les fragments (préfixe `_`) sont inclus dans une page, ils n'ont pas de titre.
+    return [g for g in sorted(racine.glob("*.html")) if not g.name.startswith("_")]
+
+
+def test_chaque_page_de_la_vitrine_a_un_seul_en_tete_de_page():
+    """Un `<h1>` nu et un `.page-tete` ne se ressemblent pas : espacement,
+    filet et emplacement du sous-titre diffèrent. C'est ce mélange qui donnait
+    l'impression que les titres n'étaient « pas à la même place »."""
+    # L'accueil fait exception, assumée : son titre est le hero pleine largeur.
+    exceptions = {"accueil.html"}
+
+    fautifs = []
+    for gabarit in _gabarits_vitrine():
+        if gabarit.name in exceptions:
+            continue
+        texte = gabarit.read_text()
+        if texte.count("<h1") != 1 or texte.count('class="page-tete"') != 1:
+            fautifs.append(gabarit.name)
+
+    assert not fautifs, "en-tête absent ou dupliqué : " + ", ".join(fautifs)
+
+
+def test_aucun_sur_titre_ne_repete_le_nom_du_site():
+    """Le sur-titre sert à situer une page dans une section. Y mettre le nom de
+    l'association le vide de son rôle et double le logo."""
+    fautifs = [g.name for g in _gabarits_vitrine() if "Improliante</span>" in g.read_text()]
+
+    assert not fautifs, "sur-titre répétant le nom du site : " + ", ".join(fautifs)

@@ -7,9 +7,14 @@
 {% block og_description %}{{ evenement.description|truncatewords:30 }}{% endblock %}
 
 {% block contenu %}
-  <article class="fiche">
-    <p><a href="{% url 'vitrine:agenda' %}">← Retour à l'agenda</a></p>
+  <p><a href="{% url 'vitrine:agenda' %}">← Retour à l'agenda</a></p>
 
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Agenda</span>
+    <h1>{{ evenement.titre }}</h1>
+  </header>
+
+  <article class="fiche">
     <div class="fiche-spectacle__corps">
       {% if evenement.affiche and evenement.affiche.fichier %}
         <div class="fiche-spectacle__col-affiche">
@@ -22,8 +27,6 @@
       {% endif %}
 
       <div class="fiche-spectacle__col-infos">
-        <h1>{{ evenement.titre }}</h1>
-
         <p class="fiche__meta">
           <svg class="ico" aria-hidden="true"><use href="#ico-horloge"></use></svg>
           <span class="sr-only">Le </span>{{ evenement.date_debut|date:"l j F Y" }}, {{ evenement.date_debut|date:"G\hi" }}{% if evenement.date_fin %} – {{ evenement.date_fin|date:"G\hi" }}{% endif %}

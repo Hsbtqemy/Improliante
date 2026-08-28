@@ -3,7 +3,10 @@
 {% block title %}Message envoyé — L'Improliante{% endblock %}
 
 {% block contenu %}
-  <h1>Merci&nbsp;!</h1>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Contact</span>
+    <h1>Merci&nbsp;!</h1>
+  </header>
   <p>Votre message a bien été enregistré. Nous vous répondrons dès que possible.</p>
   <p><a class="lien-bouton" href="{% url 'vitrine:accueil' %}">Retour à l'accueil</a></p>
 {% endblock %}

@@ -7,9 +7,18 @@
 {% block og_description %}{{ spectacle.synopsis|truncatewords:30 }}{% endblock %}
 
 {% block contenu %}
-  <article class="fiche">
-    <p><a href="{% url 'vitrine:spectacles' %}">← Retour aux spectacles</a></p>
+  <p><a href="{% url 'vitrine:spectacles' %}">← Retour aux spectacles</a></p>
 
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Spectacles &amp; projets</span>
+    <h1>{{ spectacle.titre }}</h1>
+    <p class="page-tete__sous">
+      {{ spectacle.get_statut_projet_display }} ·
+      {{ spectacle.get_type_portage_display }}
+    </p>
+  </header>
+
+  <article class="fiche">
     <div class="fiche-spectacle__corps">
       {% if spectacle.affiche and spectacle.affiche.fichier %}
         <div class="fiche-spectacle__col-affiche">
@@ -22,12 +31,6 @@
       {% endif %}
 
       <div class="fiche-spectacle__col-infos">
-        <h1>{{ spectacle.titre }}</h1>
-        <p class="fiche__meta">
-          {{ spectacle.get_statut_projet_display }} ·
-          {{ spectacle.get_type_portage_display }}
-        </p>
-
         {% if spectacle.synopsis %}
           <h2>Synopsis</h2>
           {{ spectacle.synopsis|linebreaks }}
