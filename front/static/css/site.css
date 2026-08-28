@@ -962,7 +962,12 @@ h3 {
   color: var(--ink);
 }
 .lien-bouton--accent:hover {
-  background: #ffc633;
+  /* Éclaircir l'accent de la palette, et non un ambre en dur : le bouton
+     principal du hero virait à l'ambre au survol sur les palettes canard,
+     indigo, olive, rouille et encre. Éclaircir ne peut qu'AUGMENTER le
+     contraste avec `--ink`, qui est sombre — le survol est donc sûr dès que
+     l'état au repos passe le test de contraste. */
+  background: color-mix(in srgb, var(--accent) 78%, #fff);
 }
 
 /* Fiche */
@@ -2686,10 +2691,12 @@ summary.lien-bouton::-webkit-details-marker {
   box-shadow: var(--ombre);
 }
 
-/* Titres de section GED */
+/* Titres de section GED. Ils servent de cibles d'ancre au sommaire du panneau
+   latéral : la marge de défilement compense le bandeau collant. */
 .ged-section-titre {
   font-size: 1.05rem;
   margin: 1.75rem 0 0.75rem;
+  scroll-margin-top: 5.5rem;
 }
 /* Actions sur un dossier de membre (modifier / supprimer) */
 .ged-actions-dossier {
@@ -2862,16 +2869,6 @@ summary.lien-bouton::-webkit-details-marker {
   font-weight: 700;
   text-decoration: none;
 }
-/* En-tête d'une branche dans l'arbre (Perso / Partagé / Bureau) */
-.ged-tree__groupe {
-  margin: 0.85rem 0 0.15rem;
-  padding-inline: 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--couleur-muet);
-}
 /* Note discrète à côté d'un titre de section (branche sur la vue d'ensemble) */
 .ged-section-note {
   font-size: 0.85rem;
@@ -2918,6 +2915,22 @@ summary.lien-bouton::-webkit-details-marker {
 }
 .ged-tree__nav a.est-actif .ico {
   color: var(--couleur-primaire);
+}
+/* En-tête de branche : lien vers la section de la vue d'ensemble. Il garde
+   l'allure d'une étiquette de groupe, d'où la reprise des règles ci-dessus. */
+.ged-tree__nav a.ged-tree__groupe {
+  display: block;
+  margin: 0.85rem 0 0.15rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--couleur-muet);
+}
+.ged-tree__nav a.ged-tree__groupe:hover,
+.ged-tree__nav a.ged-tree__groupe:focus-visible {
+  color: var(--couleur-texte);
 }
 @media (min-width: 62rem) {
   /* Panneau permanent : pas de repli, on masque le résumé. */
@@ -3308,14 +3321,23 @@ summary.lien-bouton::-webkit-details-marker {
    À figer sur le choix retenu, puis retirer le sélecteur + les variantes.
    Rail : sombre par défaut ; « rail clair » = bundle de tokens partagé.
    A bordeaux chaud · B sombre chaud · C clair · D prune/rose · E nuit bleue ·
-   F charbon/corail · G forêt/terracotta
+   F charbon/corail · G forêt/terracotta · H bleu canard/cuivre · I indigo/or ·
+   J olive/ambre · K rouille/sable · L encre neutre/rouge sec
+
+   Toute palette doit franchir les seuils AA mesurés par
+   `apps/vitrine/tests.py::test_les_palettes_respectent_le_contraste_AA`.
    ========================================================================= */
 
 /* Bundle « rail clair » partagé (crème, item actif en couleur primaire) */
 html[data-theme="a"],
 html[data-theme="c"],
 html[data-theme="e"],
-html[data-theme="f"] {
+html[data-theme="f"],
+html[data-theme="h"],
+html[data-theme="i"],
+html[data-theme="j"],
+html[data-theme="k"],
+html[data-theme="l"] {
   --rail-bg: var(--surface-alt);
   --rail-bordure: var(--bordure);
   --rail-texte: var(--couleur-texte);
@@ -3324,7 +3346,7 @@ html[data-theme="f"] {
   --rail-hover: var(--couleur-primaire-clair);
   --rail-actif-bg: var(--couleur-primaire-clair);
   --rail-actif-bord: var(--couleur-primaire);
-  --rail-actif-texte: var(--couleur-primaire);
+  --rail-actif-texte: var(--couleur-lien);
   --rail-sep: var(--bordure);
 }
 
@@ -3376,6 +3398,56 @@ html[data-theme="g"] {
   --couleur-primaire-clair: #f6e6da;
   --couleur-lien: #9a4a1a;
   --accent: #e9c46a;
+}
+
+/* H — bleu canard & cuivre · rail clair */
+html[data-theme="h"] {
+  --ink: #08282e;
+  --couleur-primaire: #0e6d78;
+  --couleur-primaire-vif: #128b99;
+  --couleur-primaire-clair: #ddf1f3;
+  --couleur-lien: #0b606a;
+  --accent: #e2a03f;
+}
+
+/* I — indigo & or · rail clair */
+html[data-theme="i"] {
+  --ink: #16143a;
+  --couleur-primaire: #3f3d9e;
+  --couleur-primaire-vif: #5a57c4;
+  --couleur-primaire-clair: #e7e6fb;
+  --couleur-lien: #3a3892;
+  --accent: #f2c14e;
+}
+
+/* J — olive & ambre · rail clair */
+html[data-theme="j"] {
+  --ink: #23281a;
+  --couleur-primaire: #5a6620;
+  --couleur-primaire-vif: #74842c;
+  --couleur-primaire-clair: #eef1dc;
+  --couleur-lien: #525d1d;
+  --accent: #e0a12c;
+}
+
+/* K — rouille & sable · rail clair */
+html[data-theme="k"] {
+  --ink: #2b1710;
+  --couleur-primaire: #a8442a;
+  --couleur-primaire-vif: #c65a3c;
+  --couleur-primaire-clair: #f9e6e0;
+  --couleur-lien: #9c3e26;
+  --accent: #e9b44c;
+}
+
+/* L — encre & rouge sec : neutre typographique, la couleur ne sert qu'à l'accent · rail clair */
+html[data-theme="l"] {
+  --ink: #191519;
+  --couleur-primaire: #3a353d;
+  --couleur-primaire-vif: #524c56;
+  --couleur-primaire-clair: #ecebee;
+  --couleur-lien: #3a353d;
+  --accent: #e06a55;
 }
 
 /* C — clair : en-tête bordeaux, hero crème, pied bordeaux (rail clair) */

@@ -714,3 +714,144 @@ def test_aucun_sur_titre_ne_repete_le_nom_du_site():
     fautifs = [g.name for g in _gabarits_vitrine() if "Improliante</span>" in g.read_text()]
 
     assert not fautifs, "sur-titre répétant le nom du site : " + ", ".join(fautifs)
+
+
+# --- Contraste des palettes -------------------------------------------------
+#
+# La règle 9 du CLAUDE.md exige AA. Sans mesure, « AA » est une intention : deux
+# palettes (E nuit bleue, F charbon/corail) peignaient l'item courant du rail à
+# 4,05 et 4,29 pour un seuil de 4,5, et rien ne le signalait. Ce test rend la
+# règle mécanique et couvre AUTOMATIQUEMENT toute palette ajoutée ensuite.
+#
+# Il suit les `var()` jusqu'au bout plutôt que de nommer des couleurs en dur :
+# une première version citait `--couleur-lien` directement et restait verte quand
+# on rebranchait le rail sur `--couleur-primaire`, c'est-à-dire quand on remettait
+# le défaut qu'elle était censée interdire.
+
+
+def _luminance(canaux):
+    lineaires = []
+    for v in canaux:
+        v /= 255
+        lineaires.append(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lineaires[0] + 0.7152 * lineaires[1] + 0.0722 * lineaires[2]
+
+
+def _contraste(avant_plan, arriere_plan):
+    a, b = _luminance(avant_plan), _luminance(arriere_plan)
+    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+
+
+def _resoudre(jetons, valeur, profondeur=0):
+    """Suit les `var(--x)` en chaîne jusqu'à une valeur littérale."""
+    import re
+
+    if profondeur > 10 or valeur is None:
+        return None
+    valeur = valeur.strip()
+    reference = re.fullmatch(r"var\((--[\w-]+)\)", valeur)
+    if reference:
+        return _resoudre(jetons, jetons.get(reference.group(1)), profondeur + 1)
+    if valeur.startswith("--"):  # un nom de jeton nu se résout comme un var()
+        return _resoudre(jetons, jetons.get(valeur), profondeur + 1)
+    return valeur
+
+
+def _couleur(jetons, valeur, fond=None):
+    """Rend un triplet RVB. Une couleur translucide est composée sur `fond` —
+    l'item actif du rail sombre est un blanc à 10 % posé sur l'encre."""
+    import re
+
+    valeur = _resoudre(jetons, valeur)
+    if valeur is None:
+        return None
+    if valeur.startswith("#"):
+        h = valeur.lstrip("#").split()[0]
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+    rgba = re.fullmatch(r"rgba?\(([^)]+)\)", valeur)
+    if rgba:
+        parties = [p.strip() for p in rgba.group(1).replace("/", ",").split(",")]
+        canaux = [float(x) for x in parties[:3]]
+        alpha = float(parties[3]) if len(parties) > 3 else 1.0
+        if alpha >= 1.0:
+            return tuple(round(c) for c in canaux)
+        if fond is None:
+            return None
+        return tuple(round(c * alpha + f * (1 - alpha)) for c, f in zip(canaux, fond, strict=True))
+    return None
+
+
+# Chaque paire est un texte réellement peint sur un fond réellement peint, et
+# désigne des JETONS : si le CSS rebranche un jeton, la mesure suit.
+# 3.0 pour l'accent : il ne sert qu'en gros titre dans le hero (AA gros texte).
+_PAIRES_AA = [
+    ("lien sur carte blanche", "--couleur-lien", "#ffffff", None, 4.5),
+    ("lien sur canvas", "--couleur-lien", "--canvas", None, 4.5),
+    ("lien sur surface alternée", "--couleur-lien", "--surface-alt", None, 4.5),
+    ("blanc sur bouton primaire", "#ffffff", "--couleur-primaire", None, 4.5),
+    ("blanc sur en-tête", "#ffffff", "--ink", None, 4.5),
+    ("texte sur teinte claire", "--couleur-texte", "--couleur-primaire-clair", None, 4.5),
+    ("item courant du rail", "--rail-actif-texte", "--rail-actif-bg", "--rail-bg", 4.5),
+    ("accent sur en-tête (gros titre)", "--accent", "--ink", None, 3.0),
+    ("encre sur bouton accent", "--ink", "--accent", None, 4.5),
+    ("texte muet sur canvas", "--couleur-muet", "--canvas", None, 4.5),
+]
+
+
+def _jetons_du_theme(css, selecteur):
+    """Fusionne, dans l'ordre du document, toute règle dont la LISTE de
+    sélecteurs contient celui-ci : une palette hérite du groupe « rail clair »
+    autant que de son propre bloc."""
+    import re
+
+    jetons = {}
+    # Retirer les commentaires D'ABORD : le grand en-tête « THÈMES DE TEST » cite
+    # `data-theme="a"`, et une de ses lignes se faisait prendre pour un sélecteur
+    # — la règle « rail clair » qui suivait était alors avalée, et les palettes
+    # claires mesuraient le rail sombre de `:root`. Un test peut être vert et
+    # mesurer autre chose que ce qu'il annonce.
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    for liste, corps in re.findall(r"(?m)^([^{}@/\n][^{}]*?)\{([^{}]*)\}", css):
+        if selecteur in [s.strip() for s in liste.split(",")]:
+            jetons.update(
+                (cle, valeur.strip())
+                for cle, valeur in re.findall(r"(--[\w-]+):\s*([^;]+);", corps)
+            )
+    return jetons
+
+
+def test_les_palettes_respectent_le_contraste_AA():
+    import pathlib
+    import re
+
+    from django.conf import settings
+
+    css = (pathlib.Path(settings.BASE_DIR) / "front/static/css/site.css").read_text()
+    racine = _jetons_du_theme(css, ":root")
+    palettes = sorted(set(re.findall(r'html\[data-theme="(\w+)"\]', css)))
+    assert len(palettes) >= 7, f"palettes introuvables dans le CSS : {palettes}"
+
+    fautifs = []
+    for lettre in palettes:
+        jetons = dict(racine)
+        jetons.update(_jetons_du_theme(css, f'html[data-theme="{lettre}"]'))
+        mesurees = 0
+        for label, avant, arriere, derriere, seuil in _PAIRES_AA:
+            fond = _couleur(jetons, derriere) if derriere else None
+            texte, support = _couleur(jetons, avant, fond), _couleur(jetons, arriere, fond)
+            if texte is None or support is None:
+                continue
+            mesurees += 1
+            rapport = _contraste(texte, support)
+            if rapport < seuil:
+                fautifs.append(f"{lettre} · {label} : {rapport:.2f} < {seuil}")
+        # Un jeton renommé ferait passer le test en ne mesurant plus rien :
+        # exiger le compte plein est ce qui empêche ce faux vert.
+        assert mesurees == len(_PAIRES_AA), (
+            f"palette {lettre} : {mesurees} paires mesurées sur {len(_PAIRES_AA)} — "
+            "un jeton a changé de nom, le test ne prouve plus rien"
+        )
+
+    assert not fautifs, "contraste sous le seuil AA :\n  " + "\n  ".join(fautifs)

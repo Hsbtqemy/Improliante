@@ -55,10 +55,10 @@
         <nav id="site-nav" aria-label="Navigation principale">
           <ul class="site-nav">
             <li><a href="{% url 'vitrine:accueil' %}">Accueil</a></li>
+            <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
             <li><a href="{% url 'vitrine:spectacles' %}">Spectacles</a></li>
             <li><a href="{% url 'vitrine:agenda' %}">Agenda</a></li>
             <li><a href="{% url 'vitrine:galerie' %}">Galerie</a></li>
-            <li><a href="{% url 'vitrine:association' %}">L'association</a></li>
             <li><a href="{% url 'vitrine:contact' %}">Contact</a></li>
             {% if request.user.is_authenticated %}
               <li><a href="{% url 'espace_membre:tableau_de_bord' %}">Mon espace</a></li>
@@ -122,6 +122,11 @@
         <a href="?theme=e"{% if theme_actif == 'e' %} aria-current="true"{% endif %}>E · nuit bleue</a>
         <a href="?theme=f"{% if theme_actif == 'f' %} aria-current="true"{% endif %}>F · corail</a>
         <a href="?theme=g"{% if theme_actif == 'g' %} aria-current="true"{% endif %}>G · forêt</a>
+        <a href="?theme=h"{% if theme_actif == 'h' %} aria-current="true"{% endif %}>H · bleu canard</a>
+        <a href="?theme=i"{% if theme_actif == 'i' %} aria-current="true"{% endif %}>I · indigo</a>
+        <a href="?theme=j"{% if theme_actif == 'j' %} aria-current="true"{% endif %}>J · olive</a>
+        <a href="?theme=k"{% if theme_actif == 'k' %} aria-current="true"{% endif %}>K · rouille</a>
+        <a href="?theme=l"{% if theme_actif == 'l' %} aria-current="true"{% endif %}>L · encre</a>
       </div>
       <div class="theme-switch__row">
         <span class="theme-switch__label">Fond</span>
@@ -143,7 +148,7 @@
       // pendant la navigation (test seulement).
       (function () {
         var s = location.search;
-        var mt = s.match(/[?&]theme=([a-g])/);
+        var mt = s.match(/[?&]theme=([a-l])/);
         if (mt) document.cookie = "theme=" + mt[1] + ";path=/;max-age=604800;samesite=Lax";
         var mf = s.match(/[?&]fond=(plat|mesh|grain)/);
         if (mf) document.cookie = "fond=" + mf[1] + ";path=/;max-age=604800;samesite=Lax";
