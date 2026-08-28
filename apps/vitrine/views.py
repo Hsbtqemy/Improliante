@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement, ImageEvenement, Inscription
-from apps.coeur.models import LienReseau, Membre
+from apps.coeur.models import LienReseau, Membre, ParametresAssociation
 from apps.coeur.services import membres_en_vedette
 from apps.common.instagram import derniers_posts_instagram
 from apps.medias.models import Media
@@ -39,6 +39,7 @@ def accueil(request):
     """Page d'accueil : à l'affiche + créations en cours."""
     publies = Spectacle.objects.filter(statut_moderation=_PUBLIE)
     contexte = {
+        "association": ParametresAssociation.load(),
         "a_l_affiche": publies.filter(statut_projet=Spectacle.StatutProjet.A_L_AFFICHE)[:6],
         "en_creation": publies.filter(
             statut_projet__in=[
@@ -226,7 +227,11 @@ def association(request):
     return render(
         request,
         "vitrine/association.html",
-        {"membres": membres, "vedette": membres_en_vedette()},
+        {
+            "association": ParametresAssociation.load(),
+            "membres": membres,
+            "vedette": membres_en_vedette(),
+        },
     )
 
 

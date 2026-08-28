@@ -216,6 +216,8 @@ class ParametresAssociationForm(AideAccessibleMixin, forms.ModelForm):
         model = ParametresAssociation
         fields = [
             "nom",
+            "accroche",
+            "presentation",
             "objet",
             "adresse",
             "code_postal",
@@ -229,7 +231,10 @@ class ParametresAssociationForm(AideAccessibleMixin, forms.ModelForm):
             "bic",
             "mention_tva",
         ]
-        widgets = {"objet": forms.Textarea(attrs={"rows": 2})}
+        widgets = {
+            "objet": forms.Textarea(attrs={"rows": 2}),
+            "presentation": forms.Textarea(attrs={"rows": 3}),
+        }
 
 
 # --- Gouvernance ------------------------------------------------------------

@@ -14,7 +14,13 @@ from django.utils.timezone import make_aware
 
 from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement, Inscription
-from apps.coeur.models import LienReseau, Lieu, Membre, Utilisateur
+from apps.coeur.models import (
+    LienReseau,
+    Lieu,
+    Membre,
+    ParametresAssociation,
+    Utilisateur,
+)
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, LigneDistribution, Spectacle
 from apps.vitrine.models import MessageContact
@@ -855,3 +861,54 @@ def test_les_palettes_respectent_le_contraste_AA():
         )
 
     assert not fautifs, "contraste sous le seuil AA :\n  " + "\n  ".join(fautifs)
+
+
+# --- Présentation de l'association ------------------------------------------
+#
+# L'accroche et la présentation vivaient en dur dans deux gabarits : le bureau
+# ne pouvait pas retoucher ce que dit sa propre page d'accueil, et le même texte
+# était écrit deux fois. Les deux pages tirent maintenant du même enregistrement.
+
+
+def test_l_accueil_porte_sur_l_association(client, db):
+    """Le hero affiche le nom, l'accroche et la présentation de l'association —
+    et il suit quand le bureau les modifie."""
+    parametres = ParametresAssociation.load()
+    parametres.nom = "Compagnie du Tréteau"
+    parametres.accroche = "on joue, on rate, on recommence."
+    parametres.presentation = "Une troupe née en 2019 dans une salle des fêtes."
+    parametres.save()
+
+    corps = client.get("/").content.decode()
+
+    assert "Compagnie du Tréteau" in corps
+    assert "on joue, on rate, on recommence." in corps
+    assert "Une troupe née en 2019 dans une salle des fêtes." in corps
+
+
+def test_la_presentation_n_est_ecrite_qu_a_un_endroit(client, db):
+    """Accueil et page « L'association » servent le MÊME texte : le doublon en
+    dur d'avant se serait désynchronisé à la première retouche."""
+    parametres = ParametresAssociation.load()
+    parametres.presentation = "Texte de présentation unique et reconnaissable."
+    parametres.save()
+
+    accueil = client.get("/").content.decode()
+    association = client.get("/association/").content.decode()
+
+    assert "Texte de présentation unique et reconnaissable." in accueil
+    assert "Texte de présentation unique et reconnaissable." in association
+
+
+def test_l_accroche_vide_ne_casse_pas_le_hero(client, db):
+    """Champs facultatifs : une association qui les vide doit garder une page
+    d'accueil valide, sans paragraphe fantôme."""
+    parametres = ParametresAssociation.load()
+    parametres.accroche = ""
+    parametres.presentation = ""
+    parametres.save()
+
+    reponse = client.get("/")
+
+    assert reponse.status_code == 200
+    assert 'class="hero__intro"' not in reponse.content.decode()

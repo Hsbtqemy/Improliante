@@ -264,6 +264,14 @@ main {
 }
 .hero__titre .accent {
   color: var(--accent);
+  /* L'accroche est saisie par le bureau : sa longueur est inconnue. En bloc et
+     plus petite que le nom, elle se replie proprement au lieu d'écraser le
+     titre — une accroche de trois mots comme une de dix restent lisibles. */
+  display: block;
+  font-size: 0.62em;
+  line-height: 1.12;
+  margin-top: 0.15em;
+  max-width: 20ch;
 }
 .hero__intro {
   font-size: 1.15rem;

@@ -5,16 +5,18 @@
 {% block contenu %}
   <section class="hero">
     <h1 class="hero__titre">
-      Le spectacle vivant,<br />
-      <span class="accent">en pleine lumière.</span>
+      {{ association.nom }}<br />
+      <span class="accent">{{ association.accroche }}</span>
     </h1>
-    <p class="hero__intro">
-      L'Improliante fait vivre le théâtre et l'improvisation : nos créations, les
-      projets portés par nos membres, et les prochains rendez-vous sur scène.
-    </p>
+    {% if association.presentation %}
+      <p class="hero__intro">{{ association.presentation }}</p>
+    {% endif %}
     <div class="hero__actions">
-      <a class="lien-bouton lien-bouton--accent" href="{% url 'vitrine:spectacles' %}">
-        Voir les spectacles
+      <a class="lien-bouton lien-bouton--accent" href="{% url 'vitrine:association' %}">
+        L'association
+      </a>
+      <a class="lien-bouton lien-bouton--ghost" href="{% url 'vitrine:spectacles' %}">
+        Les spectacles
       </a>
       <a class="lien-bouton lien-bouton--ghost" href="{% url 'vitrine:agenda' %}">
         L'agenda

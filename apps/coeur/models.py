@@ -188,7 +188,30 @@ class ParametresAssociation(models.Model):
     objet = models.TextField(
         "objet de l'association",
         blank=True,
-        help_text="Tel que déclaré (figure sur le reçu fiscal).",
+        help_text="Tel que déclaré (figure sur le reçu fiscal). À ne pas confondre "
+        "avec la présentation publique : celui-ci est l'objet statutaire, en langue "
+        "juridique, et il est imprimé sur les documents officiels.",
+    )
+
+    # Présentation publique — distincte de `objet`, qui est statutaire. C'est ce
+    # texte qui porte la page d'accueil et la page « L'association » : il vivait
+    # en dur dans deux gabarits, donc hors de portée du bureau.
+    accroche = models.CharField(
+        "accroche",
+        max_length=120,
+        blank=True,
+        default="le spectacle vivant, en pleine lumière.",
+        help_text="Une ligne, sous le nom, en grand sur la page d'accueil.",
+    )
+    presentation = models.TextField(
+        "présentation publique",
+        blank=True,
+        default=(
+            "L'Improliante est une association de spectacle vivant. Elle porte ses "
+            "propres créations et accompagne les projets de ses membres."
+        ),
+        help_text="Deux ou trois phrases. Affichées sur la page d'accueil et en "
+        "tête de la page « L'association ».",
     )
     adresse = models.CharField(max_length=255, blank=True)
     code_postal = models.CharField("code postal", max_length=16, blank=True)

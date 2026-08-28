@@ -5,10 +5,9 @@
 {% block contenu %}
   <header class="page-tete">
     <h1>L'association</h1>
-    <p class="page-tete__sous">
-      L'Improliante est une association de spectacle vivant. Elle porte ses propres
-      créations et accompagne les projets de ses membres.
-    </p>
+    {% if association.presentation %}
+      <p class="page-tete__sous">{{ association.presentation }}</p>
+    {% endif %}
   </header>
 
   <section aria-labelledby="titre-membres">
