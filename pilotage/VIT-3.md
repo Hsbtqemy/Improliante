@@ -11,14 +11,14 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 ## Reste
 
 ### Arbitrages
-- [ ] Arrêter la palette parmi les sept du sélecteur (A bordeaux chaud … G forêt)
+- [ ] Arrêter la palette parmi les douze du sélecteur (A bordeaux … L encre neutre)
 - [ ] Arrêter le fond parmi les trois (plat teinté, mesh animé, grain)
 - [ ] Arrêter la police de titre parmi les cinq (système, Fraunces, Playfair, Instrument, Bricolage)
 
 ### Retrait du panneau DEV
 - [ ] Supprimer le bloc `.theme-switch` et son script de `base.html`, une fois les trois choix faits
 - [ ] Figer les trois choix dans `:root` et retirer les attributs `data-theme` / `data-fond` / `data-titre` de `<html>`
-- [ ] Purger le CSS des six palettes et des deux fonds écartés, et supprimer leurs blocs `html[data-theme=…]`
+- [ ] Purger le CSS des onze palettes et des deux fonds écartés, et supprimer leurs blocs `html[data-theme=…]`
 - [ ] Ne garder que le `.woff2` retenu dans `front/static/fonts/` ; supprimer les trois autres et leurs `@font-face`
 
 ### Mise en production de la fonte
@@ -29,6 +29,7 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 ### Vérifications
 - [ ] Contrôler le rendu des titres longs sur 375 px (« Politique de confidentialité », titres de spectacles)
 - [ ] Vérifier le contraste AA des titres sur la palette retenue, la fonte retenue en place
+- [ ] Regarder les douze palettes en mode sombre (`html.sombre`) : le test ne couvre que le mode clair
 
 ## Contexte
 
@@ -55,6 +56,14 @@ pour un site français. Les quatre `.woff2` sont versionnés dans
 La police de titre pilote aussi `.site-logo` : changer de fonte change le logo
 « L'Improliante » en même temps que les titres. C'est voulu, mais c'est à
 regarder au moment du choix.
+
+Le contraste AA des palettes n'est plus une intention : `apps/vitrine/tests.py
+::test_les_palettes_respectent_le_contraste_AA` mesure dix paires réellement
+peintes sur chaque palette présente dans le CSS, palettes futures comprises. Il a
+révélé deux défauts sur l'existant (item du rail à 4,05 et 4,29 ; survol du bouton
+principal en ambre codé en dur). **Limite connue** : il ne couvre que le mode
+clair — le mode sombre (`html.sombre`) redéfinit canvas et surfaces et reste à
+vérifier à la main.
 
 Les trois choix ne sont pas indépendants : le contraste des titres se juge sur la
 palette retenue, et le mesh animé change la lisibilité d'un titre à serif fine.
