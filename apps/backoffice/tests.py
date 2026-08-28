@@ -1990,3 +1990,12 @@ def test_bilan_sans_saison_n_affiche_pas_de_graphiques(client, db):
     assert reponse.status_code == 200
     assert "tuiles" not in reponse.context
     assert "Créez d'abord une saison" in reponse.content.decode()
+
+
+def test_le_hub_finances_mene_au_tableau_de_bord(client, db):
+    """Le hub route vers les sections : sans ce lien, le tableau de bord ne
+    s'atteint qu'en passant par Mouvements puis en changeant d'onglet."""
+    client.force_login(_staff())
+    corps = client.get("/bureau/finances/").content.decode()
+
+    assert "/bureau/budget/bilan/" in corps
