@@ -11,7 +11,7 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 ## Reste
 
 ### Arbitrages
-- [ ] Arrêter la palette parmi les douze du sélecteur (A bordeaux … L encre neutre)
+- [ ] Arrêter la palette parmi les douze du sélecteur (numérotées 1 à 12, voir la table ci-dessous)
 - [ ] Arrêter le fond parmi les trois (plat teinté, mesh animé, grain)
 - [ ] Arrêter la police de titre parmi les cinq (système, Fraunces, Playfair, Instrument, Bricolage)
 
@@ -56,6 +56,18 @@ pour un site français. Les quatre `.woff2` sont versionnés dans
 La police de titre pilote aussi `.site-logo` : changer de fonte change le logo
 « L'Improliante » en même temps que les titres. C'est voulu, mais c'est à
 regarder au moment du choix.
+
+Les palettes sont numérotées de 1 à 12 dans le sélecteur : avec douze entrées,
+les noms débordaient sur deux lignes. Le nom reste en infobulle sur chaque
+bouton, en commentaire dans le CSS, et ici — c'est le seul endroit durable :
+
+| 1 bordeaux chaud | 2 sombre chaud | 3 clair | 4 prune/rose |
+| 5 nuit bleue | 6 charbon/corail | 7 forêt/terracotta | 8 bleu canard/cuivre |
+| 9 indigo/or | 10 olive/ambre | 11 rouille/sable | 12 encre neutre/rouge sec |
+
+Un cookie `theme=` d'avant la renumérotation ne correspond plus à aucune règle :
+la page retombe alors sur `:root`, qui est la palette 1. Dégradation propre, rien
+à migrer.
 
 Le contraste AA des palettes n'est plus une intention : `apps/vitrine/tests.py
 ::test_les_palettes_respectent_le_contraste_AA` mesure dix paires réellement
