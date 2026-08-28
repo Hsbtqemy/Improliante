@@ -6,7 +6,8 @@ statut: interrompu
 # GED-1 — explorateur de fichiers (v2)
 
 **Arrêté sur** — déplacement d'un dossier dans l'arbre, avec réalignement de la
-visibilité sur tout le sous-arbre, commit `3d4555a`, 28 août.
+visibilité sur tout le sous-arbre, relu et corrigé sur l'annonce de la
+confidentialité, commit `6f02a48`, 28 août.
 
 ## Reste
 
@@ -18,6 +19,7 @@ visibilité sur tout le sous-arbre, commit `3d4555a`, 28 août.
 ### Vérifications
 - [ ] La navigation reste utilisable au clavier seul et annonce le dossier courant — règle 9 de CLAUDE.md, et c'est ce qu'un explorateur rate le plus souvent
 - [ ] La liste des destinations reste compréhensible sur un arbre profond : l'indentation par niveau suffit à distinguer deux dossiers homonymes
+- [ ] Sur un arbre réel, la confidentialité affichée en face de chaque destination se lit sans confondre « partagé » et « transmis au bureau »
 - [x] Un document dont le membre n'a pas le droit n'apparaît pas dans l'arbre, et son URL directe rend 403 — règles 1 et 5
 
 ## Contexte
@@ -59,3 +61,20 @@ tests l'ont montré ; la relecture ne le montrait pas.
 **Reste ouvert** : le glisser-déposer, écarté faute d'être indispensable (il impose un
 envoi asynchrone et sa gestion d'erreur, quand le déplacement par formulaire lève déjà
 l'impasse). Et la vérification clavier, qui appartient à une passe de QA.
+
+## Relecture (même jour)
+
+Le déplacement était juste ; c'est l'écran qui mentait par omission. L'espace personnel
+a **trois** audiences — privé, partagé avec la troupe, transmis au bureau — et l'encart
+n'en nommait qu'une. Ranger un dossier de brouillons sous « Transmis au bureau »
+l'exposait au bureau sans que rien ne l'ait dit.
+
+La correction qui compte n'est pas la reformulation de l'encart, mais le déplacement de
+l'information **au point de choix** : chaque destination porte sa confidentialité dans la
+liste déroulante. Un avertissement général, lu avant de choisir, ne remplace pas ce qui
+est écrit en face de l'option qu'on sélectionne.
+
+Un test manquait, et son absence était le vrai risque : je vérifiais que le dossier d'un
+autre membre n'est pas *proposé*, jamais qu'un POST forgé vers cette cible échoue. Il
+échoue bien — le queryset du formulaire, puis les invariants du service — mais rien
+n'empêchait cette double barrière de régresser en silence.
