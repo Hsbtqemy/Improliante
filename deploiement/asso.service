@@ -26,15 +26,20 @@ WorkingDirectory=/srv/asso/app
 EnvironmentFile=/srv/asso/app.env
 
 # Gunicorn : 3 workers (ajuster selon les vCPU : règle de départ ~ 2×CPU+1).
-# `--umask 007` est INDISPENSABLE : sans lui, Gunicorn crée le socket avec
-# l'umask de systemd (022), donc en 0755. Se connecter à un socket Unix exige
-# le droit d'ÉCRITURE, que le groupe n'a pas en 0755 — Nginx tourne en
-# www-data et se prend un 502 sur chaque requête, sans autre indice qu'un
-# « permission denied » dans son log d'erreur. Avec 007, le socket sort en
-# 0770 : propriétaire deploy, groupe www-data, les deux en écriture.
+# L'umask est INDISPENSABLE : sans lui, Gunicorn crée le socket avec l'umask
+# de systemd (022), donc en 0755. Se connecter à un socket Unix exige le droit
+# d'ÉCRITURE, que le groupe n'a pas en 0755 — Nginx tourne en www-data et se
+# prend un 502 sur chaque requête, sans autre indice qu'un « permission
+# denied » dans son log d'erreur. Avec cet umask, le socket sort en 0770 :
+# propriétaire deploy, groupe www-data, les deux en écriture.
+#
+# La valeur s'écrit `0o007`, PAS `007` : Gunicorn la passe à `int(valeur, 0)`,
+# et Python 3 refuse un octal écrit à la mode ancienne. `--umask 007` fait
+# donc échouer le démarrage du service — un mode de panne plus brutal encore
+# que le 502 qu'on cherche à éviter.
 ExecStart=/srv/asso/venv/bin/gunicorn \
     --workers 3 \
-    --umask 007 \
+    --umask 0o007 \
     --bind unix:/srv/asso/run/gunicorn.sock \
     --access-logfile /srv/asso/logs/gunicorn-access.log \
     --error-logfile /srv/asso/logs/gunicorn-error.log \

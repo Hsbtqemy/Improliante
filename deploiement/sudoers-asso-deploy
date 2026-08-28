@@ -1,0 +1,29 @@
+# /etc/sudoers.d/asso-deploy
+#
+# Autorise le compte `deploy` à redémarrer le SEUL service de l'application,
+# sans mot de passe — c'est la dernière étape de deploy.sh, qui tourne sans
+# terminal et ne peut donc rien saisir.
+#
+# Installation :
+#   sudo install -m 0440 -o root -g root sudoers-asso-deploy /etc/sudoers.d/asso-deploy
+#   sudo visudo -c            # DOIT dire « parsed OK » avant de fermer la session
+#
+# Vérifier avant de se déconnecter : une erreur de syntaxe dans /etc/sudoers.d
+# casse sudo pour TOUT LE MONDE, y compris pour la réparer. Garder un second
+# terminal root ouvert pendant la manœuvre.
+#
+# Contrôle du résultat, depuis le compte deploy :
+#   sudo -n /bin/systemctl restart asso     # doit passer sans mot de passe
+#   sudo -n /bin/systemctl restart nginx    # doit être REFUSÉ
+#
+# Le périmètre est volontairement minuscule : un seul verbe, un seul service.
+# Surtout pas de `NOPASSWD: ALL`, qui donnerait la machine entière à quiconque
+# obtiendrait le compte deploy — or ce compte est justement celui qu'un
+# webhook exposé sur Internet fait travailler.
+#
+# Les deux chemins sont listés parce que sudo compare la commande TELLE
+# QU'ÉCRITE, sans résoudre les liens : sur Debian, /bin pointe vers /usr/bin,
+# mais une règle sur l'un ne couvre pas un appel par l'autre. deploy.sh
+# invoque /bin/systemctl ; /usr/bin/systemctl est là pour l'appel à la main.
+
+deploy ALL=(root) NOPASSWD: /bin/systemctl restart asso, /usr/bin/systemctl restart asso

@@ -57,9 +57,6 @@ cd "$APP_DIR"
 # On force l'alignement sur la branche distante pour éviter les conflits
 # de merge sur un serveur (le VPS ne doit jamais avoir de commits locaux).
 log "Récupération des changements depuis GitHub…"
-# Retenu AVANT le reset : sert à savoir ce qui a bougé. `|| echo ""` couvre le
-# tout premier déploiement, où il n'y a pas encore de HEAD exploitable.
-COMMIT_AVANT=$(git rev-parse HEAD 2>/dev/null || echo "")
 git fetch --all --quiet
 git checkout "$BRANCH" --quiet
 git reset --hard "origin/$BRANCH" --quiet
@@ -67,15 +64,25 @@ COMMIT=$(git rev-parse --short HEAD)
 log "Code aligné sur le commit $COMMIT"
 
 # --- 2. Dépendances ---------------------------------------------------
-# On n'installe que si requirements.txt a bougé — mais TOUJOURS au premier
-# déploiement, quand il n'y a pas d'état antérieur à comparer. L'ancienne
-# version interrogeait le reflog (`HEAD@{1}`), vide au premier passage : la
-# comparaison échouait en silence et concluait « dépendances inchangées » sur
-# un venv encore nu.
-if [ -z "$COMMIT_AVANT" ] || ! git diff --quiet "$COMMIT_AVANT" HEAD -- requirements.txt; then
+# La question posée n'est pas « le dépôt a-t-il bougé ? » mais « le venv
+# correspond-il au requirements.txt courant ? ». Un témoin git ne sait pas y
+# répondre : au premier déploiement, le dépôt vient d'être cloné, HEAD n'a pas
+# bougé d'un pouce — et le venv est pourtant vide. C'est ce qui rendait les
+# deux tentatives précédentes inopérantes, celle par `HEAD@{1}` comme celle
+# par le commit d'avant le reset.
+#
+# On compare donc l'empreinte du fichier à celle de la dernière installation
+# RÉUSSIE, gardée dans le venv. Absente au premier passage : on installe.
+EMPREINTE_FICHIER="$VENV_DIR/.requirements.sha256"
+EMPREINTE=$(sha256sum requirements.txt | cut -d" " -f1)
+if [ ! -f "$EMPREINTE_FICHIER" ] || [ "$(cat "$EMPREINTE_FICHIER")" != "$EMPREINTE" ]; then
     log "Installation des dépendances…"
     "$PIP" install --quiet --upgrade pip
     "$PIP" install --quiet -r requirements.txt
+    # Écrite APRÈS l'installation : `set -e` garantit qu'on n'arrive ici que
+    # si pip a réussi. Un échec laisse l'empreinte périmée, donc réessaie au
+    # déploiement suivant plutôt que de se croire à jour.
+    echo "$EMPREINTE" >"$EMPREINTE_FICHIER"
 else
     log "Dépendances inchangées, étape ignorée."
 fi
@@ -98,8 +105,9 @@ log "Collecte des fichiers statiques…"
 "$PYTHON" manage.py collectstatic --noinput --clear
 
 # --- 6. Redémarrage de l'application ----------------------------------
-# On redémarre Gunicorn. systemctl est appelé via sudo restreint
-# (voir la règle sudoers dans le cahier des charges).
+# On redémarre Gunicorn. systemctl est appelé via sudo restreint : la règle
+# est dans `deploiement/sudoers-asso-deploy`, à installer sous
+# /etc/sudoers.d/. Sans elle, tout le déploiement réussit et échoue ICI.
 log "Redémarrage de Gunicorn ($GUNICORN_SERVICE)…"
 sudo /bin/systemctl restart "$GUNICORN_SERVICE"
 

@@ -29,6 +29,12 @@ mkdir -p "$BACKUP_DIR"
 echo "[$(date '+%F %T')] Début de la sauvegarde ($HORODATAGE)"
 
 # --- 1. Base de données (dump compressé) ------------------------------
+# `pg_dump -U` ne demande pas de mot de passe ici : le cron n'a pas de
+# terminal pour en saisir un. Deux options, à trancher à l'installation —
+# planifier ce script dans la crontab de l'utilisateur `postgres` (qui passe
+# par l'authentification peer, sans mot de passe), ou déposer un fichier
+# ~/.pgpass en 0600 pour l'utilisateur qui le lance. Sans l'un des deux, la
+# sauvegarde échoue chaque nuit en silence.
 DUMP_FILE="$BACKUP_DIR/db-$HORODATAGE.sql.gz"
 pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$DUMP_FILE"
 echo "  Base sauvegardée : $DUMP_FILE"
