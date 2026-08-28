@@ -7,7 +7,7 @@ statut: clos
 
 **Arrêté sur** — tableau de bord posé sur l'écran Bilan (chiffres clés, réalisé face au
 budget, répartition des dépenses), rendu en HTML/CSS, relu et durci sur données
-limites, commit `26130b5`, 28 août.
+limites, puis relié depuis le hub Finances, commit `a578466`, 28 août.
 
 ## Reste
 
