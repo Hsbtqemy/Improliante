@@ -1,6 +1,6 @@
 ---
 chantier: DEP-1
-statut: interrompu
+statut: différé
 ---
 
 # DEP-1 — déploiement VPS
@@ -123,3 +123,17 @@ cette vérification par mutation qui leur donne leur valeur.
 
 Reste à refaire sur le VPS, contre SA base : `TEST_POSTGRES=1 pytest`. Un PostgreSQL
 local n'est pas celui d'Infomaniak (version, encodage, fuseau, droits du rôle).
+
+## Mis en attente le 28 août
+
+Le déploiement est **différé sur décision** : les fonctionnalités passent devant. Ce
+n'est pas un arrêt en plein travail — l'audit des six fichiers et la validation sur
+PostgreSQL sont finis et tiennent tout seuls. La fiche porte donc `différé`, que l'outil
+ne dément pas mécaniquement : la date de mise en attente est ici, faute d'un champ pour
+la porter.
+
+Ce que le report coûte, pour mémoire : **BO-1 reste bloqué** — son premier arbitrage (le
+déclencheur des relances : cron sur le VPS ou tâche applicative) ne peut pas se trancher
+sans savoir ce que la machine fait tourner. Et tout ce qui s'ajoute d'ici là s'ajoute à
+du code qui n'a jamais tourné en production : WeasyPrint et ses bibliothèques natives,
+X-Accel-Redirect, CSRF derrière un proxy HTTPS.
