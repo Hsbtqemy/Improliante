@@ -800,6 +800,12 @@ _PAIRES_AA = [
     ("blanc sur en-tête", "#ffffff", "--ink", None, 4.5),
     ("texte sur teinte claire", "--couleur-texte", "--couleur-primaire-clair", None, 4.5),
     ("item courant du rail", "--rail-actif-texte", "--rail-actif-bg", "--rail-bg", 4.5),
+    # Le rail était hors mesure : ses titres de groupe tombaient à 4,37 sur les
+    # palettes à rail sombre. Ils portent la position depuis que le rail se
+    # replie — c'est le repère principal, pas un ornement.
+    ("titre de groupe du rail", "--rail-titre", "--rail-bg", "--rail-bg", 4.5),
+    ("entrée du rail", "--rail-texte", "--rail-bg", "--rail-bg", 4.5),
+    ("entrée survolée du rail", "--rail-texte-fort", "--rail-hover", "--rail-bg", 4.5),
     ("accent sur en-tête (gros titre)", "--accent", "--ink", None, 3.0),
     ("encre sur bouton accent", "--ink", "--accent", None, 4.5),
     ("texte muet sur canvas", "--couleur-muet", "--canvas", None, 4.5),

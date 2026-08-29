@@ -34,7 +34,11 @@
   --rail-bordure: transparent;
   --rail-texte: rgba(255, 255, 255, 0.82);
   --rail-texte-fort: #fff;
-  --rail-titre: rgba(255, 255, 255, 0.45);
+  /* 0.45 donnait 4,37 à 4,47 sur les encres des palettes à rail sombre (2, 4, 7),
+     donc sous AA pour un texte de 0.68rem — qui n'est pas du « grand texte », même
+     en 800. 0.55 dégage 5,3 à 5,6 tout en restant nettement en retrait des entrées
+     (0.82) : la hiérarchie tient, la lisibilité aussi. */
+  --rail-titre: rgba(255, 255, 255, 0.55);
   --rail-hover: rgba(255, 255, 255, 0.08);
   --rail-actif-bg: rgba(255, 255, 255, 0.1);
   --rail-actif-bord: var(--accent);
@@ -4061,6 +4065,22 @@ html.contraste.sombre .viz {
   .liste-etat__ligne {
     grid-template-columns: 7rem 1fr auto auto;
     align-items: baseline;
+  }
+}
+
+/* Les titres se dimensionnent en `vw`, donc sur le VIEWPORT — alors que dans
+   l'espace connecté le contenu n'occupe que ~63 % de la largeur, le rail
+   prenant le reste. À 1400 px, le même h1 pesait 5,3 % de sa colonne contre
+   4,0 % sur la vitrine : un tiers plus gros à cause d'un calcul qui ignore le
+   rail. On ramène la part de viewport dans la même proportion. La vitrine,
+   elle, ne bouge pas. */
+@media (min-width: 48rem) {
+  .espace-grille--avec-nav h1 {
+    font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+  }
+  .espace-grille--avec-nav h2 {
+    font-size: clamp(1.15rem, 2vw, 1.4rem);
+    margin-top: 2rem;
   }
 }
 
