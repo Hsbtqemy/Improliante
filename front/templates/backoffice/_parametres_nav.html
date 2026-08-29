@@ -1,0 +1,9 @@
+{% comment %}Onglets des réglages (même composant que Facturation / Budget / Cotisations).{% endcomment %}
+{% with vn=request.resolver_match.view_name %}
+<nav class="onglets" aria-label="Réglages">
+  <a class="onglet{% if vn == 'backoffice:parametres_identite' %} onglet--actif{% endif %}" href="{% url 'backoffice:parametres_identite' %}"{% if vn == 'backoffice:parametres_identite' %} aria-current="page"{% endif %}>Identité légale</a>
+  <a class="onglet{% if vn == 'backoffice:parametres_site' %} onglet--actif{% endif %}" href="{% url 'backoffice:parametres_site' %}"{% if vn == 'backoffice:parametres_site' %} aria-current="page"{% endif %}>Textes du site</a>
+  <a class="onglet{% if vn == 'backoffice:parametres_contact' %} onglet--actif{% endif %}" href="{% url 'backoffice:parametres_contact' %}"{% if vn == 'backoffice:parametres_contact' %} aria-current="page"{% endif %}>Page Contact</a>
+  <a class="onglet{% if vn == 'backoffice:parametres_signataires' or vn == 'backoffice:editer_signataire' %} onglet--actif{% endif %}" href="{% url 'backoffice:parametres_signataires' %}"{% if vn == 'backoffice:parametres_signataires' %} aria-current="page"{% endif %}>Signataires</a>
+</nav>
+{% endwith %}

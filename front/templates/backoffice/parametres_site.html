@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Textes du site — Gestion{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Gestion</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Réglages</span>
+    <h1>Textes du site</h1>
+    <p class="page-tete__sous">
+      Les deux textes qui portent la page d'accueil et l'en-tête de la page
+      <a href="{% url 'vitrine:association' %}">L'association</a>. À écrire pour un visiteur,
+      pas pour le greffe : l'objet statutaire, lui, vit sur l'onglet
+      <a href="{% url 'backoffice:parametres_identite' %}">Identité légale</a>.
+    </p>
+  </header>
+
+  {% include "backoffice/_parametres_nav.html" %}
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    <fieldset class="bloc-form">
+      <legend>Présentation publique</legend>
+      {% include "_champ.html" with field=form.accroche %}
+      {% include "_champ.html" with field=form.presentation %}
+    </fieldset>
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <a class="lien-bouton lien-bouton--discret" href="{% url 'vitrine:accueil' %}">Voir la page d'accueil</a>
+    </div>
+  </form>
+{% endblock %}

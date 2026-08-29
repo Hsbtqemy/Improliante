@@ -44,7 +44,7 @@ from apps.budget.services import (
     tresorerie,
 )
 from apps.coeur import services as coeur_services
-from apps.coeur.models import Membre, ParametresAssociation, Utilisateur
+from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, bureau_requis
 from apps.common.fiches import appliquer_images
 from apps.common.fichiers import reponse_fichier_prive
@@ -88,16 +88,17 @@ from .forms import (
     CategorieForm,
     ClientForm,
     ContactPublicFormSet,
+    ContactPubliqueForm,
     DevisForm,
     EvenementBureauForm,
     FactureForm,
+    IdentiteAssociationForm,
     InterventionFormSet,
     LigneDevisFormSet,
     LigneDistributionFormSet,
     LigneFactureFormSet,
     MembreForm,
     MembreRapideForm,
-    ParametresAssociationForm,
     PouvoirForm,
     PresenceForm,
     ProjetBureauForm,
@@ -105,8 +106,11 @@ from .forms import (
     ResolutionForm,
     ReunionForm,
     SaisonForm,
+    SignataireForm,
+    SignataireParDefautForm,
     SoldeTresorerieForm,
     SujetOrdreDuJourForm,
+    TextesSiteForm,
     TransactionForm,
 )
 
@@ -263,22 +267,153 @@ def finances(request):
 # --- Paramètres & équipe ----------------------------------------------------
 
 
-@bureau_requis
-def parametres_association(request):
-    """Édition de l'identité légale de l'association (en-tête des documents)."""
+def _page_reglages(request, *, form_class, gabarit, vue_retour, formset_class=None):
+    """Une des trois pages de réglages. Toutes éditent le même singleton.
+
+    D'où `update_fields` : chaque écran n'écrit QUE ses propres colonnes. Un
+    `save()` complet recopierait l'objet entier, et l'enregistrement d'une page
+    écraserait au passage ce qu'une autre vient de changer — invisible et
+    difficile à comprendre quand deux personnes du bureau travaillent en même
+    temps."""
     params = ParametresAssociation.load()
-    form = ParametresAssociationForm(request.POST or None, instance=params)
-    formset = ContactPublicFormSet(request.POST or None, instance=params)
-    if request.method == "POST" and form.is_valid() and formset.is_valid():
-        form.save()
-        formset.save()
-        messages.success(request, "Paramètres de l'association enregistrés.")
-        return redirect("backoffice:parametres_association")
+    form = form_class(request.POST or None, instance=params)
+    formset = formset_class(request.POST or None, instance=params) if formset_class else None
+    if request.method == "POST" and form.is_valid() and (formset is None or formset.is_valid()):
+        objet = form.save(commit=False)
+        objet.save(update_fields=list(form_class.Meta.fields))
+        if formset is not None:
+            formset.save()
+        messages.success(request, "Réglages enregistrés.")
+        return redirect(vue_retour)
+    return render(request, gabarit, {"form": form, "formset": formset})
+
+
+@bureau_requis
+def parametres_identite(request):
+    """Identité légale : ce qui s'imprime sur les reçus fiscaux et les factures."""
+    return _page_reglages(
+        request,
+        form_class=IdentiteAssociationForm,
+        gabarit="backoffice/parametres_identite.html",
+        vue_retour="backoffice:parametres_identite",
+    )
+
+
+@bureau_requis
+def parametres_site(request):
+    """Textes du site : l'accroche et la présentation publique."""
+    return _page_reglages(
+        request,
+        form_class=TextesSiteForm,
+        gabarit="backoffice/parametres_site.html",
+        vue_retour="backoffice:parametres_site",
+    )
+
+
+@bureau_requis
+def parametres_contact(request):
+    """Page Contact : coordonnées publiées et interlocuteurs affichés."""
+    return _page_reglages(
+        request,
+        form_class=ContactPubliqueForm,
+        gabarit="backoffice/parametres_contact.html",
+        vue_retour="backoffice:parametres_contact",
+        formset_class=ContactPublicFormSet,
+    )
+
+
+def _pieces_signees_par(signataire) -> int:
+    """Nombre de pièces qui désignent ce signataire.
+
+    Les clés étrangères portent `related_name="+"` (pas d'accès inverse) : on
+    compte explicitement. Sert à interdire la suppression d'un signataire dont
+    des documents portent le nom — on le retire du service à la place."""
+    return (
+        Facture.objects.filter(signataire=signataire).count()
+        + Devis.objects.filter(signataire=signataire).count()
+        + RecuFiscal.objects.filter(signataire=signataire).count()
+    )
+
+
+@bureau_requis
+def parametres_signataires(request):
+    """Liste des signataires, création, et choix du signataire par défaut."""
+    params = ParametresAssociation.load()
+    # Deux formulaires sur l'écran : on ne lie QUE celui qui a été soumis. Lier
+    # les deux ferait apparaître « ce champ est obligatoire » sous la création
+    # alors que c'est le défaut qu'on enregistrait.
+    modifie_defaut = request.method == "POST" and request.POST.get("form_type") == "defaut"
+    donnees = None if modifie_defaut else (request.POST or None)
+    form = SignataireForm(donnees, request.FILES or None)
+    form_defaut = SignataireParDefautForm(request.POST if modifie_defaut else None, instance=params)
+
+    if request.method == "POST":
+        if modifie_defaut:
+            if form_defaut.is_valid():
+                objet = form_defaut.save(commit=False)
+                objet.save(update_fields=["signataire_par_defaut"])
+                messages.success(request, "Signataire par défaut enregistré.")
+                return redirect("backoffice:parametres_signataires")
+        elif form.is_valid():
+            form.save()
+            messages.success(request, "Signataire enregistré.")
+            return redirect("backoffice:parametres_signataires")
+
+    signataires = list(Signataire.objects.all())
+    for signataire in signataires:
+        signataire.nb_pieces = _pieces_signees_par(signataire)
     return render(
         request,
-        "backoffice/parametres_association.html",
-        {"form": form, "formset": formset},
+        "backoffice/parametres_signataires.html",
+        {
+            "form": form,
+            "form_defaut": form_defaut,
+            "signataires": signataires,
+            "defaut": params.signataire_par_defaut,
+        },
     )
+
+
+@bureau_requis
+def editer_signataire(request, pk):
+    """Édition d'un signataire (dont le remplacement de l'image de signature)."""
+    signataire = get_object_or_404(Signataire, pk=pk)
+    form = SignataireForm(request.POST or None, request.FILES or None, instance=signataire)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Signataire mis à jour.")
+        return redirect("backoffice:parametres_signataires")
+    return render(
+        request,
+        "backoffice/signataire_form.html",
+        {
+            "form": form,
+            "signataire": signataire,
+            "nb_pieces": _pieces_signees_par(signataire),
+        },
+    )
+
+
+@bureau_requis
+@require_POST
+def supprimer_signataire(request, pk):
+    """Suppression, refusée dès qu'une pièce porte ce signataire.
+
+    Les clés étrangères sont en `SET_NULL` : supprimer effacerait le lien sans
+    bruit sur des devis, factures ou reçus déjà établis. Retirer du service
+    (`actif = False`) le fait disparaître des choix sans toucher au passé."""
+    signataire = get_object_or_404(Signataire, pk=pk)
+    nb_pieces = _pieces_signees_par(signataire)
+    if nb_pieces:
+        messages.error(
+            request,
+            f"{signataire.nom} figure sur {nb_pieces} document(s) : "
+            "retirez-le du service plutôt que de le supprimer.",
+        )
+    else:
+        signataire.delete()
+        messages.success(request, "Signataire supprimé.")
+    return redirect("backoffice:parametres_signataires")
 
 
 @bureau_requis

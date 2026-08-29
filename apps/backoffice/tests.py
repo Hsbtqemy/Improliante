@@ -66,12 +66,21 @@ def _evenement_propose(titre="Événement proposé"):
 # --- Paramètres & équipe ----------------------------------------------------
 
 
+_URLS_REGLAGES = (
+    "/bureau/parametres/",
+    "/bureau/parametres/site/",
+    "/bureau/parametres/contact/",
+    "/bureau/parametres/signataires/",
+)
+
+
 def test_parametres_reserve_au_bureau(client, db):
     client.force_login(_membre("lambda"))
-    assert client.get("/bureau/parametres/").status_code == 403
+    for url in _URLS_REGLAGES:
+        assert client.get(url).status_code == 403, url
 
 
-def test_editer_parametres_association(client, db):
+def test_editer_identite_legale(client, db):
     from apps.coeur.models import ParametresAssociation
 
     client.force_login(_staff())
@@ -88,16 +97,129 @@ def test_editer_parametres_association(client, db):
             "article_cgi": "200",
             "signataire_nom": "Alice",
             "signataire_qualite": "Présidente",
-            # Les interlocuteurs publics sont un formset inline sur cet écran :
-            # sans ses données de gestion, tout POST est rejeté.
-            "contacts_publics-TOTAL_FORMS": "0",
-            "contacts_publics-INITIAL_FORMS": "0",
-            "contacts_publics-MIN_NUM_FORMS": "0",
-            "contacts_publics-MAX_NUM_FORMS": "1000",
         },
     )
     assert reponse.status_code == 302
     assert ParametresAssociation.load().nom == "L'Improliante"
+
+
+def test_editer_les_textes_du_site(client, db):
+    from apps.coeur.models import ParametresAssociation
+
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/parametres/site/",
+        {"accroche": "en pleine lumière.", "presentation": "Une troupe."},
+    )
+    assert reponse.status_code == 302
+    params = ParametresAssociation.load()
+    assert (params.accroche, params.presentation) == ("en pleine lumière.", "Une troupe.")
+
+
+def test_un_ecran_de_reglages_n_ecrit_que_ses_propres_champs(client, db):
+    """Trois écrans, un seul modèle : enregistrer les textes du site ne doit pas
+    recopier par-dessus l'identité légale saisie ailleurs."""
+    from apps.coeur.models import ParametresAssociation
+
+    params = ParametresAssociation.load()
+    params.numero_rna, params.signataire_nom = "W999", "Alice"
+    params.save()
+
+    client.force_login(_staff())
+    client.post(
+        "/bureau/parametres/site/",
+        {"accroche": "autre accroche", "presentation": "autre présentation"},
+    )
+
+    params.refresh_from_db()
+    assert params.accroche == "autre accroche"
+    assert (params.numero_rna, params.signataire_nom) == ("W999", "Alice")
+
+
+# --- Signataires ------------------------------------------------------------
+
+
+def test_signataires_reserve_au_bureau(client, db):
+    client.force_login(_membre("lambda"))
+    assert client.get("/bureau/parametres/signataires/").status_code == 403
+
+
+def test_le_bureau_cree_un_signataire_sans_passer_par_l_admin(client, db):
+    client.force_login(_staff())
+    reponse = client.post(
+        "/bureau/parametres/signataires/",
+        {
+            "nom": "Alice Martin",
+            "qualite": "Présidente",
+            "mention_delegation": "",
+            "membre": "",
+            "actif": "on",
+        },
+    )
+    assert reponse.status_code == 302
+    assert Signataire.objects.get(nom="Alice Martin").qualite == "Présidente"
+
+
+def test_le_defaut_ne_retient_que_les_signataires_en_service(client, db):
+    """Un signataire retiré du service serait proposé partout sans figurer
+    dans les choix des pièces : il ne peut pas devenir le défaut."""
+    from apps.backoffice.forms import SignataireParDefautForm
+
+    actif = Signataire.objects.create(nom="Active", qualite="Présidente")
+    Signataire.objects.create(nom="Retirée", qualite="Ancienne", actif=False)
+    choix = set(SignataireParDefautForm().fields["signataire_par_defaut"].queryset)
+    assert choix == {actif}
+
+
+def test_le_defaut_est_preselectionne_sur_une_piece_neuve(client, db):
+    from apps.backoffice.forms import FactureForm
+    from apps.coeur.models import ParametresAssociation
+
+    sig = Signataire.objects.create(nom="Alice Martin", qualite="Présidente")
+    params = ParametresAssociation.load()
+    params.signataire_par_defaut = sig
+    params.save()
+    assert FactureForm().fields["signataire"].initial == sig
+
+
+def test_le_defaut_ne_touche_pas_une_piece_existante(client, db):
+    """Présélectionner à l'édition réécrirait un choix déjà fait — ou en poserait
+    un là où l'absence de signataire était volontaire."""
+    from apps.backoffice.forms import FactureForm
+    from apps.coeur.models import ParametresAssociation
+
+    sig = Signataire.objects.create(nom="Alice Martin", qualite="Présidente")
+    params = ParametresAssociation.load()
+    params.signataire_par_defaut = sig
+    params.save()
+    facture = Facture.objects.create(client=Client.objects.create(nom="Théâtre municipal"))
+    assert FactureForm(instance=facture).fields["signataire"].initial is None
+
+
+def test_un_signataire_utilise_ne_se_supprime_pas(client, db):
+    """Les clés sont en SET_NULL : supprimer effacerait le lien sans bruit sur
+    des pièces déjà établies. On retire du service à la place."""
+    sig = Signataire.objects.create(nom="Alice Martin", qualite="Présidente")
+    Facture.objects.create(client=Client.objects.create(nom="Théâtre municipal"), signataire=sig)
+    client.force_login(_staff())
+    client.post(f"/bureau/parametres/signataires/{sig.pk}/supprimer/")
+    assert Signataire.objects.filter(pk=sig.pk).exists()
+
+
+def test_un_signataire_inutilise_se_supprime(client, db):
+    sig = Signataire.objects.create(nom="Jamais Servi", qualite="Trésorier")
+    client.force_login(_staff())
+    reponse = client.post(f"/bureau/parametres/signataires/{sig.pk}/supprimer/")
+    assert reponse.status_code == 302
+    assert not Signataire.objects.filter(pk=sig.pk).exists()
+
+
+def test_les_quatre_ecrans_de_reglages_portent_leurs_onglets(client, db):
+    client.force_login(_staff())
+    for url in _URLS_REGLAGES:
+        corps = client.get(url).content.decode()
+        for cible in _URLS_REGLAGES:
+            assert f'href="{cible}"' in corps, (url, cible)
 
 
 def test_equipe_ajouter_et_retirer_du_bureau(client, db):
@@ -1923,9 +2045,9 @@ def test_gouvernance_edite_et_supprime_un_bloc(client, db):
 def test_backoffice_formulaire_lie_l_aide_via_aria_describedby(db):
     """Accessibilité (WCAG 1.3.1) : l'aide des champs bureau est reliée au widget
     via aria-describedby, avec un id présent dans le gabarit."""
-    from apps.backoffice.forms import ParametresAssociationForm
+    from apps.backoffice.forms import IdentiteAssociationForm
 
-    html = str(ParametresAssociationForm()["mention_tva"])
+    html = str(IdentiteAssociationForm()["mention_tva"])
     assert 'aria-describedby="id_mention_tva_aide"' in html
 
 
@@ -2148,26 +2270,16 @@ def test_l_editeur_propose_de_deplacer_une_ligne(client, db):
 
 
 def test_le_bureau_ajoute_un_interlocuteur_public(client, db):
-    """L'écran des paramètres porte le formset des contacts : le bureau saisit
+    """L'écran « Page Contact » porte le formset des contacts : le bureau saisit
     ses interlocuteurs sans passer par l'admin Django."""
     from apps.coeur.models import ContactPublic, ParametresAssociation
 
     client.force_login(_staff())
     reponse = client.post(
-        "/bureau/parametres/",
+        "/bureau/parametres/contact/",
         {
-            "nom": "L'Improliante",
-            "objet": "",
-            "adresse": "",
-            "code_postal": "",
-            "ville": "",
             "email_public": "bonjour@improliante.test",
             "telephone_public": "",
-            "numero_rna": "",
-            "numero_siret": "",
-            "article_cgi": "200",
-            "signataire_nom": "",
-            "signataire_qualite": "",
             "contacts_publics-TOTAL_FORMS": "1",
             "contacts_publics-INITIAL_FORMS": "0",
             "contacts_publics-MIN_NUM_FORMS": "0",

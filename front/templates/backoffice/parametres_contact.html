@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Page Contact — Gestion{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Gestion</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Réglages</span>
+    <h1>Page Contact</h1>
+    <p class="page-tete__sous">
+      Ce qu'un visiteur lit sur la page <a href="{% url 'vitrine:contact' %}">Contact</a>,
+      à côté du formulaire. Laisser un champ vide, c'est ne pas l'afficher.
+    </p>
+  </header>
+
+  {% include "backoffice/_parametres_nav.html" %}
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    <fieldset class="bloc-form">
+      <legend>Coordonnées publiées</legend>
+      {% include "_champ.html" with field=form.email_public %}
+      {% include "_champ.html" with field=form.telephone_public %}
+      {% include "_champ.html" with field=form.afficher_adresse_postale %}
+    </fieldset>
+
+    {% include "backoffice/_fiche_formset.html" with titre="Interlocuteurs affichés sur la page Contact" %}
+
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <a class="lien-bouton lien-bouton--discret" href="{% url 'vitrine:contact' %}">Voir la page Contact</a>
+    </div>
+  </form>
+{% endblock %}

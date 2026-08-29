@@ -279,12 +279,19 @@ class ParametresAssociation(models.Model):
     # Fondement de la déduction fiscale (art. 200 / 238 bis du CGI selon le cas).
     article_cgi = models.CharField("article du CGI", max_length=20, default="200")
 
-    signataire_nom = models.CharField("nom du signataire", max_length=200, blank=True)
-    signataire_qualite = models.CharField(
-        "qualité du signataire",
-        max_length=120,
+    # Un seul mécanisme de signature : le modèle `Signataire`, qui porte la
+    # qualité, la mention de délégation et l'image. Ce défaut est PRÉSÉLECTIONNÉ
+    # à la création d'un devis, d'une facture ou d'un reçu — jamais appliqué au
+    # rendu : ce qu'on voit à l'écran est ce qui s'imprime, et changer le défaut
+    # ne réécrit pas ce que porte une pièce déjà saisie.
+    signataire_par_defaut = models.ForeignKey(
+        "coeur.Signataire",
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        help_text="Ex. président·e, trésorier·e.",
+        related_name="+",
+        verbose_name="signataire par défaut",
+        help_text="Proposé d'office sur chaque nouveau document ; modifiable pièce par pièce.",
     )
 
     # Coordonnées de règlement, imprimées sur devis et factures (facultatif).

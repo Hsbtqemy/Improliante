@@ -46,6 +46,8 @@
       .mentions { margin-top: 18px; font-size: 9.5px; color: #444; border-top: 1px solid #eee; padding-top: 8px; }
       .signature { margin-top: 22px; }
       .signature img { max-height: 55px; }
+      /* Place laissée pour une signature à la main, à défaut de fac-similé. */
+      .signature__espace { height: 55px; }
       .filigrane { position: fixed; top: 42%; left: 0; width: 100%; text-align: center;
                    font-size: 58px; color: rgba(122, 31, 43, 0.10); transform: rotate(-28deg);
                    z-index: -1; font-weight: bold; }
@@ -147,7 +149,11 @@
           {% if facture.signataire.mention_delegation %} — {{ facture.signataire.mention_delegation }}{% endif %}
         </p>
         {% with img=facture.signataire.image_base64 %}
-          {% if img %}<img src="{{ img }}" alt="Signature" />{% endif %}
+          {% if img %}
+            <img src="{{ img }}" alt="Signature" />
+          {% else %}
+            <div class="signature__espace"></div>
+          {% endif %}
         {% endwith %}
         <p>{{ facture.signataire.nom }}</p>
       </div>

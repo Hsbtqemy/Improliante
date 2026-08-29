@@ -11,7 +11,26 @@ app_name = "backoffice"
 urlpatterns = [
     path("bureau/", views.tableau_de_bord, name="tableau_de_bord"),
     path("bureau/finances/", views.finances, name="finances"),
-    path("bureau/parametres/", views.parametres_association, name="parametres_association"),
+    # Trois écrans sur le même singleton : ils ne servent pas le même public.
+    # `bureau/parametres/` reste l'identité légale — l'adresse déjà en signet.
+    path("bureau/parametres/", views.parametres_identite, name="parametres_identite"),
+    path("bureau/parametres/site/", views.parametres_site, name="parametres_site"),
+    path("bureau/parametres/contact/", views.parametres_contact, name="parametres_contact"),
+    path(
+        "bureau/parametres/signataires/",
+        views.parametres_signataires,
+        name="parametres_signataires",
+    ),
+    path(
+        "bureau/parametres/signataires/<int:pk>/",
+        views.editer_signataire,
+        name="editer_signataire",
+    ),
+    path(
+        "bureau/parametres/signataires/<int:pk>/supprimer/",
+        views.supprimer_signataire,
+        name="supprimer_signataire",
+    ),
     path("bureau/equipe/", views.equipe_bureau, name="equipe_bureau"),
     path("bureau/membres/", views.liste_membres, name="liste_membres"),
     path("bureau/membres/nouveau/", views.creer_membre, name="creer_membre"),

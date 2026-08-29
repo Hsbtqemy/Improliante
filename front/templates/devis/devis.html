@@ -48,6 +48,8 @@
       .accord p { font-size: 9.5px; color: #555; margin: 0; }
       .signature { width: 46%; }
       .signature img { max-height: 55px; }
+      /* Place laissée pour une signature à la main, à défaut de fac-similé. */
+      .signature__espace { height: 55px; }
     </style>
   </head>
   <body>
@@ -133,7 +135,11 @@
             {% if devis.signataire.mention_delegation %} — {{ devis.signataire.mention_delegation }}{% endif %}
           </p>
           {% with img=devis.signataire.image_base64 %}
-            {% if img %}<img src="{{ img }}" alt="Signature" />{% endif %}
+            {% if img %}
+              <img src="{{ img }}" alt="Signature" />
+            {% else %}
+              <div class="signature__espace"></div>
+            {% endif %}
           {% endwith %}
           <p>{{ devis.signataire.nom }}</p>
         </div>

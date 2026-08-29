@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ signataire.nom }} — Signataire{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:parametres_signataires' %}">← Signataires</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Réglages · Signataires</span>
+    <h1>{{ signataire.nom }}</h1>
+    <p class="page-tete__sous">
+      {% if nb_pieces %}
+        Figure sur {{ nb_pieces }} document{{ nb_pieces|pluralize }} déjà établi{{ nb_pieces|pluralize }}.
+        Les modifications ne changent que les documents à venir : ceux déjà rendus gardent leur PDF.
+      {% else %}
+        Ne figure encore sur aucun document.
+      {% endif %}
+    </p>
+  </header>
+
+  {% with img=signataire.image_base64 %}
+    {% if img %}
+      <p><img src="{{ img }}" alt="Signature de {{ signataire.nom }}" style="max-height: 4rem" /></p>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      {% include "_champ.html" with field=field %}
+    {% endfor %}
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+    </div>
+  </form>
+{% endblock %}

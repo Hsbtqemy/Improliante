@@ -30,7 +30,7 @@ from apps.budget.services import (
     pdf_de_recu,
     tresorerie,
 )
-from apps.coeur.models import Membre, ParametresAssociation, Signataire, Utilisateur
+from apps.coeur.models import Membre, Signataire, Utilisateur
 
 
 def _membre(username="alice"):
@@ -126,17 +126,46 @@ def test_cerfa_utilise_le_signataire_choisi(db, monkeypatch):
     assert "Alice Martin" in html
 
 
-def test_cerfa_retombe_sur_le_signataire_des_parametres(db, monkeypatch):
+def test_cerfa_sans_image_reserve_la_place_pour_signer_a_la_main(db, monkeypatch):
+    """Signataire sans fac-similé : le Cerfa imprime nom et qualité — ce que la
+    forme exige — et laisse la hauteur d'une signature entre les deux."""
     monkeypatch.setattr(
         "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
     )
-    params = ParametresAssociation.load()
-    params.signataire_nom = "Bureau Test"
-    params.signataire_qualite = "Trésorier"
-    params.save()
+    sig = Signataire.objects.create(nom="Alice Martin", qualite="Présidente")
+    html = pdf_de_recu(_emettre(signataire=sig)).decode()
+    assert "Alice Martin" in html and "Présidente" in html
+    assert '<div class="signature__espace">' in html
+    assert "<img" not in html
+
+
+def test_cerfa_avec_image_ne_reserve_pas_d_espace_vide(db, monkeypatch):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    sig = Signataire.objects.create(
+        nom="Alice Martin",
+        qualite="Présidente",
+        signature_image=SimpleUploadedFile("sig.png", b"\x89PNG\r\n\x1a\n", "image/png"),
+    )
+    html = pdf_de_recu(_emettre(signataire=sig)).decode()
+    assert "data:image/png;base64," in html
+    assert '<div class="signature__espace">' not in html
+
+
+def test_cerfa_sans_signataire_n_imprime_aucun_bloc_signature(db, monkeypatch):
+    """Un seul chemin depuis la fusion des deux mécanismes : le signataire de la
+    pièce. Sans lui, pas de bloc — plutôt qu'un nom en toutes lettres venu des
+    paramètres, sans qualité vérifiable ni signature."""
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
     recu = _emettre()  # sans signataire choisi
     html = pdf_de_recu(recu).decode()
-    assert "Bureau Test" in html
+    assert "Fait à" in html  # le bloc existe...
+    assert "Signature" not in html  # ...mais reste vide de signataire
 
 
 # --- Bilan par catégorie ----------------------------------------------------

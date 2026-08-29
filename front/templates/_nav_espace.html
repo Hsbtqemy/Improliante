@@ -80,7 +80,10 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
     <details class="nav-espace__groupe" open>
       <summary class="nav-espace__titre">Réglages</summary>
       <ul class="nav-espace__liste">
-        <li><a href="{% url 'backoffice:parametres_association' %}" {% if vn == 'backoffice:parametres_association' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-reglages"></use></svg><span>Paramètres de l'association</span></a></li>
+        <li><a href="{% url 'backoffice:parametres_identite' %}" {% if vn == 'backoffice:parametres_identite' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-reglages"></use></svg><span>Identité légale</span></a></li>
+        <li><a href="{% url 'backoffice:parametres_site' %}" {% if vn == 'backoffice:parametres_site' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-globe"></use></svg><span>Textes du site</span></a></li>
+        <li><a href="{% url 'backoffice:parametres_contact' %}" {% if vn == 'backoffice:parametres_contact' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Page Contact</span></a></li>
+        <li><a href="{% url 'backoffice:parametres_signataires' %}" {% if vn == 'backoffice:parametres_signataires' or vn == 'backoffice:editer_signataire' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-badge"></use></svg><span>Signataires</span></a></li>
       </ul>
     </details>
   {% endif %}

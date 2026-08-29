@@ -33,9 +33,20 @@ _FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
 
 
 def _restreindre_signataires_actifs(form):
-    """Limite le champ `signataire` aux signataires actifs (optionnel)."""
+    """Limite le champ `signataire` aux actifs et propose le défaut à la création.
+
+    La présélection ne vaut que pour une pièce NEUVE : sur une pièce existante,
+    elle réécrirait un choix déjà fait (ou en poserait un là où l'absence de
+    signataire était volontaire)."""
     champ = form.fields["signataire"]
     champ.queryset = Signataire.objects.filter(actif=True)
+    if form.instance.pk is None:
+        # Lecture seule : `load()` créerait la ligne au passage, et rendre un
+        # formulaire ne doit pas écrire en base.
+        params = ParametresAssociation.objects.first()
+        defaut = params.signataire_par_defaut if params else None
+        if defaut is not None and defaut.actif:
+            champ.initial = defaut
     champ.required = False
 
 
@@ -215,39 +226,78 @@ class CategorieForm(forms.ModelForm):
 # --- Paramètres de l'association --------------------------------------------
 
 
-class ParametresAssociationForm(AideAccessibleMixin, forms.ModelForm):
-    """Identité légale de l'association (en-tête des documents officiels)."""
+# Les réglages sont un SEUL modèle (singleton) édité par TROIS écrans, parce
+# qu'ils ne servent pas le même public : le greffe et le fisc d'un côté, les
+# visiteurs du site de l'autre, la page Contact enfin. Chaque formulaire ne
+# déclare que ses colonnes — les vues n'écrivent que celles-là (`update_fields`),
+# pour qu'un écran ne recopie jamais par-dessus ce qu'un autre vient de changer.
+
+
+class IdentiteAssociationForm(AideAccessibleMixin, forms.ModelForm):
+    """Identité légale : ce qui s'imprime en tête des documents officiels."""
 
     class Meta:
         model = ParametresAssociation
         fields = [
             "nom",
-            "accroche",
-            "presentation",
             "objet",
             "adresse",
             "code_postal",
             "ville",
-            "email_public",
-            "telephone_public",
-            "afficher_adresse_postale",
             "numero_rna",
             "numero_siret",
             "article_cgi",
-            "signataire_nom",
-            "signataire_qualite",
             "iban",
             "bic",
             "mention_tva",
         ]
-        widgets = {
-            "objet": forms.Textarea(attrs={"rows": 2}),
-            "presentation": forms.Textarea(attrs={"rows": 3}),
-        }
+        widgets = {"objet": forms.Textarea(attrs={"rows": 2})}
 
 
-# Interlocuteurs publics, édités sur le même écran que les paramètres : les
-# paramètres étant un singleton, l'inline formset y a exactement un parent.
+class TextesSiteForm(AideAccessibleMixin, forms.ModelForm):
+    """Les deux textes qui portent la page d'accueil et la page « L'association »."""
+
+    class Meta:
+        model = ParametresAssociation
+        fields = ["accroche", "presentation"]
+        widgets = {"presentation": forms.Textarea(attrs={"rows": 3})}
+
+
+class SignataireForm(AideAccessibleMixin, forms.ModelForm):
+    """Création / édition d'un signataire depuis le bureau.
+
+    L'image de signature part en stockage privé (règle 5) : elle n'est jamais
+    servie par une URL devinable, seulement embarquée dans le PDF au rendu."""
+
+    class Meta:
+        model = Signataire
+        fields = ["nom", "qualite", "mention_delegation", "signature_image", "membre", "actif"]
+
+
+class SignataireParDefautForm(AideAccessibleMixin, forms.ModelForm):
+    """Choix du signataire proposé d'office sur les nouveaux documents."""
+
+    class Meta:
+        model = ParametresAssociation
+        fields = ["signataire_par_defaut"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Un signataire retiré du service ne peut pas devenir le défaut : il
+        # serait proposé sur chaque pièce tout en étant absent des choix.
+        self.fields["signataire_par_defaut"].queryset = Signataire.objects.filter(actif=True)
+
+
+class ContactPubliqueForm(AideAccessibleMixin, forms.ModelForm):
+    """Coordonnées publiées sur la page Contact, à côté du formulaire."""
+
+    class Meta:
+        model = ParametresAssociation
+        fields = ["email_public", "telephone_public", "afficher_adresse_postale"]
+
+
+# Interlocuteurs publics, édités sur l'écran « Page Contact » : les paramètres
+# étant un singleton, l'inline formset y a exactement un parent.
 ContactPublicFormSet = forms.inlineformset_factory(
     ParametresAssociation,
     ContactPublic,

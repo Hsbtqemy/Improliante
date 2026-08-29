@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Signataires — Gestion{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Gestion</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Réglages</span>
+    <h1>Signataires</h1>
+    <p class="page-tete__sous">
+      Les personnes habilitées à signer devis, factures et reçus fiscaux. La
+      signature scannée est stockée hors du web public et n'est incorporée qu'au
+      moment de fabriquer le PDF.
+    </p>
+  </header>
+
+  {% include "backoffice/_parametres_nav.html" %}
+
+  <section aria-labelledby="titre-defaut">
+    <h2 id="titre-defaut">Proposé sur les nouveaux documents</h2>
+    <p class="champ__aide">
+      Présélectionné à la création d'un devis, d'une facture ou d'un reçu, et
+      modifiable pièce par pièce. Changer ce choix ne touche aucun document déjà saisi.
+    </p>
+    <form method="post" class="formulaire">
+      {% csrf_token %}
+      <input type="hidden" name="form_type" value="defaut" />
+      {% include "_champ.html" with field=form_defaut.signataire_par_defaut %}
+      <button type="submit" class="lien-bouton">Enregistrer le défaut</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="titre-liste">
+    <h2 id="titre-liste">Signataires enregistrés</h2>
+    {% if signataires %}
+      <div class="tableau-wrap">
+        <table class="tableau">
+          <thead>
+            <tr>
+              <th scope="col">Nom</th>
+              <th scope="col">Qualité</th>
+              <th scope="col">Signature</th>
+              <th scope="col">Documents</th>
+              <th scope="col">État</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in signataires %}
+              <tr>
+                <td>
+                  {{ s.nom }}
+                  {% if s == defaut %}<span class="badge">par défaut</span>{% endif %}
+                  {% if s.mention_delegation %}<span class="ged-doc__desc">{{ s.mention_delegation }}</span>{% endif %}
+                </td>
+                <td>{{ s.qualite }}</td>
+                <td>
+                  {% with img=s.image_base64 %}
+                    {% if img %}
+                      <img src="{{ img }}" alt="Signature de {{ s.nom }}" style="max-height: 2.5rem" />
+                    {% else %}
+                      <span class="ged-doc__desc">nom et qualité seuls</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+                <td>{{ s.nb_pieces }}</td>
+                <td>
+                  {% if s.actif %}
+                    <span class="badge badge--publie">en service</span>
+                  {% else %}
+                    <span class="badge">retiré</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="ged-doc__actions">
+                    <a class="lien-bouton" href="{% url 'backoffice:editer_signataire' pk=s.pk %}">Modifier</a>
+                    {% if not s.nb_pieces %}
+                      <form method="post" action="{% url 'backoffice:supprimer_signataire' pk=s.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="lien-bouton lien-bouton--discret">Supprimer</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="champ__aide">
+        Un signataire qui figure sur des documents ne se supprime pas : décochez
+        « actif » pour le retirer des choix sans toucher aux pièces déjà établies.
+      </p>
+    {% else %}
+      <div class="etat-vide">
+        <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-badge"></use></svg></div>
+        <p class="etat-vide__titre">Aucun signataire</p>
+        <p>Sans signataire, devis, factures et reçus s'impriment sans bloc de signature.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-nouveau">
+    <h2 id="titre-nouveau">Nouveau signataire</h2>
+    <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form %}
+        {% include "_champ.html" with field=field %}
+      {% endfor %}
+      <div class="formulaire__actions">
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Ajouter</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}
