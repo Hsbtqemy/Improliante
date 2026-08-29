@@ -91,6 +91,16 @@ proposées, et quelques dates à venir.
 - [ ] Une réunion convoquée à VENIR n'y figure pas — elle reste dans « Ce qui arrive »
 - [ ] Le motif ne répète pas la date affichée à droite : il apporte autre chose
 
+### Espace membre (compte sans droits de gestion)
+
+- [ ] Le rail ne montre que « Mon espace » : aucun groupe de gestion, même replié
+- [ ] Une URL de gestion tapée à la main (`/bureau/`) rend un 403 clair, pas une redirection en boucle vers la connexion
+- [ ] Le tableau de bord ne porte plus de grille de raccourcis : ce qu'il montre est de l'information, pas un second menu
+- [ ] Un membre sans adhésion enregistrée lit une phrase qui le lui dit, au lieu d'un blanc
+- [ ] Un membre avec adhésion voit sa saison, son statut, le montant versé, et le lien vers ses reçus
+- [ ] Proposer un projet depuis l'espace membre le fait apparaître ensuite dans « Mes projets » (le proposant en devient porteur)
+- [ ] « À traiter » ne signale que les assemblées générales convoquées auxquelles le membre n'a pas encore répondu
+
 ### Vocabulaire
 
 - [ ] Aucun écran de gestion n'affiche « Bureau » comme nom de section, ni « Back-office » : le sur-titre dit « Gestion »
