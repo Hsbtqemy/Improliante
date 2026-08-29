@@ -145,11 +145,34 @@ class ProfilMembreForm(AideAccessibleMixin, forms.ModelForm):
         return [self["photo_fichier"], self["photo_alt"]]
 
 
+class LienReseauForm(forms.ModelForm):
+    """Une ligne de la liste « réseaux sociaux ».
+
+    « Adresse » se lisait comme une adresse postale ou un courriel : on nomme et
+    on illustre ce qui est attendu, l'URL publique du profil. L'aide est reliée
+    au champ par `aria-describedby` — mais pas avec l'id du mixin commun
+    (`id_<champ>_aide`), qui se répéterait à chaque ligne du formset. On le
+    dérive donc de l'identifiant préfixé du widget, unique par ligne."""
+
+    class Meta:
+        model = LienReseau
+        fields = ["reseau", "url", "libelle", "ordre"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["url"].widget.attrs.update(
+            {
+                "placeholder": "https://www.instagram.com/mon-compte/",
+                "aria-describedby": f"{self['url'].auto_id}_aide",
+            }
+        )
+
+
 # Réseaux sociaux : liste flexible éditable en une fois (ajout / suppression).
 LienReseauFormSet = inlineformset_factory(
     Membre,
     LienReseau,
-    fields=["reseau", "url", "libelle", "ordre"],
+    form=LienReseauForm,
     extra=1,
     can_delete=True,
 )

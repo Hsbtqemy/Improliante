@@ -62,8 +62,9 @@
               {{ lien.reseau }}
             </span>
             <span class="champ">
-              <label for="{{ lien.url.id_for_label }}">Adresse</label>
+              <label for="{{ lien.url.id_for_label }}">Adresse du profil</label>
               {{ lien.url }}
+              <span class="champ__aide" id="{{ lien.url.auto_id }}_aide">{{ lien.url.help_text }}</span>
             </span>
             <span class="champ">
               <label for="{{ lien.libelle.id_for_label }}">Libellé (si « Autre »)</label>

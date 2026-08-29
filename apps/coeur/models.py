@@ -154,7 +154,13 @@ class LienReseau(models.Model):
         verbose_name="membre",
     )
     reseau = models.CharField("réseau", max_length=20, choices=Reseau.choices)
-    url = models.URLField("adresse")
+    url = models.URLField(
+        "adresse du profil",
+        help_text=(
+            "Le lien complet vers votre page sur ce réseau, "
+            "par exemple https://www.instagram.com/mon-compte/ — pas un pseudonyme."
+        ),
+    )
     libelle = models.CharField(
         "libellé",
         max_length=80,
