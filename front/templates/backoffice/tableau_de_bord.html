@@ -34,6 +34,24 @@
     l'ÉTAT (ce qui attend, ce qui arrive) et laisse les portes au rail.
   {% endcomment %}
 
+  <section aria-labelledby="titre-retard">
+    <h2 id="titre-retard">En retard</h2>
+    {% if en_retard %}
+      <ul class="liste-etat">
+        {% for retard in en_retard %}
+          <li class="liste-etat__ligne">
+            <span class="liste-etat__genre">{{ retard.genre }}</span>
+            <span class="liste-etat__titre"><a href="{{ retard.url }}">{{ retard.titre }}</a></span>
+            <span class="liste-etat__note">{{ retard.motif }}</span>
+            <time class="liste-etat__quand" datetime="{{ retard.quand|date:"c" }}">{{ retard.quand|date:"d/m/Y" }}</time>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Rien n'est en retard.</p>
+    {% endif %}
+  </section>
+
   <section aria-labelledby="titre-attente">
     <h2 id="titre-attente">En attente d'une décision</h2>
     {% if en_attente %}

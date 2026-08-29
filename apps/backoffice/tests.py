@@ -2451,9 +2451,10 @@ def test_marquer_un_message_traite_le_sort_de_la_liste(client, db):
     assert MessageContact.objects.filter(traite=False).count() == 0
 
 
-def test_le_tableau_de_bord_signale_les_factures_echues(client, db):
+def test_le_tableau_de_bord_nomme_les_factures_echues(client, db):
     """`date_echeance` était saisie et imprimée sans jamais être comparée à la
-    date du jour : une facture validée impayée depuis six mois n'alertait rien."""
+    date du jour : une facture validée impayée depuis six mois n'alertait rien.
+    Et un compteur qui dit « 2 » ne dit pas lesquelles — on veut le nom."""
     from datetime import timedelta
 
     from django.utils import timezone
@@ -2462,16 +2463,82 @@ def test_le_tableau_de_bord_signale_les_factures_echues(client, db):
     from apps.facturation.models import Facture
 
     Facture.objects.create(
-        client=ClientFacture.objects.create(nom="X"),
+        client=ClientFacture.objects.create(nom="Théâtre du Nord"),
         statut=Facture.Statut.VALIDEE,
         date_echeance=timezone.localdate() - timedelta(days=30),
     )
     client.force_login(_staff())
 
-    signaux = client.get("/bureau/").context["signaux"]
-    echues = next(s for s in signaux if "échue" in s["label"])
+    reponse = client.get("/bureau/")
+    contenu = reponse.content.decode().split('<main id="contenu"', 1)[1]
 
-    assert echues["nombre"] == 1
+    assert [r["genre"] for r in reponse.context["en_retard"]] == ["Facture"]
+    assert "Théâtre du Nord" in contenu
+    assert "impayée depuis 30 jours" in contenu
+
+
+def test_une_reunion_convoquee_et_passee_est_signalee(client, db):
+    """L'application ne demandait QUE les réunions `date >= maintenant` : une
+    assemblée tenue mais jamais basculée en « tenue » — donc sans compte-rendu
+    ni résolutions actées — tombait dans un angle mort."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.gouvernance.models import Reunion
+
+    Reunion.objects.create(
+        titre="Assemblée générale 2026",
+        statut=Reunion.Statut.CONVOQUEE,
+        date=timezone.now() - timedelta(days=21),
+    )
+    client.force_login(_staff())
+
+    reponse = client.get("/bureau/")
+    contenu = reponse.content.decode().split('<main id="contenu"', 1)[1]
+
+    assert [r["genre"] for r in reponse.context["en_retard"]] == ["Réunion"]
+    assert "Assemblée générale 2026" in contenu
+    assert "sans compte-rendu" in contenu
+
+
+def test_une_reunion_a_venir_n_est_pas_comptee_en_retard(client, db):
+    """La borne de temps est le seul critère : sans elle, toute réunion
+    convoquée passerait pour un retard."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.gouvernance.models import Reunion
+
+    Reunion.objects.create(
+        titre="Bureau de rentrée",
+        statut=Reunion.Statut.CONVOQUEE,
+        date=timezone.now() + timedelta(days=7),
+    )
+    client.force_login(_staff())
+
+    assert client.get("/bureau/").context["en_retard"] == []
+
+
+def test_une_cotisation_payee_sans_recu_est_signalee(client, db):
+    """`RecuFiscal.adhesion` existe : le lien se déduit, et personne ne le
+    déduisait. Le membre a payé, il y a droit, nul ne le sait."""
+    from apps.budget.models import Adhesion, Saison
+    from apps.coeur.models import Membre
+
+    saison = Saison.objects.create(nom="2026", date_debut="2026-01-01", date_fin="2026-12-31")
+    Adhesion.objects.create(
+        membre=Membre.objects.create(nom="Roux", prenom="Camille"),
+        saison=saison,
+        statut=Adhesion.Statut.PAYEE,
+    )
+    client.force_login(_staff())
+
+    signaux = client.get("/bureau/").context["signaux"]
+    par_label = {s["label"]: s["nombre"] for s in signaux}
+
+    assert par_label["cotisation(s) payée(s) sans reçu fiscal"] == 1
 
 
 def test_le_tableau_de_bord_signale_les_cotisations_et_les_messages(client, db):

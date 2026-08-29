@@ -168,6 +168,7 @@ def tableau_de_bord(request):
         "en_attente": _fiches_en_attente(),
         "echeances": _prochaines_echeances(),
     }
+    contexte["en_retard"] = _en_retard()
     contexte["signaux"] = _signaux(contexte)
     return render(request, "backoffice/tableau_de_bord.html", contexte)
 
@@ -183,17 +184,12 @@ def _signaux(contexte):
     Passer par une liste plutôt que par sept blocs de gabarit : un signal
     s'ajoute en une ligne, et l'ordre — le plus urgent d'abord — se décide ici.
     """
-    aujourdhui = timezone.localdate()
-    factures_echues = Facture.objects.filter(
-        type_piece=Facture.TypePiece.FACTURE,
-        statut=Facture.Statut.VALIDEE,
-        date_echeance__lt=aujourdhui,
-    ).count()
     return [
         {
-            "nombre": factures_echues,
-            "label": "facture(s) échue(s), non réglée(s)",
-            "url": f"{reverse('backoffice:facturation')}?onglet=factures",
+            "nombre": len(contexte["en_retard"]),
+            "label": "chose(s) en retard",
+            "detail": "factures échues, réunions à acter",
+            "url": reverse("backoffice:tableau_de_bord") + "#titre-retard",
         },
         {
             "nombre": contexte["a_moderer"] + contexte["a_revoir"],
@@ -212,6 +208,16 @@ def _signaux(contexte):
             "url": reverse("backoffice:liste_adhesions"),
         },
         {
+            # `RecuFiscal.adhesion` existe : une cotisation payée sans reçu se
+            # déduit, et personne ne la déduisait. Un constat, pas une
+            # injonction — toutes ne donnent pas forcément lieu à un reçu.
+            "nombre": Adhesion.objects.filter(
+                statut=Adhesion.Statut.PAYEE, recus_fiscaux__isnull=True
+            ).count(),
+            "label": "cotisation(s) payée(s) sans reçu fiscal",
+            "url": reverse("backoffice:liste_adhesions"),
+        },
+        {
             "nombre": contexte["factures_brouillon"],
             "label": "facture(s) en brouillon",
             "url": f"{reverse('backoffice:facturation')}?onglet=factures",
@@ -227,6 +233,55 @@ def _signaux(contexte):
             "url": reverse("backoffice:gouvernance_reunions"),
         },
     ]
+
+
+def _en_retard(limite=6):
+    """Ce qui aurait dû être fait, nommé plutôt que compté.
+
+    Deux sources, dérivables de données déjà là et que personne n'interrogeait :
+
+    - une facture VALIDÉE dont l'échéance est passée. `date_echeance` était
+      saisie et imprimée sur le PDF, jamais comparée à la date du jour ;
+    - une réunion CONVOQUÉE dont la date est passée : elle s'est tenue mais
+      n'a jamais été basculée en « tenue », donc pas de compte-rendu et pas de
+      résolutions actées. L'application ne demandait jamais que les réunions
+      `date >= maintenant` — celles d'avant tombaient dans un angle mort.
+    """
+    aujourdhui = timezone.localdate()
+    maintenant = timezone.now()
+    retards = [
+        {
+            "genre": "Facture",
+            "titre": f"{facture.numero or 'brouillon'} — {facture.client}",
+            # L'ancienneté plutôt que la date : la colonne de droite porte
+            # déjà l'échéance, et « impayée depuis 45 jours » se juge d'un coup
+            # d'œil là où une date demande un calcul.
+            "motif": f"impayée depuis {(aujourdhui - facture.date_echeance).days} jours",
+            "quand": facture.date_echeance,
+            "url": reverse("backoffice:editer_facture", args=[facture.pk]),
+        }
+        for facture in Facture.objects.filter(
+            type_piece=Facture.TypePiece.FACTURE,
+            statut=Facture.Statut.VALIDEE,
+            date_echeance__lt=aujourdhui,
+        )
+        .select_related("client")
+        .order_by("date_echeance")[:limite]
+    ]
+    retards += [
+        {
+            "genre": "Réunion",
+            "titre": reunion.titre,
+            "motif": "tenue, mais sans compte-rendu",
+            "quand": reunion.date.date(),
+            "url": reverse("backoffice:gouvernance_reunion", args=[reunion.pk]),
+        }
+        for reunion in Reunion.objects.filter(
+            statut=Reunion.Statut.CONVOQUEE, date__lt=maintenant
+        ).order_by("date")[:limite]
+    ]
+    retards.sort(key=lambda r: r["quand"])
+    return retards[:limite]
 
 
 def _fiches_en_attente(limite=6):
