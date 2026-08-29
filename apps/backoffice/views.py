@@ -82,6 +82,7 @@ from apps.gouvernance.services import (
 )
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
+from apps.vitrine.models import MessageContact
 
 from .forms import (
     AdhesionForm,
@@ -167,7 +168,65 @@ def tableau_de_bord(request):
         "en_attente": _fiches_en_attente(),
         "echeances": _prochaines_echeances(),
     }
+    contexte["signaux"] = _signaux(contexte)
     return render(request, "backoffice/tableau_de_bord.html", contexte)
+
+
+def _signaux(contexte):
+    """Les compteurs du tableau de bord, chacun menant à son écran.
+
+    Trois d'entre eux n'existaient nulle part alors que la donnée était déjà
+    là : `date_echeance` était saisie et imprimée sans jamais être comparée à
+    la date du jour, `Adhesion.EN_ATTENTE` n'était compté par personne, et les
+    messages de contact n'étaient lisibles que dans l'admin Django.
+
+    Passer par une liste plutôt que par sept blocs de gabarit : un signal
+    s'ajoute en une ligne, et l'ordre — le plus urgent d'abord — se décide ici.
+    """
+    aujourdhui = timezone.localdate()
+    factures_echues = Facture.objects.filter(
+        type_piece=Facture.TypePiece.FACTURE,
+        statut=Facture.Statut.VALIDEE,
+        date_echeance__lt=aujourdhui,
+    ).count()
+    return [
+        {
+            "nombre": factures_echues,
+            "label": "facture(s) échue(s), non réglée(s)",
+            "url": f"{reverse('backoffice:facturation')}?onglet=factures",
+        },
+        {
+            "nombre": contexte["a_moderer"] + contexte["a_revoir"],
+            "label": "fiche(s) à traiter",
+            "detail": f"dont {contexte['a_revoir']} à revoir" if contexte["a_revoir"] else "",
+            "url": reverse("backoffice:file_moderation"),
+        },
+        {
+            "nombre": MessageContact.objects.filter(traite=False).count(),
+            "label": "message(s) reçu(s) à traiter",
+            "url": reverse("backoffice:messages_contact"),
+        },
+        {
+            "nombre": Adhesion.objects.filter(statut=Adhesion.Statut.EN_ATTENTE).count(),
+            "label": "cotisation(s) en attente de paiement",
+            "url": reverse("backoffice:liste_adhesions"),
+        },
+        {
+            "nombre": contexte["factures_brouillon"],
+            "label": "facture(s) en brouillon",
+            "url": f"{reverse('backoffice:facturation')}?onglet=factures",
+        },
+        {
+            "nombre": contexte["devis_a_suivre"],
+            "label": "devis à suivre",
+            "url": f"{reverse('backoffice:facturation')}?onglet=devis",
+        },
+        {
+            "nombre": contexte["reunions_a_venir"],
+            "label": "réunion(s) à venir",
+            "url": reverse("backoffice:gouvernance_reunions"),
+        },
+    ]
 
 
 def _fiches_en_attente(limite=6):
@@ -1304,6 +1363,42 @@ _TRIS_ADHESIONS = {
     "attendu": ["montant_attendu"],
     "verse": ["montant_verse"],
 }
+
+
+@bureau_requis
+def messages_contact(request):
+    """Messages reçus par le formulaire public.
+
+    Ils n'étaient lisibles QUE dans l'admin Django : le formulaire écrivait
+    dans une boîte que personne n'ouvrait depuis l'interface métier, et le
+    champ `traite` du modèle — prévu pour ça — n'était jamais basculé.
+
+    Par défaut on montre les non traités : c'est ce qui appelle une action.
+    """
+    if request.method == "POST":
+        message = get_object_or_404(MessageContact, pk=request.POST.get("message"))
+        message.traite = request.POST.get("action") == "traiter"
+        message.save(update_fields=["traite"])
+        messages.success(
+            request,
+            "Message marqué comme traité." if message.traite else "Message rouvert.",
+        )
+        return redirect(
+            f"{reverse('backoffice:messages_contact')}?etat={request.GET.get('etat', '')}"
+        )
+
+    etat = request.GET.get("etat", "a_traiter")
+    tous = MessageContact.objects.order_by("-date_creation")
+    return render(
+        request,
+        "backoffice/messages_contact.html",
+        {
+            "messages_recus": tous if etat == "tous" else tous.filter(traite=False),
+            "etat": etat,
+            "nb_a_traiter": tous.filter(traite=False).count(),
+            "nb_total": tous.count(),
+        },
+    )
 
 
 @bureau_requis

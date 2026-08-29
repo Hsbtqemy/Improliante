@@ -2216,6 +2216,18 @@ html[data-titre="bricolage"] {
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 1rem;
   margin-block: 1.5rem;
+  /* Le conteneur est tantôt un <div>, tantôt un <ul> (tableau de bord) : on
+     neutralise la liste ici plutôt que dans un sélecteur à part. */
+  list-style: none;
+  padding: 0;
+}
+/* Avec un <li> intercalé, c'est LUI qui devient l'élément de grille : sans
+   cela la tuile ne s'étire plus et les hauteurs d'une rangée divergent. */
+.tuiles > li {
+  display: flex;
+}
+.tuiles > li > .tuile {
+  flex: 1;
 }
 .tuile {
   position: relative;
@@ -4030,6 +4042,64 @@ html.contraste.sombre .viz {
      dans un encart il pousserait le titre hors de sa boîte. */
   margin: 0 0 0.6rem;
   font-size: 1.1rem;
+}
+
+/* Tuile dont le compteur est à zéro : elle garde son chemin mais s'efface,
+   pour que l'œil tombe sur ce qui réclame quelque chose. Le contraste du texte
+   reste inchangé — c'est la BORDURE et le nombre qui se retirent, jamais la
+   lisibilité. */
+/* Le liseré coloré est un ::before, pas une bordure : c'est lui qu'il faut
+   éteindre. Corriger `border-top-color` ne produisait rien. */
+.tuile--calme::before {
+  background: var(--bordure);
+}
+.tuile--calme .tuile__nombre {
+  color: var(--couleur-muet);
+}
+
+/* Messages reçus par le formulaire de contact */
+.liste-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.carte-message {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-left: 3px solid var(--couleur-primaire);
+  border-radius: var(--rayon);
+  padding: 1rem 1.1rem;
+}
+.carte-message--traite {
+  border-left-color: var(--bordure);
+  background: var(--surface-alt);
+}
+.carte-message__tete {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  align-items: baseline;
+  margin: 0 0 0.4rem;
+}
+.carte-message__tete time {
+  color: var(--couleur-muet);
+  font-size: 0.9rem;
+  margin-left: auto;
+}
+.carte-message__sujet {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+.carte-message__corps {
+  max-width: var(--largeur-texte);
+}
+.carte-message__corps p:last-child {
+  margin-bottom: 0;
+}
+.carte-message__actions {
+  margin: 0.9rem 0 0;
 }
 
 /* Liste d'état du tableau de bord : genre · titre · note · date. Une ligne

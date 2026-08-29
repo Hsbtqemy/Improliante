@@ -2319,8 +2319,15 @@ def test_l_entete_ne_deploie_pas_la_nav_publique_dans_l_espace_connecte(client, 
 
 
 def test_le_tableau_de_bord_ne_reprend_plus_les_entrees_du_rail(client, db):
-    """La grille « Modules » rouvrait dix destinations déjà dans le rail. Le
-    tableau de bord montre l'état, le rail garde les portes."""
+    """La grille « Modules » rouvrait dix destinations déjà dans le rail, sans
+    rien en dire : de la navigation en double.
+
+    L'invariant n'est PAS « aucune destination partagée » — une première
+    version du test l'affirmait et s'est mise à mordre à tort dès que les
+    tuiles ont porté des compteurs. Un nombre suivi de son écran est un
+    indicateur, pas un doublon de menu. Ce qu'on interdit, c'est le lien NU :
+    un libellé qui rouvre une entrée du rail sans rien apprendre.
+    """
     import re
 
     client.force_login(_staff())
@@ -2328,16 +2335,20 @@ def test_le_tableau_de_bord_ne_reprend_plus_les_entrees_du_rail(client, db):
     rail = corps.split('<nav id="nav-espace"', 1)[1].split("</nav>", 1)[0]
     contenu = corps.split('<main id="contenu"', 1)[1].split("</main>", 1)[0]
 
-    def cibles(texte):
-        return set(re.findall(r'href="(/[^"#?]*)"', texte))
-
-    communes = cibles(rail) & cibles(contenu)
+    destinations_rail = set(re.findall(r'href="(/[^"#?]*)"', rail))
+    nus = []
+    for lien in re.findall(r"<a\b[^>]*>.*?</a>", contenu, re.S):
+        cible = re.search(r'href="(/[^"#?]*)"', lien)
+        if not cible or cible.group(1) not in destinations_rail:
+            continue
+        texte = re.sub(r"<[^>]+>", " ", lien)
+        if not re.search(r"\d", texte):  # aucun chiffre : le lien n'apprend rien
+            nus.append(f"{cible.group(1)} → {' '.join(texte.split())[:40]}")
 
     assert "Modules" not in contenu
-    # Une ou deux destinations partagées restent légitimes (la file de
-    # modération, vers laquelle le tableau de bord renvoie explicitement) ;
-    # dix, c'était la navigation en double.
-    assert len(communes) <= 2, sorted(communes)
+    # « Ouvrir la file de modération » suit une liste nommée : elle apprend
+    # quelque chose même sans chiffre. Dix liens nus, c'était le menu recopié.
+    assert len(nus) <= 2, "liens nus rouvrant le rail :\n  " + "\n  ".join(nus)
 
 
 def test_le_tableau_de_bord_nomme_ce_qui_attend_une_decision(client, db):
@@ -2385,3 +2396,96 @@ def test_chaque_page_du_rail_ouvre_un_et_un_seul_groupe(client, db):
 
     assert testees >= 15, f"{testees} pages réellement testées sur {len(destinations)}"
     assert not fautives, "position non reconnue dans le rail :\n  " + "\n  ".join(fautives)
+
+
+# --- Messages de contact et signaux du tableau de bord -----------------------
+#
+# `MessageContact` était écrit par le formulaire public et lu UNIQUEMENT par
+# l'admin Django : le site déposait des messages dans une boîte que l'interface
+# métier n'ouvrait pas. Le champ `traite` existait et n'était jamais basculé.
+
+
+def _message(nom="Camille", traite=False):
+    from apps.vitrine.models import MessageContact
+
+    return MessageContact.objects.create(
+        nom=nom, email=f"{nom.lower()}@x.test", message="Bonjour", traite=traite
+    )
+
+
+def test_les_messages_recus_sont_lisibles_hors_admin(client, db):
+    _message("Camille")
+    client.force_login(_staff())
+
+    corps = client.get("/bureau/messages/").content.decode()
+
+    assert "Camille" in corps
+    assert "camille@x.test" in corps
+
+
+def test_la_liste_des_messages_montre_d_abord_ce_qui_reste_a_traiter(client, db):
+    _message("Nonlu", traite=False)
+    _message("Deja", traite=True)
+    client.force_login(_staff())
+
+    a_traiter = client.get("/bureau/messages/").content.decode()
+    tous = client.get("/bureau/messages/?etat=tous").content.decode()
+
+    assert "Nonlu" in a_traiter and "Deja" not in a_traiter
+    assert "Nonlu" in tous and "Deja" in tous
+
+
+def test_marquer_un_message_traite_le_sort_de_la_liste(client, db):
+    from apps.vitrine.models import MessageContact
+
+    message = _message("Camille")
+    client.force_login(_staff())
+
+    reponse = client.post(
+        "/bureau/messages/", {"message": message.pk, "action": "traiter"}, follow=True
+    )
+
+    assert reponse.status_code == 200
+    message.refresh_from_db()
+    assert message.traite is True
+    assert MessageContact.objects.filter(traite=False).count() == 0
+
+
+def test_le_tableau_de_bord_signale_les_factures_echues(client, db):
+    """`date_echeance` était saisie et imprimée sans jamais être comparée à la
+    date du jour : une facture validée impayée depuis six mois n'alertait rien."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.facturation.models import Client as ClientFacture
+    from apps.facturation.models import Facture
+
+    Facture.objects.create(
+        client=ClientFacture.objects.create(nom="X"),
+        statut=Facture.Statut.VALIDEE,
+        date_echeance=timezone.localdate() - timedelta(days=30),
+    )
+    client.force_login(_staff())
+
+    signaux = client.get("/bureau/").context["signaux"]
+    echues = next(s for s in signaux if "échue" in s["label"])
+
+    assert echues["nombre"] == 1
+
+
+def test_le_tableau_de_bord_signale_les_cotisations_et_les_messages(client, db):
+    from apps.budget.models import Adhesion, Saison
+    from apps.coeur.models import Membre
+
+    membre = Membre.objects.create(nom="Roux", prenom="Camille")
+    saison = Saison.objects.create(nom="2026", date_debut="2026-01-01", date_fin="2026-12-31")
+    Adhesion.objects.create(membre=membre, saison=saison, statut=Adhesion.Statut.EN_ATTENTE)
+    _message("Camille")
+    client.force_login(_staff())
+
+    signaux = client.get("/bureau/").context["signaux"]
+    par_label = {s["label"]: s["nombre"] for s in signaux}
+
+    assert par_label["cotisation(s) en attente de paiement"] == 1
+    assert par_label["message(s) reçu(s) à traiter"] == 1

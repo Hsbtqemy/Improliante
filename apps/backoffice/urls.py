@@ -50,6 +50,7 @@ urlpatterns = [
         views.basculer_mise_en_avant_membre,
         name="basculer_mise_en_avant_membre",
     ),
+    path("bureau/messages/", views.messages_contact, name="messages_contact"),
     path("bureau/adhesions/", views.liste_adhesions, name="liste_adhesions"),
     path("bureau/adhesions/nouvelle/", views.creer_adhesion, name="creer_adhesion"),
     path("bureau/adhesions/<int:pk>/", views.editer_adhesion, name="editer_adhesion"),

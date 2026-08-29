@@ -74,6 +74,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
         <li><a href="{% url 'backoffice:liste_membres' %}" {% if vn == 'backoffice:liste_membres' or vn == 'backoffice:creer_membre' or vn == 'backoffice:editer_membre' or vn == 'backoffice:ouvrir_acces_membre' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-membres"></use></svg><span>Membres</span></a></li>
         <li><a href="{% url 'backoffice:equipe_bureau' %}" {% if vn == 'backoffice:equipe_bureau' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-badge"></use></svg><span>Équipe du bureau</span></a></li>
         <li><a href="{% url 'backoffice:fichiers_membres' %}" {% if vn == 'backoffice:fichiers_membres' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Fichiers transmis</span></a></li>
+        <li><a href="{% url 'backoffice:messages_contact' %}" {% if vn == 'backoffice:messages_contact' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Messages reçus</span></a></li>
       </ul>
     </details>
 

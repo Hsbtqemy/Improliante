@@ -9,26 +9,23 @@
     <p class="page-tete__sous">Vue d'ensemble des tâches en cours.</p>
   </header>
 
-  <div class="tuiles">
-    <a class="tuile" href="{% url 'backoffice:file_moderation' %}">
-      <span class="tuile__nombre">{{ a_moderer|add:a_revoir }}</span>
-      <span class="tuile__label">
-        fiche(s) à traiter{% if a_revoir %} (dont {{ a_revoir }} à revoir){% endif %}
-      </span>
-    </a>
-    <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=factures">
-      <span class="tuile__nombre">{{ factures_brouillon }}</span>
-      <span class="tuile__label">facture(s) en brouillon</span>
-    </a>
-    <a class="tuile" href="{% url 'backoffice:facturation' %}?onglet=devis">
-      <span class="tuile__nombre">{{ devis_a_suivre }}</span>
-      <span class="tuile__label">devis à suivre</span>
-    </a>
-    <div class="tuile">
-      <span class="tuile__nombre">{{ reunions_a_venir }}</span>
-      <span class="tuile__label">réunion(s) à venir</span>
-    </div>
-  </div>
+  {% comment %}
+    Une liste plutôt que sept blocs : un signal s'ajoute côté vue, l'ordre s'y
+    décide aussi. Un compteur à zéro reste affiché — il porte le chemin vers son
+    écran — mais s'efface visuellement pour que l'œil tombe sur ce qui réclame
+    quelque chose.
+  {% endcomment %}
+  <ul class="tuiles" aria-label="Ce qui demande une action">
+    {% for signal in signaux %}
+      <li>
+        <a class="tuile{% if not signal.nombre %} tuile--calme{% endif %}" href="{{ signal.url }}">
+          <span class="tuile__nombre">{{ signal.nombre }}</span>
+          <span class="tuile__label">{{ signal.label }}</span>
+          {% if signal.detail %}<small class="tuile__detail">{{ signal.detail }}</small>{% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
 
   {% comment %}
     Ici vivaient deux grilles de cartes — « Modules » et « Réglages » — qui

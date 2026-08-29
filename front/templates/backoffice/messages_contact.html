@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Messages reçus — Gestion{% endblock %}
+
+{% block contenu %}
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Gestion</a></p>
+  <header class="page-tete">
+    <span class="page-tete__eyebrow">Gestion · Vie associative</span>
+    <h1>Messages reçus</h1>
+    <p class="page-tete__sous">
+      Ce que le formulaire de contact du site a déposé. Marquer « traité » sort
+      le message de la liste sans le supprimer.
+    </p>
+  </header>
+
+  <form method="get" class="filtres" aria-label="Filtrer les messages">
+    <div class="filtres__champ">
+      <label for="filtre-etat">Afficher</label>
+      <select name="etat" id="filtre-etat" onchange="this.form.submit()">
+        <option value="a_traiter" {% if etat != 'tous' %}selected{% endif %}>
+          À traiter ({{ nb_a_traiter }})
+        </option>
+        <option value="tous" {% if etat == 'tous' %}selected{% endif %}>
+          Tous ({{ nb_total }})
+        </option>
+      </select>
+    </div>
+    <button type="submit" class="lien-bouton lien-bouton--primaire">Filtrer</button>
+  </form>
+
+  {% if messages_recus %}
+    <ul class="liste-messages">
+      {% for message in messages_recus %}
+        <li class="carte-message{% if message.traite %} carte-message--traite{% endif %}">
+          <p class="carte-message__tete">
+            <strong>{{ message.nom }}</strong>
+            <a href="mailto:{{ message.email }}?subject={{ message.sujet|default:'Votre message'|urlencode }}">{{ message.email }}</a>
+            <time datetime="{{ message.date_creation|date:"c" }}">{{ message.date_creation|date:"d/m/Y à G\hi" }}</time>
+          </p>
+          {% if message.sujet %}<p class="carte-message__sujet">{{ message.sujet }}</p>{% endif %}
+          <div class="carte-message__corps">{{ message.message|linebreaks }}</div>
+          <form method="post" class="carte-message__actions">
+            {% csrf_token %}
+            <input type="hidden" name="message" value="{{ message.pk }}" />
+            {% if message.traite %}
+              <button type="submit" name="action" value="rouvrir" class="lien-bouton">Rouvrir</button>
+            {% else %}
+              <button type="submit" name="action" value="traiter" class="lien-bouton lien-bouton--primaire">
+                Marquer comme traité
+              </button>
+            {% endif %}
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="etat-vide">
+      <p class="etat-vide__ico" aria-hidden="true">✉️</p>
+      <p class="etat-vide__titre">
+        {% if etat == 'tous' %}Aucun message reçu{% else %}Aucun message à traiter{% endif %}
+      </p>
+      <p>
+        {% if etat == 'tous' %}
+          Les messages déposés par le formulaire de contact du site apparaîtront ici.
+        {% else %}
+          Tout est traité. Choisir « Tous » pour relire les messages passés.
+        {% endif %}
+      </p>
+    </div>
+  {% endif %}
+{% endblock %}
