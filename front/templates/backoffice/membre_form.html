@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{% if membre %}Modifier une fiche{% else %}Nouveau membre{% endif %} — Back-office{% endblock %}
+{% block title %}{% if membre %}Modifier une fiche{% else %}Nouveau membre{% endif %} — Gestion{% endblock %}
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:liste_membres' %}">← Membres</a></p>
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Gestion</span>
     <h1>{% if membre %}Modifier la fiche{% else %}Nouveau membre{% endif %}</h1>
     {% if not membre %}
       <p class="page-tete__sous">

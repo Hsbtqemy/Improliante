@@ -291,3 +291,36 @@ def test_chaque_reference_static_des_gabarits_pointe_vers_un_fichier_existant():
 
     assert trouvees >= 8, f"{trouvees} références trouvées : le balayage ne voit plus rien"
     assert not fautifs, "fichiers statiques référencés mais absents : " + ", ".join(fautifs)
+
+
+def test_le_mot_bureau_ne_designe_jamais_l_espace_d_administration():
+    """Dans une association, « le bureau » est un ORGANE — les personnes élues —
+    pas un lieu. L'employer comme nom de section faisait lire « Bureau ·
+    Finances » comme « les élus · finances ». L'espace s'appelle « Gestion » ;
+    « bureau » reste réservé aux personnes (« Équipe du bureau », « transmis au
+    bureau », le groupe de permission).
+
+    « Back-office » est écarté pour une autre raison : c'est un anglicisme, et
+    la convention du projet est le métier en français. Il désignait d'ailleurs
+    le MÊME espace que « Bureau », qui avait donc deux noms.
+    """
+    import pathlib
+    import re
+
+    from django.conf import settings
+
+    fautifs = []
+    for dossier in settings.TEMPLATES[0]["DIRS"]:
+        for gabarit in sorted(pathlib.Path(dossier).rglob("*.html")):
+            texte = gabarit.read_text()
+            for numero, ligne in enumerate(texte.splitlines(), 1):
+                if re.search(r'page-tete__eyebrow">Bureau\b', ligne):
+                    fautifs.append(f"{gabarit.name}:{numero} sur-titre « Bureau »")
+                if "Back-office" in ligne:
+                    fautifs.append(f"{gabarit.name}:{numero} « Back-office »")
+                if re.search(r'<summary class="nav-espace__titre">Bureau<', ligne):
+                    fautifs.append(f"{gabarit.name}:{numero} groupe de nav « Bureau »")
+
+    assert not fautifs, "« bureau » employé pour l'ESPACE et non pour l'organe :\n  " + "\n  ".join(
+        fautifs
+    )

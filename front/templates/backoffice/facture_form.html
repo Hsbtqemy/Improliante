@@ -2,12 +2,12 @@
 {% load static %}
 
 {% block title %}
-  {% if facture %}Facture (brouillon #{{ facture.pk }}){% else %}Nouvelle facture{% endif %} — Back-office
+  {% if facture %}Facture (brouillon #{{ facture.pk }}){% else %}Nouvelle facture{% endif %} — Gestion
 {% endblock %}
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Gestion</span>
     <h1>{% if facture %}Modifier la facture (brouillon){% else %}Nouvelle facture{% endif %}</h1>
   </header>
 

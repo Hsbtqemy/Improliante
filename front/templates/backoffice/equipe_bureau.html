@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Équipe du bureau — Back-office{% endblock %}
+{% block title %}Équipe du bureau — Gestion{% endblock %}
 
 {% block contenu %}
-  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Back-office</a></p>
+  <p><a href="{% url 'backoffice:tableau_de_bord' %}">← Gestion</a></p>
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Gestion</span>
     <h1>Équipe du bureau</h1>
     <p class="page-tete__sous">
-      Donne ou retire l'accès au back-office (appartenance au groupe « Bureau »).
+      Donne ou retire l'accès à la gestion (appartenance au groupe « Bureau », l'organe élu).
       Les comptes techniques (admin) ont un accès indépendant, non modifiable ici.
     </p>
   </header>

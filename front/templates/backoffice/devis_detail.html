@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Devis {{ devis.numero }} — Back-office{% endblock %}
+{% block title %}Devis {{ devis.numero }} — Gestion{% endblock %}
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Gestion</span>
     <h1>Devis {{ devis.numero }}</h1>
     <p class="page-tete__sous">
       <span class="badge badge--{{ devis.statut }}">{{ devis.get_statut_display }}</span> · {{ devis.client }}

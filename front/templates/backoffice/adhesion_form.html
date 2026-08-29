@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{% if adhesion %}Modifier une adhésion{% else %}Nouvelle adhésion{% endif %} — Back-office{% endblock %}
+{% block title %}{% if adhesion %}Modifier une adhésion{% else %}Nouvelle adhésion{% endif %} — Gestion{% endblock %}
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:liste_adhesions' %}">← Adhésions</a></p>
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Gestion</span>
     <h1>{% if adhesion %}Modifier l'adhésion{% else %}Nouvelle adhésion{% endif %}</h1>
   </header>
 

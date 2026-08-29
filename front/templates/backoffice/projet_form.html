@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{% if fiche %}Modifier « {{ fiche.titre }} »{% else %}Nouveau projet{% endif %} — Back-office{% endblock %}
+{% block title %}{% if fiche %}Modifier « {{ fiche.titre }} »{% else %}Nouveau projet{% endif %} — Gestion{% endblock %}
 
 {% block contenu %}
   <p><a href="{% url 'backoffice:liste_projets' %}">← Projets</a></p>
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau · Programmation</span>
+    <span class="page-tete__eyebrow">Gestion · Programmation</span>
     <h1>{% if fiche %}Modifier le projet{% else %}Nouveau projet{% endif %}</h1>
     {% if fiche %}
       <p class="page-tete__sous">

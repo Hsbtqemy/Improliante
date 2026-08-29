@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ facture.get_type_piece_display }} {{ facture.numero }} — Back-office{% endblock %}
+{% block title %}{{ facture.get_type_piece_display }} {{ facture.numero }} — Gestion{% endblock %}
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Bureau</span>
+    <span class="page-tete__eyebrow">Gestion</span>
     <h1>{{ facture.get_type_piece_display }} {{ facture.numero }}</h1>
     <p class="page-tete__sous">
       <span class="badge badge--{{ facture.statut }}">{{ facture.get_statut_display }}</span>

@@ -42,7 +42,7 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
 
   {% if est_bureau %}
     <details class="nav-espace__groupe" open>
-      <summary class="nav-espace__titre">Bureau</summary>
+      <summary class="nav-espace__titre">Gestion</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:tableau_de_bord' %}" {% if vn == 'backoffice:tableau_de_bord' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Tableau de bord</span></a></li>
         <li><a href="{% url 'backoffice:file_moderation' %}" {% if vn == 'backoffice:file_moderation' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-bouclier"></use></svg><span>Modération</span></a></li>
