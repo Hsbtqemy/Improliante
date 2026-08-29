@@ -679,6 +679,27 @@ def test_mes_fichiers_exige_la_connexion(client, db):
     assert "/connexion/" in reponse.url
 
 
+def test_le_sommaire_des_fichiers_est_navigable(client, db):
+    """Chaque branche du panneau latéral est un lien vers sa section, y compris
+    depuis un dossier — et y compris Association, dont un membre ne voit pas
+    l'arborescence."""
+    membre = _membre("alice")
+    dossier = _dossier_membre(membre, Visibilite.PRIVE, nom="Photos")
+    client.force_login(membre.user)
+    for url in ("/espace/fichiers/", f"/espace/fichiers/{dossier.pk}/"):
+        corps = client.get(url).content.decode()
+        for ancre in ("t-perso", "t-partage", "t-bureau", "t-association", "t-recus"):
+            assert f'href="/espace/fichiers/#{ancre}"' in corps, (url, ancre)
+
+
+def test_les_sections_portent_les_ancres_du_sommaire(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    corps = client.get("/espace/fichiers/").content.decode()
+    for ancre in ("t-perso", "t-partage", "t-bureau", "t-association", "t-recus"):
+        assert f'id="{ancre}"' in corps, ancre
+
+
 def test_membre_cree_un_dossier_racine(client, db):
     membre = _membre("alice")
     client.force_login(membre.user)
@@ -1313,15 +1334,25 @@ def _recu_pour(membre, **extra):
 
 
 def test_mes_recus_ne_liste_que_les_siens(client, db):
+    """Les reçus sont une section de « Fichiers » ; un membre n'y voit que les siens."""
     membre = _membre("alice")
     autre = _membre("bob")
     _recu_pour(membre, montant=Decimal("111.00"))
     _recu_pour(autre, montant=Decimal("999.00"))
 
     client.force_login(membre.user)
-    corps = client.get("/espace/recus/").content.decode()
+    corps = client.get("/espace/fichiers/").content.decode()
     assert "111" in corps
     assert "999" not in corps  # anti-IDOR : pas le reçu d'un autre membre
+
+
+def test_ancienne_page_recus_redirige_vers_les_fichiers(client, db):
+    """La route dédiée survit en redirection : signets et liens déjà envoyés."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    reponse = client.get("/espace/recus/")
+    assert reponse.status_code == 302
+    assert reponse["Location"] == "/espace/fichiers/#t-recus"
 
 
 def test_membre_telecharge_son_recu(client, db, monkeypatch):

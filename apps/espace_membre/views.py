@@ -18,6 +18,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -650,6 +651,14 @@ def mes_fichiers(request):
         "peut_ecrire_asso": peut_ecrire_asso,
         "dossier_form": dossier_form,
         "branche_active": branche,
+        # Les reçus fiscaux ne sont pas des `Document` (ils vivent dans budget,
+        # avec leur PDF rendu à la demande) : ils forment leur propre section,
+        # en lecture seule, plutôt qu'une branche de l'arbre.
+        "recus": (
+            RecuFiscal.objects.filter(membre=membre).order_by("-date_versement", "-numero")
+            if membre is not None
+            else RecuFiscal.objects.none()
+        ),
     }
     contexte.update(_arbres_fichiers(membre, avec_association=peut_ecrire_asso))
     return render(request, "espace_membre/mes_fichiers.html", contexte)
@@ -1240,14 +1249,9 @@ def detail_convocation(request, pk):
 
 @login_required
 def mes_recus(request):
-    """Reçus fiscaux émis au nom du membre connecté."""
-    membre = _membre_connecte(request)
-    recus = (
-        RecuFiscal.objects.filter(membre=membre)
-        if membre is not None
-        else RecuFiscal.objects.none()
-    )
-    return render(request, "espace_membre/mes_recus.html", {"recus": recus})
+    """Ancienne page dédiée. Les reçus sont désormais une section de « Fichiers » :
+    on garde la route pour les liens et signets déjà distribués."""
+    return redirect(reverse("espace_membre:mes_fichiers") + "#t-recus")
 
 
 @login_required

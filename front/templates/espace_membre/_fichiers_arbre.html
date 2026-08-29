@@ -1,5 +1,9 @@
 {% comment %}
-Arbre unifié des fichiers, en quatre branches : Perso / Partagé / Bureau / Association.
+Sommaire + arborescence des fichiers, en quatre branches (Perso / Partagé /
+Bureau / Association) suivies des reçus fiscaux.
+Chaque en-tête de branche est un lien vers la section correspondante de la vue
+d'ensemble : depuis un dossier, il ramène à la page ; depuis la vue d'ensemble,
+il fait défiler jusqu'à la section. Les dossiers, eux, mènent à leur détail.
 Panneau latéral permanent sur grand écran, repli sur mobile.
 Attendu : `arbre_perso`, `arbre_partage`, `arbre_bureau`, `arbre_association`, `dossier_courant_id`.
 {% endcomment %}
@@ -7,23 +11,29 @@ Attendu : `arbre_perso`, `arbre_partage`, `arbre_bureau`, `arbre_association`, `
   <summary class="ged-tree__resume">
     <svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg> Fichiers
   </summary>
-  <nav class="ged-tree__nav" aria-label="Arborescence des fichiers">
+  <nav class="ged-tree__nav" aria-label="Sommaire des fichiers">
     <a class="ged-tree__racine{% if not dossier_courant_id %} est-actif{% endif %}"
        href="{% url 'espace_membre:mes_fichiers' %}"
        {% if not dossier_courant_id %}aria-current="page"{% endif %}>Vue d'ensemble</a>
 
-    <p class="ged-tree__groupe">Perso</p>
+    <a class="ged-tree__groupe" href="{% url 'espace_membre:mes_fichiers' %}#t-perso">Perso</a>
     {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_perso url_nom="espace_membre:dossier_membre" %}
 
-    <p class="ged-tree__groupe">Partagé</p>
+    <a class="ged-tree__groupe" href="{% url 'espace_membre:mes_fichiers' %}#t-partage">Partagé</a>
     {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_partage url_nom="espace_membre:dossier_commun" %}
 
-    <p class="ged-tree__groupe">Bureau</p>
+    <a class="ged-tree__groupe" href="{% url 'espace_membre:mes_fichiers' %}#t-bureau">Bureau</a>
     {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_bureau url_nom="espace_membre:dossier_membre" %}
 
+    {% comment %}
+    L'en-tête est toujours là (la section existe pour tous) ; seule l'arborescence
+    des dossiers officiels reste réservée au bureau.
+    {% endcomment %}
+    <a class="ged-tree__groupe" href="{% url 'espace_membre:mes_fichiers' %}#t-association">Association</a>
     {% if arbre_association %}
-      <p class="ged-tree__groupe">Association</p>
       {% include "espace_membre/_arbre_groupe.html" with noeuds=arbre_association url_nom="espace_membre:dossier_association" %}
     {% endif %}
+
+    <a class="ged-tree__groupe" href="{% url 'espace_membre:mes_fichiers' %}#t-recus">Reçus fiscaux</a>
   </nav>
 </details>

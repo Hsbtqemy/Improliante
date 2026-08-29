@@ -10,6 +10,7 @@
       Vos fichiers rangés en quatre espaces : <strong>Perso</strong> (à vous seul),
       <strong>Partagé</strong> (toute la troupe), <strong>Bureau</strong>
       (transmis au bureau) et <strong>Association</strong> (documents officiels).
+      Vos <strong>reçus fiscaux</strong> sont listés en bas de page.
     </p>
   </header>
 
@@ -49,6 +50,56 @@
           {# Membre : liste plate des documents accessibles, sans arborescence. #}
           <p class="ged-section-note">Comptes-rendus d'AG, statuts, bilan… les documents que le bureau partage avec les membres.</p>
           {% include "espace_membre/_fichiers_documents.html" with documents=association_docs peut_ecrire=False avec_confidentialite=True %}
+        {% endif %}
+      </section>
+
+      {% comment %}
+      Les reçus fiscaux ne sont pas des documents de la GED : ils sont émis par le
+      bureau (app budget) et leur PDF est rendu à la demande. D'où une section à
+      part, en lecture seule, plutôt qu'une cinquième branche de l'arbre.
+      {% endcomment %}
+      <section aria-labelledby="t-recus" class="ged-branche">
+        <h2 id="t-recus" class="ged-section-titre">Reçus fiscaux <span class="ged-section-note">— émis à votre nom</span></h2>
+        {% if recus %}
+          <div class="tableau-wrap">
+            <table class="tableau">
+              <thead>
+                <tr>
+                  <th scope="col">Reçu</th>
+                  <th scope="col">Versement</th>
+                  <th scope="col">Montant</th>
+                  <th scope="col">Versé le</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for recu in recus %}
+                  <tr>
+                    <td>
+                      <span class="ged-doc__titre">
+                        <svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg>
+                        Reçu {{ recu.numero }}
+                      </span>
+                    </td>
+                    <td>{{ recu.get_type_versement_display }}</td>
+                    <td>{{ recu.montant|floatformat:2 }} €</td>
+                    <td class="ged-doc__modif">{{ recu.date_versement|date:"d/m/Y" }}</td>
+                    <td>
+                      <div class="ged-doc__actions">
+                        <a class="lien-bouton" href="{% url 'espace_membre:telecharger_recu' pk=recu.pk %}">Télécharger</a>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="etat-vide">
+            <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-recu"></use></svg></div>
+            <p class="etat-vide__titre">Aucun reçu fiscal</p>
+            <p>Vos reçus apparaîtront ici après enregistrement de vos versements par le bureau.</p>
+          </div>
         {% endif %}
       </section>
     </div>
