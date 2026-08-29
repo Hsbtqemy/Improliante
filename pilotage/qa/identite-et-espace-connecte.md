@@ -85,7 +85,11 @@ proposées, et quelques dates à venir.
 - [ ] Le lien sur l'adresse ouvre le client mail avec le sujet du message pré-rempli
 - [ ] Une facture validée dont l'échéance est passée fait monter le compteur « facture(s) échue(s) », et le clic mène à l'onglet Factures
 - [ ] Les compteurs à zéro sont visiblement en retrait des autres, sans que leur texte devienne difficile à lire
-- [ ] Sur 1024 px, les sept tuiles se répartissent sans qu'une seule dépasse en hauteur de sa rangée
+- [ ] Sur 1024 px, les huit tuiles se répartissent sans qu'une seule dépasse en hauteur de sa rangée
+- [ ] Une facture validée impayée figure dans « En retard », nommée, avec son ancienneté en jours, et le lien mène à la facture
+- [ ] Une réunion convoquée dont la date est passée y figure aussi, avec « tenue, mais sans compte-rendu »
+- [ ] Une réunion convoquée à VENIR n'y figure pas — elle reste dans « Ce qui arrive »
+- [ ] Le motif ne répète pas la date affichée à droite : il apporte autre chose
 
 ### Vocabulaire
 
