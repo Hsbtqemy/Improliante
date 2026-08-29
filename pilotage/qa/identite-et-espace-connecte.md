@@ -78,6 +78,15 @@ proposées, et quelques dates à venir.
 - [ ] Le titre « Tableau de bord » paraît proportionné à sa colonne, comme un titre de la vitrine l'est à la sienne
 - [ ] Les quatre tuiles restent alignées sur une largeur de 1024 px sans qu'une seule passe à la ligne
 
+### Messages reçus et signaux du tableau de bord
+
+- [ ] Un message déposé par le formulaire public apparaît dans Gestion → Vie associative → Messages reçus, sans passer par l'admin Django
+- [ ] « Marquer comme traité » le sort de la liste par défaut, et « Tous » le retrouve
+- [ ] Le lien sur l'adresse ouvre le client mail avec le sujet du message pré-rempli
+- [ ] Une facture validée dont l'échéance est passée fait monter le compteur « facture(s) échue(s) », et le clic mène à l'onglet Factures
+- [ ] Les compteurs à zéro sont visiblement en retrait des autres, sans que leur texte devienne difficile à lire
+- [ ] Sur 1024 px, les sept tuiles se répartissent sans qu'une seule dépasse en hauteur de sa rangée
+
 ### Vocabulaire
 
 - [ ] Aucun écran de gestion n'affiche « Bureau » comme nom de section, ni « Back-office » : le sur-titre dit « Gestion »
