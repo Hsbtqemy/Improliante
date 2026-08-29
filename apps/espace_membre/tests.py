@@ -1868,3 +1868,19 @@ def test_le_lecteur_sans_droit_d_ecriture_ne_voit_pas_le_deplacement(client, db)
 
     # Un membre non-bureau n'atteint même pas l'écran d'un dossier officiel.
     assert client.get(f"/espace/fichiers/{officiel.pk}/deplacer/").status_code == 404
+
+
+def test_le_tableau_de_bord_membre_ne_reprend_pas_les_entrees_du_rail(client, db):
+    """Le tableau de bord membre portait quatre « Accès rapides » qui rouvraient
+    des entrées du rail affichées juste à côté, dont deux vers la même page —
+    le doublon démonté côté gestion, en plus petit. L'invariant est partagé
+    (`conftest.liens_nus_rouvrant_le_rail`) pour qu'il ne diverge pas d'un
+    écran à l'autre."""
+    from conftest import liens_nus_rouvrant_le_rail
+
+    membre = _membre("camille")
+    client.force_login(membre.user)
+
+    nus = liens_nus_rouvrant_le_rail(client.get("/espace/").content.decode())
+
+    assert not nus, "liens nus rouvrant le rail :\n  " + "\n  ".join(nus)

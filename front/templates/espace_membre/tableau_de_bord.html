@@ -111,20 +111,28 @@
       {% endif %}
     </section>
 
-    {# --- Accès rapides + adhésion discrète ------------------------------ #}
-    <section class="accueil-bloc" aria-labelledby="titre-acces">
-      <h2 id="titre-acces">Accès rapides</h2>
-      <ul class="acces-rapides">
-        <li><a href="{% url 'espace_membre:mes_convocations' %}"><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Convocations</span></a></li>
-        <li><a href="{% url 'espace_membre:mes_fichiers' %}"><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Fichiers</span></a></li>
-        <li><a href="{% url 'espace_membre:mes_fichiers' %}#t-recus"><svg class="ico" aria-hidden="true"><use href="#ico-recu"></use></svg><span>Reçus fiscaux</span></a></li>
-        <li><a href="{% url 'espace_membre:mon_profil' %}"><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>
-      </ul>
+    {% comment %}
+      Ici vivaient quatre « Accès rapides » — Convocations, Fichiers, Reçus
+      fiscaux, Mon profil — qui rouvraient des entrées du rail affichées juste à
+      côté, dont deux vers la même page. Le même doublon que la grille
+      « Modules » côté gestion, en plus petit.
+
+      Reste ce qui est une INFORMATION et non un chemin : l'état de l'adhésion.
+      Le lien vers le reçu s'y rattache, là où il veut dire quelque chose.
+    {% endcomment %}
+    <section class="accueil-bloc" aria-labelledby="titre-adhesion">
+      <h2 id="titre-adhesion">Mon adhésion</h2>
       {% if adhesion %}
         <p class="adhesion-ligne">
           Adhésion {{ adhesion.saison }} ·
           <span class="badge badge--{{ adhesion.statut }}">{{ adhesion.get_statut_display }}</span>
-          · {{ adhesion.montant_verse|floatformat:0 }} € versés
+          · {{ adhesion.montant_verse|floatformat:0 }} € versés ·
+          <a href="{% url 'espace_membre:mes_fichiers' %}#t-recus">mes reçus fiscaux</a>
+        </p>
+      {% else %}
+        <p class="adhesion-ligne">
+          Aucune adhésion enregistrée pour l'instant. Le bureau la saisit une
+          fois la cotisation reçue.
         </p>
       {% endif %}
     </section>

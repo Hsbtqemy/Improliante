@@ -2322,30 +2322,16 @@ def test_le_tableau_de_bord_ne_reprend_plus_les_entrees_du_rail(client, db):
     """La grille « Modules » rouvrait dix destinations déjà dans le rail, sans
     rien en dire : de la navigation en double.
 
-    L'invariant n'est PAS « aucune destination partagée » — une première
-    version du test l'affirmait et s'est mise à mordre à tort dès que les
-    tuiles ont porté des compteurs. Un nombre suivi de son écran est un
-    indicateur, pas un doublon de menu. Ce qu'on interdit, c'est le lien NU :
-    un libellé qui rouvre une entrée du rail sans rien apprendre.
+    Le même invariant vaut sur le tableau de bord MEMBRE — d'où la fonction
+    partagée dans `conftest.py` plutôt qu'une règle réécrite de chaque côté.
     """
-    import re
+    from conftest import liens_nus_rouvrant_le_rail
 
     client.force_login(_staff())
     corps = client.get("/bureau/").content.decode()
-    rail = corps.split('<nav id="nav-espace"', 1)[1].split("</nav>", 1)[0]
-    contenu = corps.split('<main id="contenu"', 1)[1].split("</main>", 1)[0]
 
-    destinations_rail = set(re.findall(r'href="(/[^"#?]*)"', rail))
-    nus = []
-    for lien in re.findall(r"<a\b[^>]*>.*?</a>", contenu, re.S):
-        cible = re.search(r'href="(/[^"#?]*)"', lien)
-        if not cible or cible.group(1) not in destinations_rail:
-            continue
-        texte = re.sub(r"<[^>]+>", " ", lien)
-        if not re.search(r"\d", texte):  # aucun chiffre : le lien n'apprend rien
-            nus.append(f"{cible.group(1)} → {' '.join(texte.split())[:40]}")
-
-    assert "Modules" not in contenu
+    assert "Modules" not in corps.split('<main id="contenu"', 1)[1]
+    nus = liens_nus_rouvrant_le_rail(corps)
     # « Ouvrir la file de modération » suit une liste nommée : elle apprend
     # quelque chose même sans chiffre. Dix liens nus, c'était le menu recopié.
     assert len(nus) <= 2, "liens nus rouvrant le rail :\n  " + "\n  ".join(nus)
