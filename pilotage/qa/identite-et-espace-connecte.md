@@ -70,12 +70,26 @@ proposées, et quelques dates à venir.
 - [ ] Sur un vrai téléphone, le burger ouvre le tiroir, et le groupe « Le site » y donne accès aux pages publiques et à la déconnexion
 - [ ] JavaScript désactivé : tous les groupes sont ouverts et rien n'est inatteignable
 
+### Rail réorganisé et fil d'Ariane
+
+- [ ] Le rail de gestion montre cinq groupes — Programmation, Finances, Vie associative, Réglages, plus « Mon espace » — et plus aucun groupe nommé « Gestion »
+- [ ] « Vue d'ensemble » se voit toujours, sans titre de groupe au-dessus et sans chevron : elle ne se replie pas
+- [ ] Le séparateur sous « Vue d'ensemble » se pose SOUS elle et ne traverse pas le fond coloré quand elle est la page courante
+- [ ] Sur « Vue d'ensemble », aucun groupe n'est déplié : le rail se lit comme un sommaire de cinq domaines
+- [ ] Ce sommaire replié suffit à décider où aller depuis l'accueil de la gestion — sinon, c'est qu'il faudrait y rouvrir un groupe par défaut
+- [ ] « Modération » se trouve dans « Programmation », aux côtés d'Événements et Projets, et le groupe s'ouvre bien quand on y est
+- [ ] Une seule entrée du rail porte le mot « Tableau de bord » : celle de « Mon espace »
+- [ ] Sur un vrai téléphone, tiroir ouvert, « Vue d'ensemble » est atteignable sans faire défiler le tiroir
+- [ ] Le sur-titre de chaque écran de gestion nomme le groupe qui est déplié à côté, dans le rail — les deux se répondent
+- [ ] Sur 375 px, « Gestion · Vie associative » tient sur une ligne ou se coupe proprement, sans déborder de la colonne
+- [ ] La perte de « Réglages · Signataires » et de « Gestion · Gouvernance » ne fait pas perdre le fil : le h1 dit encore où l'on est
+
 ### Tableau de bord de gestion
 
 - [ ] La grille « Modules » a disparu ; restent les tuiles, « En attente d'une décision » et « Ce qui arrive »
 - [ ] Avec des fiches proposées, elles sont nommées et datées, et « Ouvrir la file de modération » y mène
 - [ ] Sans rien en attente, la page dit « Rien n'attend de décision » et ne paraît pas cassée pour autant
-- [ ] Le titre « Tableau de bord » paraît proportionné à sa colonne, comme un titre de la vitrine l'est à la sienne
+- [ ] Le titre « Vue d'ensemble » paraît proportionné à sa colonne, comme un titre de la vitrine l'est à la sienne
 - [ ] Les quatre tuiles restent alignées sur une largeur de 1024 px sans qu'une seule passe à la ligne
 
 ### Messages reçus et signaux du tableau de bord
