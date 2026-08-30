@@ -136,6 +136,9 @@ une mise en page — ils ne peuvent pas devenir des tests pytest, contrairement 
 plan de titres et aux noms accessibles. Ils restent donc ici, à rejouer.*
 
 - [ ] Sur un vrai téléphone, aucune page ne se fait balayer latéralement par mégarde
+- [ ] JavaScript désactivé, les flèches ▲▼ d'une ligne de facture ne s'affichent PAS — sans script, l'ordre des lignes est celui de la saisie
+- [ ] JavaScript désactivé, le burger, le panneau d'accessibilité et le fieldset « Nouveau client » restent masqués eux aussi
+- [ ] Sur `/spectacles/`, filtrer puis écouter au lecteur d'écran : le nombre de résultats est annoncé comme titre
 - [ ] Dans le tableau de facturation, les flèches ▲▼ se touchent sans viser, et sans attraper le champ TVA voisin
 - [ ] Le tableau de facturation défile bien DANS son cadre, sans emporter la page avec lui
 - [ ] Le montant des totaux (HT, TVA, TTC) est hors écran sur 390 px : il faut faire défiler le tableau pour le lire. Décider si l'écran de facturation doit changer de forme sur téléphone, ou s'il reste un écran de bureau
