@@ -4201,7 +4201,17 @@ html.contraste.sombre .viz {
 }
 
 /* Boutons de déplacement d'une ligne de facture / devis (révélés par JS). */
+/* 28 x 21 px : seule cible du site sous les 24 px de WCAG 2.5.8 (AA) une fois
+   les exceptions de la norme appliquées — et elle échouait aussi à celle de
+   l'espacement, le champ « TVA % » passant à moins de 12 px de son centre. Une
+   cible carrée d'au moins 24 px se suffit à elle-même : plus besoin d'exception,
+   et sur téléphone les deux flèches cessent de se disputer le pouce. */
 .ligne-facturation__deplacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
   border: 1px solid var(--bordure);
   background: var(--surface);
   color: var(--couleur-texte);
