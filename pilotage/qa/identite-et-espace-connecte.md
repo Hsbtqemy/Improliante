@@ -44,7 +44,7 @@ proposées, et quelques dates à venir.
 ### Page d'accueil
 
 - [ ] Le hero affiche le nom de l'association, puis l'accroche en couleur d'accent et plus petite, puis la présentation
-- [ ] Modifier l'accroche dans Gestion → Paramètres change le hero au rechargement suivant
+- [ ] Modifier l'accroche dans Gestion → Réglages → Textes du site change le hero au rechargement suivant
 - [ ] Une accroche de dix mots se replie sans écraser le nom ni sortir de l'encadré
 - [ ] Vider accroche et présentation laisse une page d'accueil valide : ni bloc vide, ni ligne orpheline sous le nom
 - [ ] Les trois boutons (L'association / Les spectacles / L'agenda) tiennent sur 375 px sans se chevaucher ni déborder
@@ -83,6 +83,10 @@ proposées, et quelques dates à venir.
 - [ ] Le sur-titre de chaque écran de gestion nomme le groupe qui est déplié à côté, dans le rail — les deux se répondent
 - [ ] Sur 375 px, « Gestion · Vie associative » tient sur une ligne ou se coupe proprement, sans déborder de la colonne
 - [ ] La perte de « Réglages · Signataires » et de « Gestion · Gouvernance » ne fait pas perdre le fil : le h1 dit encore où l'on est
+- [ ] Aucun écran de gestion ne porte de lien « ← Gestion » au-dessus de son titre ; « Vue d'ensemble » dans le rail suffit
+- [ ] Depuis un formulaire (membre, signataire, réunion), le retour vers SA liste est toujours là — c'est le rail qui ne le porte pas
+- [ ] Sur un vrai téléphone, tiroir fermé, remonter d'une liste de gestion à « Vue d'ensemble » reste supportable sans lien de retour
+- [ ] Dans Finances, « Bilan par catégorie → » mène bien à l'écran qui porte ce titre
 
 ### Tableau de bord de gestion
 
@@ -119,7 +123,7 @@ proposées, et quelques dates à venir.
 
 - [ ] Aucun écran de gestion n'affiche « Bureau » comme nom de section, ni « Back-office » : le sur-titre dit « Gestion »
 - [ ] Là où il s'agit des personnes, le mot reste : « Équipe du bureau », « transmis au bureau », « validation du bureau »
-- [ ] Le groupe du rail s'appelle « Gestion » — dépend du commit en cours sur `_nav_espace.html`, non livré par l'agent
+- [ ] Le mot « Gestion » ne nomme plus qu'une chose : l'espace. Il ouvre chaque sur-titre et ne nomme aucun groupe du rail
 - [ ] La branche « Bureau » de l'explorateur de fichiers garde son nom : elle désigne bien les élus
 
 ### Palettes et mode sombre
