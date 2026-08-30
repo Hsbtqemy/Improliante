@@ -4,7 +4,7 @@
 
 {% block contenu %}
   <header class="page-tete">
-    <span class="page-tete__eyebrow">Gestion</span>
+    <span class="page-tete__eyebrow">Gestion · Finances</span>
     <h1>{{ facture.get_type_piece_display }} {{ facture.numero }}</h1>
     <p class="page-tete__sous">
       <span class="badge badge--{{ facture.statut }}">{{ facture.get_statut_display }}</span>

@@ -324,3 +324,54 @@ def test_le_mot_bureau_ne_designe_jamais_l_espace_d_administration():
     assert not fautifs, "« bureau » employé pour l'ESPACE et non pour l'organe :\n  " + "\n  ".join(
         fautifs
     )
+
+
+def test_le_sur_titre_d_une_page_de_gestion_nomme_son_groupe_de_rail():
+    """Le sur-titre est le fil d'Ariane : il doit dire dans quel groupe du rail
+    on se trouve, donc porter exactement « Gestion · <groupe> ».
+
+    Il n'en était rien. Trois dérives cohabitaient : douze pages s'arrêtaient à
+    « Gestion » sans dire lequel des quatre domaines ; « Gestion · Gouvernance »
+    et « Gestion · Documents » nommaient des groupes inexistants (ce sont des
+    ENTRÉES de « Vie associative ») ; les quatre écrans de réglages disaient
+    « Réglages » tout court, comme s'ils vivaient hors de l'espace de gestion.
+
+    Les groupes se lisent DANS le gabarit du rail, pas dans une liste recopiée
+    ici : renommer un groupe fait tomber ce test au lieu de laisser vingt et une
+    pages désigner un groupe disparu.
+    """
+    import pathlib
+    import re
+
+    from django.conf import settings
+
+    dossiers = [pathlib.Path(d) for d in settings.TEMPLATES[0]["DIRS"]]
+    rail = next(d / "_nav_espace.html" for d in dossiers if (d / "_nav_espace.html").exists())
+    groupes = set(re.findall(r'<summary class="nav-espace__titre">([^<]+)</summary>', rail.read_text()))
+    groupes -= {"Le site", "Mon espace"}  # ni l'un ni l'autre n'est un domaine de gestion
+    assert len(groupes) >= 4, f"groupes lus dans le rail : {sorted(groupes)}"
+
+    # « Vue d'ensemble » est la racine de l'espace et vit hors groupe, dans le
+    # rail comme ici : son sur-titre n'a pas de domaine à nommer. Exception
+    # nommée, et une seule — la même que celle du test de position du rail.
+    RACINE = "tableau_de_bord.html"
+
+    fautifs = []
+    controlees = 0
+    for dossier in dossiers:
+        for gabarit in sorted((dossier / "backoffice").glob("*.html")):
+            trouve = re.search(r'page-tete__eyebrow">([^<]*)</span>', gabarit.read_text())
+            if not trouve:
+                continue
+            controlees += 1
+            sur_titre = trouve.group(1)
+            if gabarit.name == RACINE:
+                if sur_titre != "Gestion":
+                    fautifs.append(f"{gabarit.name} : racine, attendu « Gestion », lu « {sur_titre} »")
+            elif not (
+                sur_titre.startswith("Gestion · ") and sur_titre[len("Gestion · ") :] in groupes
+            ):
+                fautifs.append(f"{gabarit.name} : « {sur_titre} » n'est pas « Gestion · <groupe> »")
+
+    assert controlees >= 30, f"{controlees} pages contrôlées : la boucle ne voit plus les gabarits"
+    assert not fautifs, "sur-titre qui ne nomme pas son groupe de rail :\n  " + "\n  ".join(fautifs)
