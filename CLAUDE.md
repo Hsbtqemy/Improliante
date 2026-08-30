@@ -163,6 +163,12 @@ pytest -q
 # se déclarent « skipped » plutôt que de passer sans rien prouver.
 createdb asso_test && TEST_POSTGRES=1 pytest -q
 
+# Garde de pré-push : à faire UNE FOIS par clone. Le hook (deploiement/hooks/pre-push)
+# rejoue la suite sur PostgreSQL avant que le push ne parte — donc avant que le
+# webhook ne déclenche le déploiement. Sans lui, les trois tests de concurrence
+# ne tournent jamais et le push part quand même.
+git config core.hooksPath deploiement/hooks
+
 # Lint / format (ruff)
 ruff check .
 ruff format .

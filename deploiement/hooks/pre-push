@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Garde de pré-push : la suite doit passer sur le MOTEUR DE PRODUCTION.
+#
+# Pourquoi ici, et pas en intégration continue : le déploiement est déclenché
+# PAR le push (webhook GitHub → deploiement/deploy.sh). Une CI qui démarre après
+# le push arriverait après la mise en ligne — elle constaterait, elle ne
+# garderait rien. Le pré-push est le dernier moment où l'on peut encore dire non.
+#
+# Ce que ce run prouve et que le run ordinaire ne prouve pas : sous SQLite,
+# `select_for_update` ne fait RIEN. Les trois tests qui éprouvent la numérotation
+# séquentielle et sans trou des factures sous concurrence (règle 4, contrainte
+# légale) se déclarent « skipped » plutôt que de passer sans rien prouver. Ils ne
+# tournent donc jamais, sauf ici.
+#
+# Installation (une fois par clone) :
+#   git config core.hooksPath deploiement/hooks
+#
+# Contournement, en le disant :  git push --no-verify
+set -uo pipefail
+
+RACINE="$(git rev-parse --show-toplevel)"
+cd "$RACINE" || exit 1
+
+[ -d venv ] && source venv/bin/activate
+
+BASE="${DB_NAME:-asso_test}"
+
+if ! pg_isready -q 2>/dev/null; then
+  cat >&2 <<FIN
+
+  ✗ Push refusé : PostgreSQL n'est pas joignable.
+
+    La suite tournerait alors sous SQLite, où le verrou qui garantit la
+    numérotation légale des factures ne fait rien — les trois tests concernés
+    s'ignoreraient en silence, et ce push part en production.
+
+    Démarrer PostgreSQL, ou pousser en l'assumant :  git push --no-verify
+
+FIN
+  exit 1
+fi
+
+createdb "$BASE" 2>/dev/null   # sans effet si elle existe déjà
+
+echo "→ pytest sur PostgreSQL (base $BASE)…"
+SORTIE="$(TEST_POSTGRES=1 DJANGO_DEBUG=1 python -m pytest -q 2>&1)"
+CODE=$?
+echo "$SORTIE" | tail -3
+
+if [ "$CODE" -ne 0 ]; then
+  echo >&2 "
+  ✗ Push refusé : la suite échoue sur le moteur de production."
+  exit 1
+fi
+
+# Un « skipped » ici signifie que la bascule n'a PAS pris : le run se croirait
+# complet en ayant laissé passer précisément ce qu'il vient chercher. Un seul
+# run, deux vérifications — relancer pytest pour lire son résumé doublerait
+# l'attente à chaque push.
+IGNORES="$(echo "$SORTIE" | grep -o '[0-9][0-9]* skipped' | tail -1)"
+if [ -n "$IGNORES" ]; then
+  echo >&2 "
+  ✗ Push refusé : $IGNORES sur PostgreSQL. La bascule n'a pas pris —
+    aucun test ne devrait s'ignorer sur le moteur de production."
+  exit 1
+fi
+
+exit 0
