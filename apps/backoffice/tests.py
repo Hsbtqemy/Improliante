@@ -2349,11 +2349,17 @@ def test_le_tableau_de_bord_nomme_ce_qui_attend_une_decision(client, db):
     assert "Cabaret de printemps" in contenu
 
 
-def test_chaque_page_du_rail_ouvre_un_et_un_seul_groupe(client, db):
+def test_chaque_page_du_rail_se_repere_une_fois_et_une_seule(client, db):
     """Depuis que le rail ne déplie que le groupe courant, une page dont aucune
     entrée ne porte `aria-current` ouvre le premier groupe par défaut : on perd
     le repère de position. Ce test parcourt toutes les destinations du rail et
-    exige qu'exactement un groupe s'y reconnaisse.
+    exige que chacune s'y reconnaisse **exactement une fois**.
+
+    Deux positions valides, et pas trois : dans un groupe (le groupe s'ouvre), ou
+    hors groupe (« Vue d'ensemble », racine de l'espace — aucun groupe ne
+    s'ouvre, et navigation.js doit distinguer ce cas de l'écran sans entrée du
+    tout). Ce qui reste interdit : zéro marque, deux marques, ou un marquage
+    partagé par deux groupes.
 
     Il couvre les conditions fragiles du gabarit, du type `{% if 'facture' in
     vn %}` : une URL renommée les casse en silence.
@@ -2368,20 +2374,32 @@ def test_chaque_page_du_rail_ouvre_un_et_un_seul_groupe(client, db):
 
     fautives = []
     testees = 0
+    hors_groupe = []
     for url in destinations:
         reponse = client.get(url)
         if reponse.status_code != 200:
             continue
         testees += 1
         corps = reponse.content.decode().split('<nav id="nav-espace"', 1)[1].split("</nav>", 1)[0]
-        # Un `<details>` par groupe : on compte ceux qui contiennent la page courante.
-        groupes = corps.split("<details")[1:]
+        # Découper sur `<details>…</details>` et NON sur `"<details"` : depuis
+        # qu'une entrée vit hors groupe, un simple split ferait porter au groupe
+        # précédent tout ce qui le suit — et un rail hors groupe passerait pour
+        # un groupe marqué. Les <details> ne s'imbriquent pas ici.
+        groupes = re.findall(r"<details\b.*?</details>", corps, re.S)
         marques = sum('aria-current="page"' in g for g in groupes)
-        if marques != 1:
-            fautives.append(f"{url} → {marques} groupe(s) marqué(s)")
+        total = corps.count('aria-current="page"')
+        if total != 1:
+            fautives.append(f"{url} → {total} entrée(s) marquée(s) dans le rail")
+        elif marques > 1:
+            fautives.append(f"{url} → {marques} groupes marqués à la fois")
+        elif marques == 0:
+            hors_groupe.append(url)
 
     assert testees >= 15, f"{testees} pages réellement testées sur {len(destinations)}"
     assert not fautives, "position non reconnue dans le rail :\n  " + "\n  ".join(fautives)
+    # L'entrée hors groupe est une exception nommée, pas une porte ouverte : si
+    # elle s'étendait à d'autres écrans, le rail perdrait ses groupes en silence.
+    assert hors_groupe == ["/bureau/"], f"entrées hors groupe inattendues : {hors_groupe}"
 
 
 # --- Messages de contact et signaux du tableau de bord -----------------------

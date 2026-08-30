@@ -1,12 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Gestion — L'Improliante{% endblock %}
+{% block title %}Vue d'ensemble — Gestion{% endblock %}
 
+{% comment %}
+  « Vue d'ensemble » et non « Tableau de bord » : l'espace membre a le sien, et
+  deux entrées de rail portant le même mot ne se distinguaient que par leur
+  groupe — or ce groupe a disparu (voir `_nav_espace.html`).
+{% endcomment %}
 {% block contenu %}
   <header class="page-tete">
     <span class="page-tete__eyebrow">Gestion</span>
-    <h1>Tableau de bord</h1>
-    <p class="page-tete__sous">Vue d'ensemble des tâches en cours.</p>
+    <h1>Vue d'ensemble</h1>
+    <p class="page-tete__sous">Ce qui demande une action, et ce qui vient.</p>
   </header>
 
   {% comment %}

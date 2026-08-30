@@ -70,9 +70,14 @@
         courant = details;
       }
     });
-    // Écran atteint sans entrée de rail correspondante (formulaire profond,
-    // fiche de détail) : ouvrir le premier groupe utile plutôt qu'un rail muet.
-    if (!courant) {
+    // Deux cas se ressemblent et n'appellent pas la même réponse :
+    //  - la page est repérée dans le rail mais HORS groupe (« Vue d'ensemble »,
+    //    racine de l'espace de gestion) : aucun groupe n'a à s'ouvrir, le repère
+    //    de position est déjà là ;
+    //  - la page n'a aucune entrée de rail (formulaire profond, fiche de détail) :
+    //    on déplie le premier groupe utile plutôt que de laisser un rail muet.
+    var repereeAilleurs = document.querySelector('#nav-espace [aria-current="page"]');
+    if (!courant && !repereeAilleurs) {
       courant = document.querySelector(
         "#nav-espace details.nav-espace__groupe:not(.nav-espace__groupe--site)"
       );

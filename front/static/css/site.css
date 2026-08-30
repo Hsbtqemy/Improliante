@@ -768,6 +768,16 @@ summary.nav-espace__titre::after {
   flex-direction: column;
   gap: 0.1rem;
 }
+/* Entrée hors groupe (« Vue d'ensemble ») : même respiration et même séparateur
+   qu'un groupe, sans titre ni chevron — elle n'a rien à replier. Placée APRÈS
+   `.nav-espace__liste` : à spécificité égale (0,1,0), c'est l'ordre du document
+   qui tranche, et le `margin: 0` ci-dessus gagnait — le séparateur passait alors
+   à travers l'entrée courante. */
+.nav-espace__solo {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--rail-sep);
+}
 .nav-espace__liste a {
   display: flex;
   align-items: center;

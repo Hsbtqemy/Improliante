@@ -1,10 +1,14 @@
 {% comment %}
 Navigation de l'espace connecté (membre + bureau).
-- Desktop : rail latéral, tous les groupes dépliés (les <details open> sont
-  forcés ouverts et non repliables par CSS/JS).
-- Mobile : ce même bloc sert de tiroir unique, ouvert par le burger de l'en-tête
-  (base.html). Chaque groupe est un <details> repliable ; navigation.js ne laisse
-  ouvert que le groupe de la page courante. Le groupe « Le site » (liens publics)
+- Chaque groupe est un <details> repliable. navigation.js ne laisse ouvert que le
+  groupe de la page courante — en desktop comme en mobile : le rail comptait sinon
+  dix-neuf entrées dépliées en permanence pour un membre du bureau.
+- Une entrée peut vivre HORS groupe (« Vue d'ensemble ») : la page est alors
+  repérée dans le rail sans qu'aucun groupe s'ouvre. navigation.js distingue ce
+  cas de l'écran sans entrée du tout (formulaire profond), où il déplie le premier
+  groupe utile.
+- Desktop : rail latéral. Mobile : ce même bloc sert de tiroir unique, ouvert par
+  le burger de l'en-tête (base.html). Le groupe « Le site » (liens publics)
   n'apparaît qu'en mobile, où l'en-tête public est masqué.
 Attendu dans le contexte : `est_bureau` (context processor backoffice).
 {% endcomment %}
@@ -41,19 +45,25 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
   </details>
 
   {% if est_bureau %}
-    <details class="nav-espace__groupe" open>
-      <summary class="nav-espace__titre">Gestion</summary>
-      <ul class="nav-espace__liste">
-        <li><a href="{% url 'backoffice:tableau_de_bord' %}" {% if vn == 'backoffice:tableau_de_bord' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Tableau de bord</span></a></li>
-        <li><a href="{% url 'backoffice:file_moderation' %}" {% if vn == 'backoffice:file_moderation' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-bouclier"></use></svg><span>Modération</span></a></li>
-      </ul>
-    </details>
+    {% comment %}
+      « Vue d'ensemble » vit HORS groupe, exprès : c'est la racine de l'espace de
+      gestion, pas un de ses domaines. Elle formait avant, avec « Modération », un
+      groupe « Gestion » — c'est-à-dire un groupe portant le nom de l'espace tout
+      entier, à côté de cinq groupes qui en étaient de vrais sous-ensembles. La
+      modération, elle, statue sur des événements et des projets : sa place est dans
+      « Programmation ».
+      navigation.js sait qu'une page repérée ici n'ouvre aucun groupe.
+    {% endcomment %}
+    <ul class="nav-espace__liste nav-espace__solo">
+      <li><a href="{% url 'backoffice:tableau_de_bord' %}" {% if vn == 'backoffice:tableau_de_bord' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-graphique"></use></svg><span>Vue d'ensemble</span></a></li>
+    </ul>
 
     <details class="nav-espace__groupe" open>
       <summary class="nav-espace__titre">Programmation</summary>
       <ul class="nav-espace__liste">
         <li><a href="{% url 'backoffice:liste_evenements' %}" {% if vn == 'backoffice:liste_evenements' or vn == 'backoffice:creer_evenement' or vn == 'backoffice:editer_evenement' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Événements</span></a></li>
         <li><a href="{% url 'backoffice:liste_projets' %}" {% if vn == 'backoffice:liste_projets' or vn == 'backoffice:creer_projet' or vn == 'backoffice:editer_projet' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-etoile"></use></svg><span>Projets</span></a></li>
+        <li><a href="{% url 'backoffice:file_moderation' %}" {% if vn == 'backoffice:file_moderation' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-bouclier"></use></svg><span>Modération</span></a></li>
       </ul>
     </details>
 
