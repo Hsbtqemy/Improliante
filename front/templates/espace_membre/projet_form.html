@@ -57,7 +57,7 @@
       <fieldset class="formulaire__images">
         <legend>Images</legend>
 
-        <h3>Affiche</h3>
+        <h2>Affiche</h2>
         {% if projet and projet.affiche and projet.affiche.fichier %}
           <figure class="apercu-image">
             <img src="{{ projet.affiche.fichier.url }}" alt="{{ projet.affiche.alt }}" width="160">
@@ -75,7 +75,7 @@
           </p>
         {% endfor %}
 
-        <h3>Galerie</h3>
+        <h2>Galerie</h2>
         {% if projet and projet.images.all %}
           <ul class="galerie-edition">
             {% for image in projet.images.all %}

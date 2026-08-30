@@ -3101,9 +3101,14 @@ summary.lien-bouton::-webkit-details-marker {
   font-weight: 600;
   padding: 0 0.5rem;
 }
-.formulaire__images h3 {
+/* Marge resserrée : à l'intérieur d'un fieldset, les 2,75 rem du h2 global
+   creusent trop. La TAILLE, elle, n'est plus forcée — le `font-size: 1rem`
+   d'origine était réglé pour un h3 et, une fois le titre promu, il ne gagnait
+   plus que sous 48 rem (l'échelle h2 de l'espace connecté le battait au-dessus,
+   à spécificité égale et par l'ordre du fichier) : 16 px sur mobile, 22 px sur
+   desktop, pour le même titre. */
+.formulaire__images h2 {
   margin: 1rem 0 0.5rem;
-  font-size: 1rem;
 }
 .apercu-image img,
 .galerie-edition__item img {

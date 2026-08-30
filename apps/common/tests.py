@@ -407,3 +407,104 @@ def test_aucun_ecran_de_gestion_ne_refait_un_lien_vers_la_racine():
         "lien de retour vers la racine, que le rail porte déjà hors groupe :\n  "
         + "\n  ".join(fautifs)
     )
+
+
+# --- Accessibilité : balayage de toutes les pages sans paramètre -------------
+#
+# La règle 9 du dépôt (RGAA/WCAG AA) n'avait jamais été mesurée ailleurs qu'à
+# l'œil, écran par écran. Ces deux tests parcourent toutes les URL appelables
+# sans identifiant — 46 pages pour un membre du bureau — et vérifient deux
+# choses qu'un humain ne peut pas tenir à jour de tête.
+
+
+def _pages_sans_parametre(client):
+    """Rend chaque URL du projet qui ne prend pas d'identifiant, et renvoie
+    (url, html) pour celles qui répondent 200 en HTML."""
+    from django.contrib.auth.models import Group
+    from django.urls import get_resolver
+
+    from apps.coeur.models import Membre, ParametresAssociation, Utilisateur
+
+    ParametresAssociation.objects.get_or_create(pk=1, defaults={"nom": "L'Improliante"})
+    utilisateur = Utilisateur.objects.create_user(username="a11y", password="x", is_staff=True)
+    Membre.objects.create(user=utilisateur, nom="Test", prenom="A11y")
+    groupe, _ = Group.objects.get_or_create(name="Bureau")
+    utilisateur.groups.add(groupe)
+    client.force_login(utilisateur)
+
+    urls = set()
+    for motif in get_resolver().url_patterns:
+        for sous_motif in getattr(motif, "url_patterns", [motif]):
+            chemin = str(getattr(sous_motif, "pattern", ""))
+            if chemin and "<" not in chemin:
+                urls.add("/" + chemin.lstrip("/"))
+
+    pages = []
+    for url in sorted(urls):
+        reponse = client.get(url)
+        if reponse.status_code == 200 and "html" in reponse.headers.get("Content-Type", ""):
+            pages.append((url, reponse.content.decode(errors="replace")))
+    assert len(pages) >= 40, f"{len(pages)} pages rendues : le balayage ne voit plus le site"
+    return pages
+
+
+def test_aucune_page_ne_saute_un_niveau_de_titre(client, db):
+    """Un lecteur d'écran navigue de titre en titre : un h1 suivi d'un h3 lui
+    présente un plan troué.
+
+    Quatre formulaires de fiche étaient dans ce cas. Leurs sections « Affiche »
+    et « Galerie » étaient des h3, et le seul h2 de la page était le panneau
+    d'accessibilité du châssis — hors <main>, donc au-dessus du formulaire dans
+    le plan. Le `<legend>Images</legend>` qui les groupe ne compense pas : un
+    legend nomme un groupe de champs, il n'entre pas dans le plan du document.
+    """
+    import re
+
+    fautives = []
+    for url, html in _pages_sans_parametre(client):
+        niveaux = [int(n) for n in re.findall(r"<h([1-6])\b", html)]
+        for avant, apres in zip(niveaux, niveaux[1:], strict=False):
+            if apres > avant + 1:
+                fautives.append(f"{url} → h{avant} suivi de h{apres}")
+                break
+
+    assert not fautives, "plan de titres troué :\n  " + "\n  ".join(fautives)
+
+
+def test_chaque_champ_de_formulaire_a_un_nom_accessible(client, db):
+    """Un champ sans label s'annonce « zone de saisie, vide ».
+
+    Les quatre champs d'une ligne de facture étaient dans ce cas : l'en-tête de
+    colonne renseigne l'œil, jamais le lecteur d'écran. C'était sur l'écran qui
+    porte la contrainte légale de numérotation.
+
+    Trois formes de nom sont acceptées, et la deuxième avait d'abord manqué à ce
+    contrôle — un `<label>` qui ENVELOPPE son champ est valide et n'a pas de
+    `for` : sans elle, la mesure inventait des fautes là où il n'y en avait pas.
+    """
+    import re
+
+    fautives = []
+    for url, html in _pages_sans_parametre(client):
+        corps = html.split('<main id="contenu"', 1)[-1].split("</main>", 1)[0]
+        explicites = set(re.findall(r'<label[^>]*\bfor="([^"]+)"', html))
+        enveloppants = set()
+        for bloc in re.findall(r"<label\b(?![^>]*\bfor=)[^>]*>(.*?)</label>", html, re.S):
+            enveloppants |= set(re.findall(r'\bid="([^"]+)"', bloc))
+
+        nus = []
+        for champ in re.findall(r"<(?:input|select|textarea)\b[^>]*>", corps):
+            if re.search(r'type="(hidden|submit|button|image)"', champ):
+                continue
+            if re.search(r"aria-label", champ):
+                continue
+            identifiant = re.search(r'\bid="([^"]+)"', champ)
+            if identifiant and (
+                identifiant.group(1) in explicites or identifiant.group(1) in enveloppants
+            ):
+                continue
+            nus.append(identifiant.group(1) if identifiant else champ[:50])
+        if nus:
+            fautives.append(f"{url} → {', '.join(nus[:4])}")
+
+    assert not fautives, "champ sans nom accessible :\n  " + "\n  ".join(fautives)

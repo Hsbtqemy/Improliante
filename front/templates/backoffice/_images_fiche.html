@@ -6,7 +6,7 @@ les cases `name="supprimer_image"` (lues par `appliquer_images`).
 <fieldset class="formulaire__images">
   <legend>Images</legend>
 
-  <h3>Affiche</h3>
+  <h2>Affiche</h2>
   {% if fiche and fiche.affiche and fiche.affiche.fichier %}
     <figure class="apercu-image">
       <img src="{{ fiche.affiche.fichier.url }}" alt="{{ fiche.affiche.alt }}" width="160" />
@@ -24,7 +24,7 @@ les cases `name="supprimer_image"` (lues par `appliquer_images`).
     </p>
   {% endfor %}
 
-  <h3>Galerie</h3>
+  <h2>Galerie</h2>
   {% if fiche and fiche.images.all %}
     <ul class="galerie-edition">
       {% for image in fiche.images.all %}

@@ -8,15 +8,32 @@ fonctionne. Avec JS (facturation.js), on masque la case et on montre un bouton �
 qui barre la ligne et la marque pour suppression (une ligne existante est
 supprimée à l'enregistrement ; une ligne vide est simplement ignorée).
 {% endcomment %}
+{% comment %}
+  Chaque champ porte un <label> visuellement masqué. L'en-tête de colonne
+  renseigne l'œil, jamais le lecteur d'écran : sans ces labels, remplir une ligne
+  s'annonçait « zone de saisie, vide » quatre fois de suite. Le `for` reprend
+  l'id du formset, et le clone JS remplace `__prefix__` sur tout le fragment —
+  labels compris.
+{% endcomment %}
 <tr class="ligne-facturation">
   <td>
     {{ ligne.id }}
+    <label class="sr-only" for="{{ ligne.designation.id_for_label }}">{{ ligne.designation.label }}</label>
     {{ ligne.designation }}
     {% for e in ligne.designation.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
   </td>
-  <td>{{ ligne.quantite }}</td>
-  <td>{{ ligne.prix_unitaire_ht }}</td>
-  <td>{{ ligne.taux_tva }}</td>
+  <td>
+    <label class="sr-only" for="{{ ligne.quantite.id_for_label }}">{{ ligne.quantite.label }}</label>
+    {{ ligne.quantite }}
+  </td>
+  <td>
+    <label class="sr-only" for="{{ ligne.prix_unitaire_ht.id_for_label }}">{{ ligne.prix_unitaire_ht.label }}</label>
+    {{ ligne.prix_unitaire_ht }}
+  </td>
+  <td>
+    <label class="sr-only" for="{{ ligne.taux_tva.id_for_label }}">{{ ligne.taux_tva.label }}</label>
+    {{ ligne.taux_tva }}
+  </td>
   <td class="ligne-facturation__suppr">
     {% comment %}
       Déplacement : boutons révélés par JS seulement. Sans JS, l'ordre reste
