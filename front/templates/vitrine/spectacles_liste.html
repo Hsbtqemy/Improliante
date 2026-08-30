@@ -38,7 +38,15 @@
     <button type="submit" class="lien-bouton">Filtrer</button>
   </form>
 
+  {% comment %}
+    La carte est un h3, et c'est juste : sur l'accueil et sur une fiche de membre,
+    un h2 de section la surplombe. Ici il n'y en avait aucun — le plan sautait de
+    h1 à h3. Plutôt qu'un titre creux, celui-ci porte le compte : après un
+    filtrage, c'est la seule confirmation que la page en donne, et au lecteur
+    d'écran elle vaut plus qu'à l'œil, qui voit la grille se raccourcir.
+  {% endcomment %}
   {% if spectacles %}
+    <h2 class="sr-only">{{ spectacles|length }} spectacle{{ spectacles|length|pluralize }}</h2>
     <ul class="cartes">
       {% for spectacle in spectacles %}
         {% include "vitrine/_carte_spectacle.html" %}

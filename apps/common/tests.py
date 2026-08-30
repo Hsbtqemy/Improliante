@@ -417,9 +417,78 @@ def test_aucun_ecran_de_gestion_ne_refait_un_lien_vers_la_racine():
 # choses qu'un humain ne peut pas tenir à jour de tête.
 
 
+def _ecrans_a_identifiant(membre):
+    """Un objet de chaque sorte, et les URL de détail qu'ils ouvrent.
+
+    Sans eux, le balayage ne voyait que les écrans appelables à l'aveugle : 67
+    gabarits sur 98. Les fiches publiques — spectacle, événement, membre,
+    réservation — n'étaient mesurées par aucun des deux contrôles, alors que ce
+    sont les pages qu'un visiteur atteint après les listes.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.agenda.models import Evenement
+    from apps.budget.models import Adhesion, Saison
+    from apps.common.models import Moderation
+    from apps.documents.models import Dossier
+    from apps.facturation.models import Client as ClientFacturation
+    from apps.facturation.models import Devis, Facture
+    from apps.gouvernance.models import Reunion
+    from apps.spectacles.models import Spectacle
+
+    publie = Moderation.StatutModeration.PUBLIE
+    aujourdhui = timezone.now()
+
+    spectacle = Spectacle.objects.create(titre="Spectacle témoin", statut_moderation=publie)
+    spectacle.porteurs.add(membre)
+    evenement = Evenement.objects.create(
+        titre="Événement témoin",
+        date_debut=aujourdhui + timedelta(days=5),
+        statut_moderation=publie,
+        cree_par=membre.user,
+        places_max=20,  # sans jauge, la feuille d'inscription publique n'existe pas
+    )
+    reunion = Reunion.objects.create(
+        titre="AG témoin",
+        date=aujourdhui,
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.CONVOQUEE,
+    )
+    client_fact = ClientFacturation.objects.create(nom="Client témoin")
+    facture = Facture.objects.create(client=client_fact, date=aujourdhui.date())
+    devis = Devis.objects.create(client=client_fact, date=aujourdhui.date())
+    dossier = Dossier.add_root(
+        nom="Dossier témoin", proprietaire=membre, espace=Dossier.Espace.PERSO
+    )
+    saison = Saison.objects.create(nom="2026", date_debut="2026-01-01", date_fin="2026-12-31")
+    adhesion = Adhesion.objects.create(membre=membre, saison=saison, montant_verse=10)
+
+    return [
+        f"/spectacles/{spectacle.pk}/",
+        f"/agenda/{evenement.pk}/",
+        f"/agenda/{evenement.pk}/inscription/",
+        f"/@{membre.slug}/",
+        f"/espace/projets/{spectacle.pk}/",
+        f"/espace/evenements/{evenement.pk}/",
+        f"/espace/convocations/{reunion.pk}/",
+        f"/espace/fichiers/{dossier.pk}/",
+        f"/bureau/factures/{facture.pk}/",
+        f"/bureau/devis/{devis.pk}/",
+        f"/bureau/membres/{membre.pk}/",
+        f"/bureau/adhesions/{adhesion.pk}/",
+        f"/bureau/evenements/{evenement.pk}/inscriptions/",
+        # La page d'erreur est vue par de vrais visiteurs et n'était mesurée par
+        # rien. Elle répond 404 : la boucle ne retient que les 200, on la traite
+        # donc à part, ci-dessous.
+    ]
+
+
 def _pages_sans_parametre(client):
-    """Rend chaque URL du projet qui ne prend pas d'identifiant, et renvoie
-    (url, html) pour celles qui répondent 200 en HTML."""
+    """Rend chaque page du site et renvoie (url, html) pour celles qui répondent
+    200 en HTML : les URL appelables sans identifiant, PLUS les écrans de détail
+    ouverts par `_ecrans_a_identifiant`."""
     from django.contrib.auth.models import Group
     from django.urls import get_resolver
 
@@ -427,7 +496,9 @@ def _pages_sans_parametre(client):
 
     ParametresAssociation.objects.get_or_create(pk=1, defaults={"nom": "L'Improliante"})
     utilisateur = Utilisateur.objects.create_user(username="a11y", password="x", is_staff=True)
-    Membre.objects.create(user=utilisateur, nom="Test", prenom="A11y")
+    membre = Membre.objects.create(
+        user=utilisateur, nom="Test", prenom="A11y", visible_sur_site=True
+    )
     groupe, _ = Group.objects.get_or_create(name="Bureau")
     utilisateur.groups.add(groupe)
     client.force_login(utilisateur)
@@ -442,13 +513,18 @@ def _pages_sans_parametre(client):
             # `if chemin` : la page la plus vue du site n'était mesurée par
             # aucun des deux contrôles, et rien ne le disait.
             urls.add("/" + chemin.lstrip("/"))
+    urls |= set(_ecrans_a_identifiant(membre))
 
     pages = []
     for url in sorted(urls):
         reponse = client.get(url)
         if reponse.status_code == 200 and "html" in reponse.headers.get("Content-Type", ""):
             pages.append((url, reponse.content.decode(errors="replace")))
-    assert len(pages) >= 40, f"{len(pages)} pages rendues : le balayage ne voit plus le site"
+    erreur = client.get("/url-qui-n-existe-pas/")
+    if erreur.status_code == 404 and "html" in erreur.headers.get("Content-Type", ""):
+        pages.append(("404", erreur.content.decode(errors="replace")))
+
+    assert len(pages) >= 55, f"{len(pages)} pages rendues : le balayage ne voit plus le site"
     # Un compte global ne dit pas QUOI manque : perdre une page sur quarante-sept
     # passe sous le seuil sans rien déclencher. On nomme donc la page dont
     # l'absence était justement passée inaperçue.
