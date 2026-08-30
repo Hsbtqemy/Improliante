@@ -375,3 +375,35 @@ def test_le_sur_titre_d_une_page_de_gestion_nomme_son_groupe_de_rail():
 
     assert controlees >= 30, f"{controlees} pages contrôlées : la boucle ne voit plus les gabarits"
     assert not fautifs, "sur-titre qui ne nomme pas son groupe de rail :\n  " + "\n  ".join(fautifs)
+
+
+def test_aucun_ecran_de_gestion_ne_refait_un_lien_vers_la_racine():
+    """Neuf écrans de gestion portaient « ← Gestion » vers le tableau de bord.
+    Onze écrans comparables n'en portaient pas : ce n'était pas une convention,
+    c'était du résidu.
+
+    Le lien est devenu faux le jour où la racine a pris le nom « Vue d'ensemble »,
+    et redondant le même jour : sortie des groupes, cette entrée est la seule du
+    rail qui ne se replie jamais. C'est le même raisonnement qui a vidé la grille
+    « Modules » du tableau de bord et les raccourcis de celui du membre.
+
+    Ce qui reste autorisé, et qui n'est pas la même chose : le retour d'un
+    formulaire vers SA liste (« ← Membres », « ← Signataires »). Le rail marque la
+    liste, jamais le formulaire — sans ce lien, il n'y a pas de chemin de retour.
+    """
+    import pathlib
+    import re
+
+    from django.conf import settings
+
+    fautifs = []
+    for dossier in settings.TEMPLATES[0]["DIRS"]:
+        for gabarit in sorted((pathlib.Path(dossier) / "backoffice").glob("*.html")):
+            for numero, ligne in enumerate(gabarit.read_text().splitlines(), 1):
+                if "←" in ligne and re.search(r"url '(backoffice:tableau_de_bord)'", ligne):
+                    fautifs.append(f"{gabarit.name}:{numero} {ligne.strip()[:70]}")
+
+    assert not fautifs, (
+        "lien de retour vers la racine, que le rail porte déjà hors groupe :\n  "
+        + "\n  ".join(fautifs)
+    )
