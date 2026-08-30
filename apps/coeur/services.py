@@ -14,12 +14,37 @@ from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.text import slugify
 
 from .models import Membre, Utilisateur
 
 # Taille de la vedette (accordéon) sur la page association. L'accordéon ne scale
 # pas au-delà de ~6-8 panneaux : on borne volontairement.
 NB_VEDETTE = 6
+
+# Le slug tient dans le champ (160) avec de la place pour un suffixe d'homonyme.
+LONGUEUR_MAX_SLUG = 150
+
+
+def slug_membre_unique(membre: Membre) -> str:
+    """Slug libre pour l'adresse publique d'un membre : `/@prenom-nom`.
+
+    Deux Jeanne Dupont donnent `jeanne-dupont` puis `jeanne-dupont-2` : le
+    second arrivé est suffixé, jamais le premier — son adresse est peut-être
+    déjà partagée. Un membre sans prénom ni nom (fiche créée à la volée) part
+    de « membre » plutôt que d'une chaîne vide.
+
+    L'unicité est aussi garantie en base par le champ ; deux créations vraiment
+    simultanées lèveraient une `IntegrityError` plutôt que de se marcher dessus.
+    """
+    base = (slugify(membre.nom_complet) or "membre")[:LONGUEUR_MAX_SLUG]
+    autres = Membre.objects.exclude(pk=membre.pk) if membre.pk else Membre.objects.all()
+    candidat = base
+    rang = 1
+    while autres.filter(slug=candidat).exists():
+        rang += 1
+        candidat = f"{base}-{rang}"
+    return candidat
 
 
 def membres_en_vedette(nombre: int = NB_VEDETTE) -> list[Membre]:

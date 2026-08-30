@@ -26,6 +26,7 @@ class MembreAdmin(admin.ModelAdmin):
     search_fields = (
         "prenom",
         "nom",
+        "slug",
         "email",
         "user__username",
     )

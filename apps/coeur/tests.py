@@ -158,3 +158,45 @@ def test_synchroniser_compte_recopie_sans_toucher_l_identifiant(db):
     assert membre.user.last_name == "Prade"
     assert membre.user.email == "ava2@example.org"
     assert membre.user.username == "ava@example.org"  # identifiant inchangé
+
+
+# --- Adresse publique d'un membre : le slug de /@prenom-nom ----------------
+
+
+def test_slug_derive_du_nom_sans_accent_ni_majuscule(db):
+    membre = creer_membre(prenom="Jeanne", nom="Dupré", email="jeanne@example.org")
+    assert membre.slug == "jeanne-dupre"
+    assert membre.get_absolute_url() == "/@jeanne-dupre/"
+
+
+def test_slug_d_un_homonyme_est_suffixe_sans_toucher_au_premier(db):
+    """Le premier arrivé garde son adresse : elle est peut-être déjà partagée."""
+    premiere = creer_membre(prenom="Jeanne", nom="Dupont", email="j1@example.org")
+    seconde = creer_membre(prenom="Jeanne", nom="Dupont", email="j2@example.org")
+    troisieme = creer_membre(prenom="Jeanne", nom="Dupont", email="j3@example.org")
+    assert premiere.slug == "jeanne-dupont"
+    assert seconde.slug == "jeanne-dupont-2"
+    assert troisieme.slug == "jeanne-dupont-3"
+
+
+def test_slug_d_une_fiche_sans_nom_part_de_membre(db):
+    """Prénom et nom sont facultatifs : le slug ne peut pas être vide."""
+    anonyme = creer_membre(prenom="", nom="", email="anonyme@example.org")
+    autre = creer_membre(prenom="", nom="", email="autre@example.org")
+    assert anonyme.slug == "membre"
+    assert autre.slug == "membre-2"
+
+
+def test_slug_ne_suit_pas_un_changement_de_nom(db):
+    """Figé exprès : régénérer casserait les liens déjà en circulation."""
+    membre = creer_membre(prenom="Marie", nom="Martin", email="marie@example.org")
+    membre.prenom, membre.nom = "Marie", "Bernard"
+    membre.save()
+    membre.refresh_from_db()
+    assert membre.slug == "marie-martin"
+
+
+def test_slug_choisi_a_la_main_est_respecte(db):
+    membre = Membre.objects.create(prenom="Sur", nom="Mesure", slug="la-patronne")
+    membre.refresh_from_db()
+    assert membre.slug == "la-patronne"

@@ -86,7 +86,7 @@ class MembresSitemap(Sitemap):
         return obj.date_modification
 
     def location(self, obj: Membre) -> str:
-        return reverse("vitrine:membre", args=[obj.pk])
+        return obj.get_absolute_url()
 
 
 SITEMAPS = {

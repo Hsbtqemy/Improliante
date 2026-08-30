@@ -21,7 +21,12 @@ urlpatterns = [
     path("reservation/<uuid:jeton>/", views.reservation, name="reservation"),
     path("galerie/", views.galerie, name="galerie"),
     path("association/", views.association, name="association"),
-    path("membres/<int:pk>/", views.detail_membre, name="membre"),
+    # Fiche publique d'un membre : `/@prenom-nom`. Le « @ » sort du namespace des
+    # pages du site — aucune collision possible avec une rubrique, présente ou à
+    # venir. L'ancienne adresse `/membres/<id>/` redirige, les liens déjà
+    # partagés continuent de mener quelque part.
+    path("@<slug:slug>/", views.detail_membre, name="membre"),
+    path("membres/<int:pk>/", views.membre_ancienne_adresse, name="membre_ancienne_adresse"),
     path("contact/", views.contact, name="contact"),
     path("contact/merci/", views.contact_merci, name="contact_merci"),
     path("confidentialite/", views.confidentialite, name="confidentialite"),

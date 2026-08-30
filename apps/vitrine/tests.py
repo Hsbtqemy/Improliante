@@ -186,8 +186,24 @@ def test_association_montre_les_projets_en_cours_des_membres(client, db):
 
 
 def test_membre_detail_404_si_non_visible(client, db):
+    """Ni la nouvelle adresse ni l'ancienne ne doivent révéler une fiche cachée."""
     membre = _membre("Secret", visible=False)
-    assert client.get(f"/membres/{membre.pk}/").status_code == 404
+    assert client.get(membre.get_absolute_url()).status_code == 404
+    assert client.get(membre.get_absolute_url()).status_code == 404
+
+
+def test_ancienne_adresse_membre_redirige_en_permanent(client, db):
+    """`/membres/<id>/` a circulé : elle mène toujours à la fiche, en 301."""
+    membre = _membre("Deplacee", visible=True)
+    reponse = client.get(f"/membres/{membre.pk}/")
+    assert reponse.status_code == 301
+    assert reponse["Location"] == f"/@{membre.slug}/"
+    assert client.get(reponse["Location"]).status_code == 200
+
+
+def test_adresse_de_fiche_membre_est_un_arobase(client, db):
+    membre = _membre("Publique", visible=True)
+    assert membre.get_absolute_url() == "/@publique/"
 
 
 def test_membre_detail_liste_ses_projets(client, db):
@@ -196,7 +212,7 @@ def test_membre_detail_liste_ses_projets(client, db):
         titre="ProjetDuMembre", statut_moderation=Spectacle.StatutModeration.PUBLIE
     )
     spectacle.porteurs.add(membre)
-    corps = client.get(f"/membres/{membre.pk}/").content.decode()
+    corps = client.get(membre.get_absolute_url()).content.decode()
     assert "ProjetDuMembre" in corps
 
 
@@ -214,7 +230,7 @@ def test_membre_detail_separe_spectacles_et_collaborations(client, db):
     )
     LigneDistribution.objects.create(spectacle=collab, membre=membre, role="Mise en scène")
 
-    reponse = client.get(f"/membres/{membre.pk}/")
+    reponse = client.get(membre.get_absolute_url())
     corps = reponse.content.decode()
     assert "Spectacles" in corps and "Collaborations" in corps
     assert list(reponse.context["spectacles_portes"]) == [porte]
@@ -235,7 +251,7 @@ def test_fiche_membre_propose_bluesky_au_clic(client, db):
         reseau=LienReseau.Reseau.BLUESKY,
         url="https://bsky.app/profile/artiste.bsky.social",
     )
-    reponse = client.get(f"/membres/{membre.pk}/")
+    reponse = client.get(membre.get_absolute_url())
     corps = reponse.content.decode()
     assert reponse.context["bluesky_handle"] == "artiste.bsky.social"
     assert 'data-bluesky-handle="artiste.bsky.social"' in corps
@@ -246,7 +262,7 @@ def test_fiche_membre_propose_bluesky_au_clic(client, db):
 
 def test_fiche_membre_sans_bluesky_pas_d_encart(client, db):
     membre = _membre("SansBsky", visible=True)
-    reponse = client.get(f"/membres/{membre.pk}/")
+    reponse = client.get(membre.get_absolute_url())
     assert reponse.context["bluesky_handle"] == ""
     assert "bluesky-feed" not in reponse.content.decode()
 
@@ -279,7 +295,7 @@ def test_membre_detail_affiche_site_et_reseaux(client, db):
     LienReseau.objects.create(
         membre=membre, reseau=LienReseau.Reseau.INSTAGRAM, url="https://instagram.com/reliee"
     )
-    corps = client.get(f"/membres/{membre.pk}/").content.decode()
+    corps = client.get(membre.get_absolute_url()).content.decode()
     assert "https://reliee.example" in corps
     assert "https://instagram.com/reliee" in corps
     assert "Instagram" in corps
@@ -464,8 +480,8 @@ def test_sitemap_exclut_evenements_non_publics_et_membres_caches(client, db):
     corps = client.get("/sitemap.xml").content.decode()
     assert f"/agenda/{public.pk}/" in corps
     assert f"/agenda/{interne.pk}/" not in corps
-    assert f"/membres/{visible.pk}/" in corps
-    assert f"/membres/{cache.pk}/" not in corps
+    assert f"/@{visible.slug}/" in corps
+    assert f"/@{cache.slug}/" not in corps
 
 
 def test_robots_txt_pointe_le_sitemap_et_protege_le_prive(client, db):

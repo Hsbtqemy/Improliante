@@ -34,7 +34,7 @@
             {% endif %}
             <div class="panneau__contenu">
               <h4 class="panneau__nom">
-                <a href="{% url 'vitrine:membre' membre.pk %}">{{ membre }}</a>
+                <a href="{{ membre.get_absolute_url }}">{{ membre }}</a>
               </h4>
               <div class="panneau__details">
                 {% if membre.role_public %}

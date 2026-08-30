@@ -9,7 +9,7 @@
     />
   {% endif %}
   <h4 class="carte__titre">
-    <a href="{% url 'vitrine:membre' membre.pk %}">{{ membre }}</a>
+    <a href="{{ membre.get_absolute_url }}">{{ membre }}</a>
   </h4>
   {% if membre.role_public %}
     <p class="carte__meta">{{ membre.role_public }}</p>

@@ -16,6 +16,7 @@ import mimetypes
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.urls import reverse
 
 from apps.common.stockage import StockagePrive
 
@@ -55,6 +56,16 @@ class Membre(models.Model):
     )
     prenom = models.CharField("prénom", max_length=150, blank=True)
     nom = models.CharField("nom", max_length=150, blank=True)
+    slug = models.SlugField(
+        "adresse de la page",
+        max_length=160,
+        unique=True,
+        blank=True,
+        help_text=(
+            "Fin de l'adresse publique : /@prenom-nom. Rempli tout seul à la création "
+            "et volontairement figé ensuite — le modifier casse les liens déjà partagés."
+        ),
+    )
     email = models.EmailField(
         "e-mail",
         blank=True,
@@ -119,6 +130,23 @@ class Membre(models.Model):
     def a_un_compte(self) -> bool:
         """Vrai si la personne a un compte de connexion rattaché."""
         return self.user_id is not None
+
+    def save(self, *args, **kwargs):
+        """Attribue le slug à la création s'il manque.
+
+        Volontairement seulement s'il est vide : le slug ne suit PAS un
+        changement de nom. L'adresse `/@prenom-nom` circule (réseaux, affiches,
+        signatures) et la régénérer à chaque correction d'orthographe casserait
+        des liens sans prévenir personne. Le bureau peut la changer à la main,
+        en connaissance de cause."""
+        if not self.slug:
+            from .services import slug_membre_unique  # tardif : services importe les modèles
+
+            self.slug = slug_membre_unique(self)
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self) -> str:
+        return reverse("vitrine:membre", args=[self.slug])
 
     def __str__(self) -> str:
         if self.nom_complet:

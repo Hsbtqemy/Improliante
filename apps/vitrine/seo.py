@@ -126,7 +126,7 @@ def membre_json_ld(request, membre) -> str:
         "@context": "https://schema.org",
         "@type": "Person",
         "name": str(membre),
-        "url": request.build_absolute_uri(reverse("vitrine:membre", args=[membre.pk])),
+        "url": request.build_absolute_uri(membre.get_absolute_url()),
     }
     if membre.role_public:
         donnees["jobTitle"] = membre.role_public

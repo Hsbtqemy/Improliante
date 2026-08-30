@@ -247,7 +247,17 @@ def handle_bluesky(url: str) -> str:
     return url.lstrip("@")
 
 
-def detail_membre(request, pk: int):
+def membre_ancienne_adresse(request, pk: int):
+    """Ancienne adresse `/membres/<id>/` → redirection permanente vers `/@slug`.
+
+    Elle a circulé (programmes, réseaux, liens envoyés) : on la garde vivante
+    plutôt que de transformer ces liens en 404. Le 301 dit aux moteurs que
+    l'adresse canonique a changé."""
+    membre = get_object_or_404(Membre, pk=pk, visible_sur_site=True)
+    return redirect(membre.get_absolute_url(), permanent=True)
+
+
+def detail_membre(request, slug: str):
     """Fiche publique d'un membre (404 s'il n'est pas visible sur le site).
 
     Deux listes distinctes de spectacles publiés : ceux que le membre **porte**
@@ -255,7 +265,7 @@ def detail_membre(request, pk: int):
     Si le membre a un lien Bluesky, on passe son handle : la fiche propose alors
     de charger ses derniers posts (au clic, côté navigateur — cf. RGPD)."""
     membre = get_object_or_404(
-        Membre.objects.select_related("user", "photo"), pk=pk, visible_sur_site=True
+        Membre.objects.select_related("user", "photo"), slug=slug, visible_sur_site=True
     )
     publies = Spectacle.objects.filter(statut_moderation=_PUBLIE)
     spectacles_portes = publies.filter(porteurs=membre).distinct().order_by("titre")
