@@ -1,5 +1,16 @@
 /* Front public — mobile-first, unités relatives (rem), contrastes AA. */
 
+/* L'attribut `hidden` doit gagner sur toute règle de mise en page.
+   La feuille du navigateur pose `[hidden] { display: none }` — mais une règle
+   d'AUTEUR de même poids la bat, et l'élément reste visible en portant `hidden`.
+   Le dépôt avait déjà payé ce piège trois fois, rustiné classe par classe
+   (.site-burger, .a11y__panneau, .fiche-ligne) ; un `display: inline-flex` posé
+   sur les flèches de ligne de facture l'a réveillé une quatrième. Une seule
+   règle ferme la catégorie : `hidden` affirme un ÉTAT, il ne se négocie pas. */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   /* Encres & surfaces */
   --ink: #18131c; /* near-black chaud : en-tête, pied, hero, rail */
@@ -170,9 +181,6 @@ select:focus-visible,
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-}
-.site-burger[hidden] {
-  display: none;
 }
 .site-burger:hover {
   color: #fff;
@@ -1950,9 +1958,6 @@ th.montant {
   border-radius: var(--rayon);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
 }
-.a11y__panneau[hidden] {
-  display: none;
-}
 .a11y__entete {
   display: flex;
   align-items: center;
@@ -3160,9 +3165,6 @@ summary.lien-bouton::-webkit-details-marker {
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   background: var(--surface);
-}
-.fiche-ligne[hidden] {
-  display: none;
 }
 .fiche-ligne__champ {
   display: flex;

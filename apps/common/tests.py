@@ -436,8 +436,12 @@ def _pages_sans_parametre(client):
     for motif in get_resolver().url_patterns:
         for sous_motif in getattr(motif, "url_patterns", [motif]):
             chemin = str(getattr(sous_motif, "pattern", ""))
-            if chemin and "<" not in chemin:
-                urls.add("/" + chemin.lstrip("/"))
+            if "<" in chemin:
+                continue
+            # Le chemin VIDE est la page d'accueil. Le test l'écartait avec un
+            # `if chemin` : la page la plus vue du site n'était mesurée par
+            # aucun des deux contrôles, et rien ne le disait.
+            urls.add("/" + chemin.lstrip("/"))
 
     pages = []
     for url in sorted(urls):
@@ -445,6 +449,10 @@ def _pages_sans_parametre(client):
         if reponse.status_code == 200 and "html" in reponse.headers.get("Content-Type", ""):
             pages.append((url, reponse.content.decode(errors="replace")))
     assert len(pages) >= 40, f"{len(pages)} pages rendues : le balayage ne voit plus le site"
+    # Un compte global ne dit pas QUOI manque : perdre une page sur quarante-sept
+    # passe sous le seuil sans rien déclencher. On nomme donc la page dont
+    # l'absence était justement passée inaperçue.
+    assert "/" in {url for url, _ in pages}, "la page d'accueil n'est pas dans le balayage"
     return pages
 
 
