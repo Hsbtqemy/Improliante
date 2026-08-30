@@ -128,6 +128,20 @@ proposées, et quelques dates à venir.
 - [ ] « Affiche » et « Galerie » se distinguent à l'œil des libellés de champs qui les suivent, sur 375 px comme sur grand écran
 - [ ] La légende « Images », plus petite que les deux titres qu'elle contient, ne gêne pas la lecture — sinon c'est le cadre « Images » qu'il faut revoir, pas les titres
 
+### Responsive — ce que la mesure ne dit pas
+
+*Mesuré et vert sur les 46 pages à 390 px : aucun débordement horizontal, aucune
+cible tactile sous 24 px. Ces contrôles-là demandent un navigateur pour calculer
+une mise en page — ils ne peuvent pas devenir des tests pytest, contrairement au
+plan de titres et aux noms accessibles. Ils restent donc ici, à rejouer.*
+
+- [ ] Sur un vrai téléphone, aucune page ne se fait balayer latéralement par mégarde
+- [ ] Dans le tableau de facturation, les flèches ▲▼ se touchent sans viser, et sans attraper le champ TVA voisin
+- [ ] Le tableau de facturation défile bien DANS son cadre, sans emporter la page avec lui
+- [ ] Le montant des totaux (HT, TVA, TTC) est hors écran sur 390 px : il faut faire défiler le tableau pour le lire. Décider si l'écran de facturation doit changer de forme sur téléphone, ou s'il reste un écran de bureau
+- [ ] Réordonner une ligne sur téléphone demande de faire défiler jusqu'à la colonne « Retirer » — acceptable, ou à revoir
+- [ ] Les longues listes (membres, factures, transactions) restent lisibles sur 375 px sans zoom
+
 ### Garde de pré-push
 
 - [ ] `git config core.hooksPath deploiement/hooks` posé sur ce clone — sans quoi le hook ne s'exécute pas du tout
