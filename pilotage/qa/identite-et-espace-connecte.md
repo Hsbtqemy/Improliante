@@ -119,6 +119,21 @@ proposées, et quelques dates à venir.
 - [ ] Proposer un projet depuis l'espace membre le fait apparaître ensuite dans « Mes projets » (le proposant en devient porteur)
 - [ ] « À traiter » ne signale que les assemblées générales convoquées auxquelles le membre n'a pas encore répondu
 
+### Accessibilité des formulaires
+
+- [ ] Au lecteur d'écran, remplir une ligne de facture annonce « Désignation », « Quantité », « Prix unitaire HT », « Taux TVA » — plus « zone de saisie, vide »
+- [ ] Une ligne ajoutée par le bouton « + » annonce les mêmes libellés que la première : le clone JS a bien réécrit les `for`
+- [ ] Les labels masqués ne se voient nulle part : le tableau de facturation garde exactement l'aspect qu'il avait
+- [ ] En navigation par titres sur « Nouveau projet », le plan se lit sans trou : le titre de page, puis « Affiche », puis « Galerie »
+- [ ] « Affiche » et « Galerie » se distinguent à l'œil des libellés de champs qui les suivent, sur 375 px comme sur grand écran
+- [ ] La légende « Images », plus petite que les deux titres qu'elle contient, ne gêne pas la lecture — sinon c'est le cadre « Images » qu'il faut revoir, pas les titres
+
+### Garde de pré-push
+
+- [ ] `git config core.hooksPath deploiement/hooks` posé sur ce clone — sans quoi le hook ne s'exécute pas du tout
+- [ ] Un `git push` lance bien la suite sur PostgreSQL et n'aboutit qu'après
+- [ ] PostgreSQL arrêté, le push est refusé avec un message qui dit quoi faire, et `--no-verify` passe outre
+
 ### Vocabulaire
 
 - [ ] Aucun écran de gestion n'affiche « Bureau » comme nom de section, ni « Back-office » : le sur-titre dit « Gestion »
