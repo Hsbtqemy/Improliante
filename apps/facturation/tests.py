@@ -13,14 +13,27 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.contrib import admin
 from django.core.management import call_command
 
-from apps.coeur.models import Signataire
-from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
+from apps.coeur.models import Signataire, Utilisateur
+from apps.common.pdf import RenduPDFIndisponible
+from apps.facturation.admin import LigneFactureInline
+from apps.facturation.models import (
+    Client,
+    CompteurFacture,
+    Devis,
+    Facture,
+    LigneDevis,
+    LigneFacture,
+)
 from apps.facturation.services import (
+    AvoirExcessif,
     DevisDejaFacture,
     FactureDejaValidee,
     FactureNonAvoirable,
+    FactureSansLigne,
+    assurer_pdf_facture,
     creer_avoir,
     dupliquer_facture,
     numeroter_devis,
@@ -35,6 +48,15 @@ def client_facture(db):
     return Client.objects.create(nom="Association X")
 
 
+def _brouillon(client_facture, **champs):
+    """Brouillon validable : une facture sans ligne est refusée à la validation."""
+    facture = Facture.objects.create(client=client_facture, **champs)
+    LigneFacture.objects.create(
+        facture=facture, designation="Prestation", prix_unitaire_ht=Decimal("100")
+    )
+    return facture
+
+
 def test_brouillon_sans_numero(client_facture):
     facture = Facture.objects.create(client=client_facture)
     assert facture.numero is None
@@ -42,8 +64,40 @@ def test_brouillon_sans_numero(client_facture):
     assert facture.date is None
 
 
-def test_validation_attribue_numero_statut_et_date(client_facture):
+# --- Convention d'arrondi ----------------------------------------------------
+#
+# Chaque ligne est arrondie au centime AVANT d'être sommée, au pair le plus
+# proche. Ces deux tests fixent la convention : `facturation.js` la reproduit,
+# et l'écran de saisie doit annoncer le montant qui sera émis.
+
+
+def test_l_arrondi_d_une_ligne_se_fait_au_pair(client_facture):
     facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture,
+        designation="Demi-heure",
+        quantite=Decimal("0.5"),
+        prix_unitaire_ht=Decimal("0.25"),
+    )
+    assert facture.total_ht == Decimal("0.12")  # 0,125 au pair, et non 0,13
+
+
+def test_les_lignes_sont_arrondies_avant_d_etre_sommees(client_facture):
+    """L'exemple de l'audit : sommer d'abord donnerait 0,0495 €, donc 0,05 €."""
+    facture = Facture.objects.create(client=client_facture)
+    for rang in range(3):
+        LigneFacture.objects.create(
+            facture=facture,
+            designation="Copie",
+            quantite=Decimal("0.33"),
+            prix_unitaire_ht=Decimal("0.05"),
+            ordre=rang,
+        )
+    assert facture.total_ht == Decimal("0.06")
+
+
+def test_validation_attribue_numero_statut_et_date(client_facture):
+    facture = _brouillon(client_facture)
     valider_facture(facture, date_emission=date(2026, 3, 1))
     facture.refresh_from_db()
     assert facture.numero == "F2026-0001"
@@ -55,7 +109,7 @@ def test_validation_attribue_numero_statut_et_date(client_facture):
 def test_sequence_continue_sans_trou(client_facture):
     numeros = []
     for _ in range(3):
-        f = Facture.objects.create(client=client_facture)
+        f = _brouillon(client_facture)
         valider_facture(f, date_emission=date(2026, 3, 1))
         f.refresh_from_db()
         numeros.append(f.numero)
@@ -63,16 +117,16 @@ def test_sequence_continue_sans_trou(client_facture):
 
 
 def test_revalidation_interdite(client_facture):
-    facture = Facture.objects.create(client=client_facture)
+    facture = _brouillon(client_facture)
     valider_facture(facture, date_emission=date(2026, 3, 1))
     with pytest.raises(FactureDejaValidee):
         valider_facture(facture)
 
 
 def test_serie_annuelle_independante(client_facture):
-    f2026 = Facture.objects.create(client=client_facture)
+    f2026 = _brouillon(client_facture)
     valider_facture(f2026, date_emission=date(2026, 12, 31))
-    f2027 = Facture.objects.create(client=client_facture)
+    f2027 = _brouillon(client_facture)
     valider_facture(f2027, date_emission=date(2027, 1, 1))
     f2026.refresh_from_db()
     f2027.refresh_from_db()
@@ -85,7 +139,7 @@ def test_reinit_factures_remet_la_numerotation_a_zero(client_facture, settings):
     # DEBUG=False, on le réactive donc explicitement pour ce test.
     settings.DEBUG = True
 
-    f = Facture.objects.create(client=client_facture)
+    f = _brouillon(client_facture)
     valider_facture(f, date_emission=date(2026, 3, 1))
     assert Facture.objects.count() == 1
 
@@ -93,10 +147,42 @@ def test_reinit_factures_remet_la_numerotation_a_zero(client_facture, settings):
     assert Facture.objects.count() == 0
 
     # La numérotation repart bien à 0001.
-    f2 = Facture.objects.create(client=client_facture)
+    f2 = _brouillon(client_facture)
     valider_facture(f2, date_emission=date(2026, 3, 1))
     f2.refresh_from_db()
     assert f2.numero == "F2026-0001"
+
+
+# --- Validation : l'état relu sous verrou, pas celui de l'appelant -----------
+#
+# Le compteur était verrouillé, la facture non. Deux requêtes ayant lu le même
+# brouillon (double clic, deux onglets) passaient donc toutes deux le contrôle
+# « encore brouillon ? », et la seconde réécrivait le numéro de la première :
+# F2026-0001 consommé, porté par aucune pièce — un trou dans la série.
+
+
+def test_deux_validations_du_meme_brouillon_n_emettent_qu_une_fois(client_facture):
+    brouillon = _brouillon(client_facture)
+    onglet_a = Facture.objects.get(pk=brouillon.pk)
+    onglet_b = Facture.objects.get(pk=brouillon.pk)  # lu avant la 1re validation
+
+    valider_facture(onglet_a, date_emission=date(2026, 3, 1))
+    with pytest.raises(FactureDejaValidee):
+        valider_facture(onglet_b, date_emission=date(2026, 3, 1))
+
+    brouillon.refresh_from_db()
+    assert brouillon.numero == "F2026-0001"
+    assert CompteurFacture.objects.get(annee=2026).dernier == 1  # aucun numéro perdu
+
+
+def test_une_facture_sans_ligne_n_est_pas_validee(client_facture):
+    """La règle vivait dans la vue : l'action d'admin la contournait."""
+    facture = Facture.objects.create(client=client_facture)
+    with pytest.raises(FactureSansLigne):
+        valider_facture(facture, date_emission=date(2026, 3, 1))
+    facture.refresh_from_db()
+    assert facture.numero is None
+    assert not CompteurFacture.objects.filter(dernier__gt=0).exists()
 
 
 # --- Devis : numérotation souple + transformation en facture ---------------
@@ -156,6 +242,20 @@ def test_transformer_un_devis_deja_facture_leve(client_facture):
         transformer_en_facture(devis)
 
 
+def test_deux_transformations_du_meme_devis_ne_creent_qu_une_facture(client_facture):
+    """Même défaut que la validation : le statut testé était celui de
+    l'instance reçue, lue avant la première transformation."""
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    onglet_a = Devis.objects.get(pk=devis.pk)
+    onglet_b = Devis.objects.get(pk=devis.pk)
+
+    transformer_en_facture(onglet_a)
+    with pytest.raises(DevisDejaFacture):
+        transformer_en_facture(onglet_b)
+
+    assert Facture.objects.filter(devis_origine=devis).count() == 1
+
+
 # --- Avoir : annulation d'une facture validée ------------------------------
 
 
@@ -205,6 +305,40 @@ def test_creer_avoir_sur_avoir_refuse(client_facture):
         creer_avoir(avoir)
 
 
+def test_un_second_avoir_attend_que_le_premier_soit_valide(client_facture):
+    """Double clic sur « Créer un avoir » : un seul brouillon."""
+    facture = _facture_validee(client_facture)
+    creer_avoir(facture)
+    with pytest.raises(FactureNonAvoirable):
+        creer_avoir(facture)
+    assert facture.avoirs.count() == 1
+
+
+def test_une_facture_entierement_annulee_ne_prend_plus_d_avoir(client_facture):
+    facture = _facture_validee(client_facture)
+    valider_facture(creer_avoir(facture), date_emission=date(2026, 3, 1))
+    with pytest.raises(FactureNonAvoirable):
+        creer_avoir(facture)
+
+
+def test_les_avoirs_n_annulent_jamais_plus_que_la_facture(client_facture):
+    """Un avoir partiel reste possible (l'avoir se retouche avant validation),
+    mais la somme des avoirs validés ne dépasse jamais la facture."""
+    facture = _facture_validee(client_facture)  # 2 × 100 HT + 20 % = 240 TTC
+    partiel = creer_avoir(facture)
+    partiel.lignes.update(quantite=-1)  # n'annule que la moitié : 120
+    valider_facture(partiel, date_emission=date(2026, 3, 1))
+
+    complet = creer_avoir(facture)  # reprend les 240 : 120 de trop
+    with pytest.raises(AvoirExcessif):
+        valider_facture(complet, date_emission=date(2026, 3, 1))
+
+    complet.lignes.update(quantite=-1)
+    valider_facture(complet, date_emission=date(2026, 3, 1))
+    complet.refresh_from_db()
+    assert complet.numero == "A2026-0003"  # le refus n'a consommé aucun numéro
+
+
 # --- Signature ------------------------------------------------------------
 
 
@@ -230,6 +364,176 @@ def test_pdf_facture_sans_signataire_pas_de_bloc(client_facture, monkeypatch):
     facture = Facture.objects.create(client=client_facture)
     html = pdf_de_facture(facture).decode()
     assert 'class="signature"' not in html
+
+
+# --- PDF figé à l'émission ---------------------------------------------------
+
+
+def test_le_pdf_est_fige_des_la_validation(
+    client_facture, monkeypatch, django_capture_on_commit_callbacks
+):
+    """Rendu au premier téléchargement, le PDF reprenait les données du jour :
+    renommer le client entre validation et téléchargement changeait la pièce."""
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    facture = _brouillon(client_facture)
+    with django_capture_on_commit_callbacks(execute=True):
+        valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    client_facture.nom = "Nouveau nom"
+    client_facture.save()
+    facture.refresh_from_db()
+    assurer_pdf_facture(facture)  # ne rend rien : le fichier existe déjà
+
+    contenu = facture.fichier.open("rb").read().decode()
+    assert "Association X" in contenu
+    assert "Nouveau nom" not in contenu
+
+
+def test_sans_moteur_pdf_la_validation_tient(
+    client_facture, monkeypatch, django_capture_on_commit_callbacks
+):
+    """Sans WeasyPrint (poste Windows), le numéro reste attribué ; le PDF sera
+    rendu au premier téléchargement, comme avant."""
+
+    def moteur_absent(html, *, base_url=None):
+        raise RenduPDFIndisponible("pas de moteur")
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", moteur_absent)
+    facture = _brouillon(client_facture)
+    with django_capture_on_commit_callbacks(execute=True):
+        valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    facture.refresh_from_db()
+    assert facture.numero == "F2026-0001"
+    assert not facture.fichier
+
+
+def test_deux_premiers_telechargements_ne_rendent_le_pdf_qu_une_fois(client_facture, monkeypatch):
+    """Deux requêtes parties d'une facture encore sans PDF : la seconde ne
+    remplace pas le fichier archivé par la première."""
+    rendus = []
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf",
+        lambda html, *, base_url=None: rendus.append(html) or b"%PDF-1.4",
+    )
+    facture = _brouillon(client_facture)
+    valider_facture(facture, date_emission=date(2026, 3, 1))  # sans commit : pas de PDF
+    requete_a = Facture.objects.get(pk=facture.pk)
+    requete_b = Facture.objects.get(pk=facture.pk)
+
+    assurer_pdf_facture(requete_a)
+    assurer_pdf_facture(requete_b)
+
+    assert len(rendus) == 1
+    assert requete_b.fichier.name == requete_a.fichier.name
+
+
+# --- Admin : mêmes règles que les écrans du bureau ---------------------------
+#
+# Le formulaire du bureau refusait déjà d'éditer une pièce émise ; l'admin, lui,
+# laissait tout changer — client, lignes, statut — et supprimer.
+
+
+def _superadmin():
+    return Utilisateur.objects.create_superuser(username="admin", password="x")
+
+
+def _requete_admin(rf):
+    requete = rf.get("/admin/")
+    requete.user = _superadmin()
+    return requete
+
+
+def test_admin_une_facture_emise_ne_se_supprime_pas(client, client_facture):
+    facture = _brouillon(client_facture)
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    client.force_login(_superadmin())
+
+    reponse = client.post(f"/admin/facturation/facture/{facture.pk}/delete/", {"post": "yes"})
+    assert reponse.status_code == 403
+    # L'action groupée « Supprimer » passe par le même contrôle, objet par objet.
+    client.post(
+        "/admin/facturation/facture/",
+        {"action": "delete_selected", "_selected_action": [facture.pk], "post": "yes"},
+    )
+    assert Facture.objects.filter(pk=facture.pk).exists()
+
+
+def test_admin_une_facture_emise_ne_garde_que_le_suivi_de_paiement(rf, client_facture):
+    """Seul le statut bouge encore : aucun écran ne marque une facture payée,
+    l'admin est aujourd'hui le seul chemin pour le faire."""
+    facture = _brouillon(client_facture)
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    requete = _requete_admin(rf)
+    modele_admin = admin.site.get_model_admin(Facture)
+
+    figes = set(modele_admin.get_readonly_fields(requete, facture))
+    assert {"client", "objet", "mentions_legales", "signataire", "avoir_de"} <= figes
+    assert "statut" not in figes
+    form = modele_admin.get_form(requete, facture)
+    assert Facture.Statut.BROUILLON not in dict(form.base_fields["statut"].choices)
+    # Les lignes suivent la pièce : ni ajout, ni retouche, ni retrait.
+    inline = LigneFactureInline(Facture, admin.site)
+    assert not inline.has_add_permission(requete, facture)
+    assert not inline.has_change_permission(requete, facture)
+    assert not inline.has_delete_permission(requete, facture)
+
+
+def test_admin_le_statut_d_un_brouillon_ne_change_qu_en_validant(rf, client_facture):
+    """Sinon « Validée » se choisirait dans une liste, sans numéro."""
+    modele_admin = admin.site.get_model_admin(Facture)
+    figes = modele_admin.get_readonly_fields(_requete_admin(rf), _brouillon(client_facture))
+    assert "statut" in figes
+
+
+def test_admin_l_action_de_validation_refuse_un_brouillon_sans_ligne(client, client_facture):
+    facture = Facture.objects.create(client=client_facture)
+    client.force_login(_superadmin())
+    client.post(
+        "/admin/facturation/facture/",
+        {"action": "valider_factures", "_selected_action": [facture.pk]},
+    )
+    facture.refresh_from_db()
+    assert facture.numero is None
+
+
+def test_admin_marque_payee_une_facture_emise_sans_rien_changer_d_autre(client, client_facture):
+    """Le seul geste qui reste sur une pièce émise, de bout en bout. Un client,
+    un objet ou des lignes postés à la main en même temps sont ignorés."""
+    facture = _brouillon(client_facture)
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    ligne = facture.lignes.get()
+    client.force_login(_superadmin())
+
+    reponse = client.post(
+        f"/admin/facturation/facture/{facture.pk}/change/",
+        {
+            "statut": Facture.Statut.PAYEE,
+            "client": Client.objects.create(nom="Autre client").pk,
+            "objet": "Réécrit",
+            "lignes-TOTAL_FORMS": "1",
+            "lignes-INITIAL_FORMS": "1",
+            "lignes-MIN_NUM_FORMS": "0",
+            "lignes-MAX_NUM_FORMS": "1000",
+            "lignes-0-id": ligne.pk,
+            "lignes-0-facture": facture.pk,
+            "lignes-0-designation": "Réécrite",
+            "lignes-0-quantite": "99",
+            "lignes-0-prix_unitaire_ht": "1",
+            "lignes-0-taux_tva": "0",
+            "lignes-0-ordre": "0",
+        },
+    )
+
+    assert reponse.status_code == 302
+    facture.refresh_from_db()
+    ligne.refresh_from_db()
+    assert facture.statut == Facture.Statut.PAYEE
+    assert facture.client == client_facture
+    assert facture.objet == ""
+    assert (ligne.designation, ligne.quantite) == ("Prestation", Decimal("1.00"))
 
 
 # --- Concurrence réelle (PostgreSQL uniquement) ------------------------------
@@ -264,7 +568,7 @@ def test_la_numerotation_tient_sous_validations_simultanees():
         )
 
     client = Client.objects.create(nom="Association X")
-    factures = [Facture.objects.create(client=client) for _ in range(NB_VALIDATIONS_SIMULTANEES)]
+    factures = [_brouillon(client) for _ in range(NB_VALIDATIONS_SIMULTANEES)]
 
     # La barrière fait partir tout le monde ensemble : sans elle, les threads
     # s'égrènent et l'on retombe sur du séquentiel déguisé.
@@ -293,6 +597,49 @@ def test_la_numerotation_tient_sous_validations_simultanees():
     numeros = sorted(Facture.objects.exclude(numero=None).values_list("numero", flat=True))
     attendus = [f"F2026-{i:04d}" for i in range(1, NB_VALIDATIONS_SIMULTANEES + 1)]
     assert numeros == attendus, "numérotation trouée ou dupliquée sous concurrence"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_un_double_clic_simultane_n_emet_qu_une_fois():
+    """Le même brouillon validé par deux requêtes au même instant : une seule
+    émission, et le compteur n'avance que d'un cran. Le test séquentiel à
+    instances périmées couvre la règle ; celui-ci éprouve le verrou de la
+    facture elle-même, qui n'existe que sur PostgreSQL."""
+    import threading
+
+    from django.db import connection, connections
+
+    if connection.vendor != "postgresql":
+        pytest.skip("select_for_update est un no-op sur SQLite. Relancer avec TEST_POSTGRES=1.")
+
+    brouillon = _brouillon(Client.objects.create(nom="Association X"))
+    barriere = threading.Barrier(2)
+    refus = []
+    erreurs = []
+
+    def valider():
+        try:
+            instance = Facture.objects.get(pk=brouillon.pk)
+            barriere.wait(timeout=10)
+            valider_facture(instance, date_emission=date(2026, 3, 1))
+        except FactureDejaValidee as exc:
+            refus.append(exc)
+        except Exception as exc:  # noqa: BLE001 — on veut TOUTE erreur de thread
+            erreurs.append(exc)
+        finally:
+            connections.close_all()
+
+    threads = [threading.Thread(target=valider) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    assert not erreurs, f"validations en erreur : {erreurs}"
+    assert len(refus) == 1
+    brouillon.refresh_from_db()
+    assert brouillon.numero == "F2026-0001"
+    assert CompteurFacture.objects.get(annee=2026).dernier == 1
 
 
 # --- Duplication (FAC-1) -----------------------------------------------------
@@ -344,7 +691,7 @@ def test_la_copie_reprend_les_lignes_et_leur_ordre(client_facture):
 
 def test_la_copie_recoit_son_propre_numero_a_sa_validation(client_facture):
     """La série reste continue et sans trou malgré la duplication."""
-    origine = Facture.objects.create(client=client_facture)
+    origine = _brouillon(client_facture)
     valider_facture(origine, date_emission=date(2026, 3, 1))
 
     copie = dupliquer_facture(origine)
@@ -357,7 +704,7 @@ def test_la_copie_recoit_son_propre_numero_a_sa_validation(client_facture):
 
 def test_dupliquer_un_avoir_ne_le_relie_pas_a_la_facture_annulee(client_facture):
     """Un avoir ne s'annule pas deux fois : la copie est détachée."""
-    origine = Facture.objects.create(client=client_facture)
+    origine = _brouillon(client_facture)
     valider_facture(origine, date_emission=date(2026, 3, 1))
     avoir = creer_avoir(origine)
 

@@ -14,6 +14,9 @@ supprimée à l'enregistrement ; une ligne vide est simplement ignorée).
   s'annonçait « zone de saisie, vide » quatre fois de suite. Le `for` reprend
   l'id du formset, et le clone JS remplace `__prefix__` sur tout le fragment —
   labels compris.
+
+  Chaque champ affiche aussi ses erreurs, sous lui. Seule la désignation le
+  faisait : une quantité illisible faisait refuser le formulaire sans un mot.
 {% endcomment %}
 <tr class="ligne-facturation">
   <td>
@@ -21,18 +24,22 @@ supprimée à l'enregistrement ; une ligne vide est simplement ignorée).
     <label class="sr-only" for="{{ ligne.designation.id_for_label }}">{{ ligne.designation.label }}</label>
     {{ ligne.designation }}
     {% for e in ligne.designation.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
+    {% for e in ligne.non_field_errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
   </td>
   <td>
     <label class="sr-only" for="{{ ligne.quantite.id_for_label }}">{{ ligne.quantite.label }}</label>
     {{ ligne.quantite }}
+    {% for e in ligne.quantite.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
   </td>
   <td>
     <label class="sr-only" for="{{ ligne.prix_unitaire_ht.id_for_label }}">{{ ligne.prix_unitaire_ht.label }}</label>
     {{ ligne.prix_unitaire_ht }}
+    {% for e in ligne.prix_unitaire_ht.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
   </td>
   <td>
     <label class="sr-only" for="{{ ligne.taux_tva.id_for_label }}">{{ ligne.taux_tva.label }}</label>
     {{ ligne.taux_tva }}
+    {% for e in ligne.taux_tva.errors %}<span class="champ__erreur" role="alert">{{ e }}</span>{% endfor %}
   </td>
   <td class="ligne-facturation__suppr">
     {% comment %}

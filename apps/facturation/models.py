@@ -78,6 +78,11 @@ class LigneCommerciale(models.Model):
 
     @property
     def total_ht(self) -> Decimal:
+        # Arrondi au centime ligne par ligne, AVANT la somme, et au pair le plus
+        # proche (défaut de `quantize` : 0,125 → 0,12, et non 0,13). Convention
+        # retenue le 12 sept. 2026 — aucun texte n'impose l'arrondi commercial.
+        # `front/static/js/facturation.js` la reproduit à l'identique, pour que
+        # l'écran de saisie annonce le montant qui sera réellement émis.
         return (self.quantite * self.prix_unitaire_ht).quantize(CENT)
 
     @property
@@ -190,8 +195,9 @@ class Facture(AvecTotaux, Horodatage):
         verbose_name="signataire",
     )
 
-    # PDF rendu paresseusement au 1er téléchargement d'une facture validée, puis
-    # mis en cache (stockage privé, hors racine web — document légal immuable).
+    # PDF rendu dès la validation, puis conservé (stockage privé, hors racine
+    # web — document légal immuable). Repli : rendu au 1er téléchargement si le
+    # moteur PDF manquait à l'émission (cf. services.valider_facture).
     fichier = models.FileField(
         "PDF de la facture", upload_to="factures/%Y/", storage=StockagePrive, blank=True
     )

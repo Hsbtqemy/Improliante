@@ -7,14 +7,41 @@
 (function () {
   "use strict";
 
-  function nombre(v) {
-    var n = parseFloat(String(v == null ? "" : v).replace(",", "."));
-    return isNaN(n) ? 0 : n;
+  // Les montants se calculent en CENTIMES ENTIERS, arrondis ligne par ligne
+  // comme le serveur (`LigneCommerciale.total_ht` puis `montant_tva`).
+  // Additionner des flottants et n'arrondir que le total affichait un autre
+  // chiffre que la pièce émise : trois lignes 0,33 × 0,05 € donnaient 0,05 €
+  // à l'écran, 0,06 € sur la facture. Et comme `Decimal.quantize` côté
+  // serveur, l'arrondi se fait au pair le plus proche (0,125 → 0,12).
+
+  // Saisie → entier en centièmes (« 12,5 » → 1250). Illisible ou plus de deux
+  // décimales → 0 : le serveur refusera la ligne et dira pourquoi.
+  function centiemes(v) {
+    var m = /^([+-]?)(\d*)(?:[.,](\d{0,2}))?$/.exec(String(v == null ? "" : v).trim());
+    if (!m || (m[2] === "" && !m[3])) {
+      return 0;
+    }
+    var n = parseInt(m[2] || "0", 10) * 100 + parseInt(((m[3] || "") + "00").slice(0, 2), 10);
+    return m[1] === "-" ? 0 - n : n; // `0 - n` : jamais de « -0,00 € »
   }
 
-  function euros(n) {
+  // n / d arrondi au pair le plus proche ; n entier signé, d entier positif.
+  function diviserAuPair(n, d) {
+    var a = Math.abs(n);
+    var q = Math.floor(a / d);
+    var r = a - q * d;
+    if (r * 2 > d || (r * 2 === d && q % 2 === 1)) {
+      q += 1;
+    }
+    return n < 0 ? 0 - q : q;
+  }
+
+  function euros(centimes) {
     return (
-      n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"
+      (centimes / 100).toLocaleString("fr-FR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }) + " €"
     );
   }
 
@@ -37,7 +64,7 @@
     }
 
     function recalculer() {
-      var ht = 0;
+      var ht = 0; // centimes
       var tva = 0;
       tbody.querySelectorAll("tr").forEach(function (tr) {
         var del = tr.querySelector('input[type="checkbox"][name$="-DELETE"]');
@@ -46,9 +73,14 @@
         if (supprimee) {
           return;
         }
-        var ligneHt = nombre(valeur(tr, "quantite")) * nombre(valeur(tr, "prix_unitaire_ht"));
+        // quantité × prix : centièmes × centièmes = dix-millièmes → centimes.
+        var ligneHt = diviserAuPair(
+          centiemes(valeur(tr, "quantite")) * centiemes(valeur(tr, "prix_unitaire_ht")),
+          100
+        );
         ht += ligneHt;
-        tva += (ligneHt * nombre(valeur(tr, "taux_tva"))) / 100;
+        // HT (centimes) × taux (centièmes de %) / 100 % → centimes.
+        tva += diviserAuPair(ligneHt * centiemes(valeur(tr, "taux_tva")), 10000);
       });
       if (celluleHt) {
         celluleHt.textContent = euros(ht);

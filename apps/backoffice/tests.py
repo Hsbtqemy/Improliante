@@ -2204,12 +2204,84 @@ def test_l_ecran_d_une_facture_propose_de_la_dupliquer(client, db):
     """Sans ce bouton, la duplication n'existerait que pour qui connaît l'URL."""
     c = Client.objects.create(nom="Théâtre")
     facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
     valider_facture(facture, date_emission=date(2026, 3, 1))
     client.force_login(_staff())
 
     corps = client.get(f"/bureau/factures/{facture.pk}/").content.decode()
 
     assert f"/bureau/factures/{facture.pk}/dupliquer/" in corps
+
+
+# --- Facture : édition périmée, aperçu archivé, erreurs de ligne ------------
+
+
+def test_une_edition_perimee_ne_devalide_pas_la_facture(rf, db):
+    """Formulaire ouvert sur le brouillon, facture validée entre-temps (autre
+    onglet, autre personne) : l'enregistrement réécrivait TOUTE l'instance lue
+    avant — statut « brouillon », numéro NULL. Le numéro disparaissait."""
+    from django.contrib.messages.storage.fallback import FallbackStorage
+
+    from apps.backoffice.views import _editer_facture
+
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c, objet="Représentation")
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    perimee = Facture.objects.get(pk=facture.pk)  # le formulaire ouvert
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    requete = rf.post(f"/bureau/factures/{facture.pk}/", _donnees_facture(c, objet="Réécrit"))
+    requete.user = _staff()
+    requete.session = {}
+    requete._messages = FallbackStorage(requete)
+    _editer_facture(requete, facture=perimee)
+
+    facture.refresh_from_db()
+    assert facture.numero == "F2026-0001"
+    assert facture.statut == Facture.Statut.VALIDEE
+    assert facture.objet == "Représentation"
+    assert facture.lignes.count() == 1
+
+
+def test_l_apercu_d_une_facture_validee_montre_la_piece_archivee(client, db, monkeypatch):
+    """L'aperçu re-rendait la pièce avec les données du jour : il pouvait
+    montrer autre chose que le PDF téléchargé."""
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    c = Client.objects.create(nom="Théâtre municipal")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    client.force_login(_staff())
+    client.get(f"/bureau/factures/{facture.pk}/telecharger/")  # archive le PDF
+
+    c.nom = "Nouveau nom"
+    c.save()
+    reponse = client.get(f"/bureau/factures/{facture.pk}/apercu/")
+
+    contenu = b"".join(reponse.streaming_content).decode()
+    assert "Théâtre municipal" in contenu
+    assert "Nouveau nom" not in contenu
+
+
+def test_une_quantite_invalide_est_expliquee_dans_sa_ligne(client, db):
+    """Le formulaire était refusé sans rien dire : seule la désignation
+    affichait ses erreurs."""
+    c = Client.objects.create(nom="Théâtre")
+    client.force_login(_staff())
+    donnees = _lignes_post(_donnees_facture(c), [("Atelier", "deux", "100.00", "20.00")])
+
+    corps = client.post("/bureau/factures/nouvelle/", donnees).content.decode()
+
+    assert not Facture.objects.exists()
+    assert "Saisissez un nombre" in corps
 
 
 def test_la_duplication_est_reservee_au_bureau(client, db):

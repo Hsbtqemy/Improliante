@@ -60,8 +60,8 @@ from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
     DevisDejaFacture,
-    FactureDejaValidee,
     FactureNonAvoirable,
+    ValidationRefusee,
     assurer_pdf_facture,
     creer_avoir,
     dupliquer_facture,
@@ -1163,6 +1163,18 @@ def _editer_facture(request, *, facture: Facture):
     if request.method == "POST":
         client_nouveau = request.POST.get("client") == CLIENT_NOUVEAU
         with transaction.atomic():
+            if facture.pk:
+                # Relue sous verrou, comme à la validation : `form.save()` réécrit
+                # TOUTE l'instance lue à l'ouverture de la page. Validée entre-temps,
+                # la facture repasserait « brouillon », son numéro effacé.
+                facture = Facture.objects.select_for_update().get(pk=facture.pk)
+                if facture.statut != Facture.Statut.BROUILLON:
+                    messages.error(
+                        request,
+                        f"La facture {facture} a été validée entre-temps : "
+                        "vos modifications n'ont pas été enregistrées.",
+                    )
+                    return redirect("backoffice:editer_facture", pk=facture.pk)
             post, client_form, client_ok = _client_depuis_post(request.POST)
             form = FactureForm(post, instance=facture)
             formset = LigneFactureFormSet(post, instance=facture, prefix="lignes")
@@ -1193,22 +1205,21 @@ def _editer_facture(request, *, facture: Facture):
 @bureau_requis
 @require_POST
 def valider_facture_vue(request, pk):
-    """Valide une facture : lui attribue son numéro légal (via le service)."""
+    """Valide une facture : lui attribue son numéro légal. Les refus (déjà
+    validée, sans ligne, avoir excessif) viennent du service, pour que l'admin
+    les applique aussi."""
     facture = get_object_or_404(Facture, pk=pk)
-    if not facture.lignes.exists():
-        messages.error(request, "Impossible de valider une facture sans ligne.")
-        return redirect("backoffice:editer_facture", pk=facture.pk)
     try:
         valider_facture(facture)
         messages.success(request, f"Facture {facture.numero} validée.")
-    except FactureDejaValidee as exc:
+    except ValidationRefusee as exc:
         messages.error(request, str(exc))
     return redirect("backoffice:editer_facture", pk=facture.pk)
 
 
 @bureau_requis
 def telecharger_facture(request, pk):
-    """Sert le PDF d'une facture validée (rendu paresseux + cache)."""
+    """Sert le PDF d'une facture validée (figé à l'émission, sinon rendu ici)."""
     facture = get_object_or_404(Facture, pk=pk)
     if facture.statut == Facture.Statut.BROUILLON:
         raise Http404  # pas de PDF légal pour un brouillon
@@ -1220,11 +1231,16 @@ def telecharger_facture(request, pk):
 
 @bureau_requis
 def previsualiser_facture(request, pk):
-    """Aperçu PDF d'une facture (dry-run) : rendu à la volée, filigrané
-    « brouillon » tant qu'elle n'est pas validée — ne consomme aucun numéro."""
+    """Aperçu PDF d'une facture. Brouillon : rendu à la volée, filigrané
+    « brouillon », sans consommer de numéro. Pièce émise : le PDF ARCHIVÉ, celui
+    qu'on télécharge — un nouveau rendu reprendrait les données du jour."""
     facture = get_object_or_404(Facture, pk=pk)
-    apercu = facture.statut == Facture.Statut.BROUILLON
-    reponse = HttpResponse(pdf_de_facture(facture, apercu=apercu), content_type="application/pdf")
+    if facture.statut != Facture.Statut.BROUILLON:
+        assurer_pdf_facture(facture)
+        return reponse_fichier_prive(
+            facture.fichier, nom_telechargement=f"facture-{facture.numero}.pdf", inline=True
+        )
+    reponse = HttpResponse(pdf_de_facture(facture, apercu=True), content_type="application/pdf")
     reponse["Content-Disposition"] = 'inline; filename="apercu-facture.pdf"'
     return reponse
 
