@@ -243,7 +243,7 @@ def test_aucun_gabarit_n_utilise_un_commentaire_court_multiligne():
     fautifs = []
     for dossier in settings.TEMPLATES[0]["DIRS"]:
         for gabarit in sorted(pathlib.Path(dossier).rglob("*.html")):
-            for numero, ligne in enumerate(gabarit.read_text().splitlines(), 1):
+            for numero, ligne in enumerate(gabarit.read_text(encoding="utf-8").splitlines(), 1):
                 depart = ligne.find("{#")
                 if depart != -1 and "#}" not in ligne[depart:]:
                     fautifs.append(f"{gabarit}:{numero}")
@@ -283,7 +283,7 @@ def test_chaque_reference_static_des_gabarits_pointe_vers_un_fichier_existant():
     trouvees = 0
     for dossier in settings.TEMPLATES[0]["DIRS"]:
         for gabarit in sorted(pathlib.Path(dossier).rglob("*.html")):
-            texte = gabarit.read_text()
+            texte = gabarit.read_text(encoding="utf-8")
             for reference in re.findall(r"""\{%\s*static\s+["']([^"']+)["']""", texte):
                 trouvees += 1
                 if finders.find(reference) is None:
@@ -312,7 +312,7 @@ def test_le_mot_bureau_ne_designe_jamais_l_espace_d_administration():
     fautifs = []
     for dossier in settings.TEMPLATES[0]["DIRS"]:
         for gabarit in sorted(pathlib.Path(dossier).rglob("*.html")):
-            texte = gabarit.read_text()
+            texte = gabarit.read_text(encoding="utf-8")
             for numero, ligne in enumerate(texte.splitlines(), 1):
                 if re.search(r'page-tete__eyebrow">Bureau\b', ligne):
                     fautifs.append(f"{gabarit.name}:{numero} sur-titre « Bureau »")
@@ -347,7 +347,12 @@ def test_le_sur_titre_d_une_page_de_gestion_nomme_son_groupe_de_rail():
 
     dossiers = [pathlib.Path(d) for d in settings.TEMPLATES[0]["DIRS"]]
     rail = next(d / "_nav_espace.html" for d in dossiers if (d / "_nav_espace.html").exists())
-    groupes = set(re.findall(r'<summary class="nav-espace__titre">([^<]+)</summary>', rail.read_text()))
+    groupes = set(
+        re.findall(
+            r'<summary class="nav-espace__titre">([^<]+)</summary>',
+            rail.read_text(encoding="utf-8"),
+        )
+    )
     groupes -= {"Le site", "Mon espace"}  # ni l'un ni l'autre n'est un domaine de gestion
     assert len(groupes) >= 4, f"groupes lus dans le rail : {sorted(groupes)}"
 
@@ -360,14 +365,18 @@ def test_le_sur_titre_d_une_page_de_gestion_nomme_son_groupe_de_rail():
     controlees = 0
     for dossier in dossiers:
         for gabarit in sorted((dossier / "backoffice").glob("*.html")):
-            trouve = re.search(r'page-tete__eyebrow">([^<]*)</span>', gabarit.read_text())
+            trouve = re.search(
+                r'page-tete__eyebrow">([^<]*)</span>', gabarit.read_text(encoding="utf-8")
+            )
             if not trouve:
                 continue
             controlees += 1
             sur_titre = trouve.group(1)
             if gabarit.name == RACINE:
                 if sur_titre != "Gestion":
-                    fautifs.append(f"{gabarit.name} : racine, attendu « Gestion », lu « {sur_titre} »")
+                    fautifs.append(
+                        f"{gabarit.name} : racine, attendu « Gestion », lu « {sur_titre} »"
+                    )
             elif not (
                 sur_titre.startswith("Gestion · ") and sur_titre[len("Gestion · ") :] in groupes
             ):
@@ -399,7 +408,7 @@ def test_aucun_ecran_de_gestion_ne_refait_un_lien_vers_la_racine():
     fautifs = []
     for dossier in settings.TEMPLATES[0]["DIRS"]:
         for gabarit in sorted((pathlib.Path(dossier) / "backoffice").glob("*.html")):
-            for numero, ligne in enumerate(gabarit.read_text().splitlines(), 1):
+            for numero, ligne in enumerate(gabarit.read_text(encoding="utf-8").splitlines(), 1):
                 if "←" in ligne and re.search(r"url '(backoffice:tableau_de_bord)'", ligne):
                     fautifs.append(f"{gabarit.name}:{numero} {ligne.strip()[:70]}")
 

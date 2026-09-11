@@ -109,6 +109,14 @@ def test_agenda_calendrier_repond(client, db):
     assert client.get("/agenda/?vue=calendrier").status_code == 200
 
 
+@pytest.mark.parametrize("annee", ["0", "-3", "9999", "100000"])
+def test_agenda_calendrier_annee_hors_plage_ne_plante_pas(client, db, annee):
+    """Une année forgée dans l'URL faisait lever `date()` ou le calcul du mois
+    voisin : erreur 500. On retombe sur le mois courant."""
+    reponse = client.get(f"/agenda/?vue=calendrier&annee={annee}&mois=12")
+    assert reponse.status_code == 200
+
+
 def test_agenda_memorise_la_vue(client, db):
     reponse = client.get("/agenda/?vue=calendrier")
     assert reponse.cookies["agenda_vue"].value == "calendrier"
@@ -723,7 +731,7 @@ def test_chaque_page_de_la_vitrine_a_un_seul_en_tete_de_page():
     for gabarit in _gabarits_vitrine():
         if gabarit.name in exceptions:
             continue
-        texte = gabarit.read_text()
+        texte = gabarit.read_text(encoding="utf-8")
         if texte.count("<h1") != 1 or texte.count('class="page-tete"') != 1:
             fautifs.append(gabarit.name)
 
@@ -733,7 +741,9 @@ def test_chaque_page_de_la_vitrine_a_un_seul_en_tete_de_page():
 def test_aucun_sur_titre_ne_repete_le_nom_du_site():
     """Le sur-titre sert à situer une page dans une section. Y mettre le nom de
     l'association le vide de son rôle et double le logo."""
-    fautifs = [g.name for g in _gabarits_vitrine() if "Improliante</span>" in g.read_text()]
+    fautifs = [
+        g.name for g in _gabarits_vitrine() if "Improliante</span>" in g.read_text(encoding="utf-8")
+    ]
 
     assert not fautifs, "sur-titre répétant le nom du site : " + ", ".join(fautifs)
 
@@ -856,7 +866,9 @@ def test_les_palettes_respectent_le_contraste_AA():
 
     from django.conf import settings
 
-    css = (pathlib.Path(settings.BASE_DIR) / "front/static/css/site.css").read_text()
+    css = (pathlib.Path(settings.BASE_DIR) / "front/static/css/site.css").read_text(
+        encoding="utf-8"
+    )
     racine = _jetons_du_theme(css, ":root")
     palettes = sorted(set(re.findall(r'html\[data-theme="(\w+)"\]', css)))
     assert len(palettes) >= 7, f"palettes introuvables dans le CSS : {palettes}"

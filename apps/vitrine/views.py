@@ -166,6 +166,11 @@ def _agenda_par_mois(request) -> list[dict]:
     ]
 
 
+# Années servies par le calendrier. Au-delà, une URL forgée faisait lever
+# `date()` (année 0) ou le calcul du mois voisin (décembre 9999) : erreur 500.
+ANNEE_MIN_CALENDRIER, ANNEE_MAX_CALENDRIER = 1900, 2100
+
+
 def _contexte_calendrier(request) -> dict:
     aujourdhui = timezone.localdate()
     try:
@@ -173,7 +178,7 @@ def _contexte_calendrier(request) -> dict:
         mois = int(request.GET.get("mois", aujourdhui.month))
     except (TypeError, ValueError):
         annee, mois = aujourdhui.year, aujourdhui.month
-    if not 1 <= mois <= 12:
+    if not (1 <= mois <= 12 and ANNEE_MIN_CALENDRIER <= annee <= ANNEE_MAX_CALENDRIER):
         annee, mois = aujourdhui.year, aujourdhui.month
 
     premier, dernier = bornes_grille(annee, mois)
