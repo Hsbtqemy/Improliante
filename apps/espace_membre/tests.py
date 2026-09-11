@@ -922,6 +922,74 @@ def test_membre_ne_supprime_pas_le_document_d_un_autre(client, db):
     assert Document.objects.filter(pk=doc.pk).exists()
 
 
+# Compte connecté SANS fiche membre (compte technique, fiche supprimée…). Le
+# filtre `proprietaire=membre` devenait `proprietaire=None` : exactement les
+# dossiers officiels et communs, et les documents non classés comme les PV.
+
+
+def _compte_sans_fiche():
+    return Utilisateur.objects.create_user(username="sansfiche", password="x")
+
+
+def test_compte_sans_fiche_ne_supprime_pas_un_dossier_officiel_ou_commun(client, db):
+    officiel = doc_services.creer_dossier_association(nom="Statuts")
+    commun = doc_services.creer_dossier_commun(nom="Répétitions")
+    client.force_login(_compte_sans_fiche())
+    for dossier in (officiel, commun):
+        assert client.post(f"/espace/fichiers/{dossier.pk}/supprimer/").status_code == 404
+        assert Dossier.objects.filter(pk=dossier.pk).exists()
+
+
+def test_compte_sans_fiche_ne_supprime_pas_un_document_officiel(client, db):
+    officiel = _fichier(doc_services.creer_dossier_association(nom="Statuts"), titre="Statuts")
+    non_classe = _document(Document.Confidentialite.MEMBRES, titre="PV")
+    client.force_login(_compte_sans_fiche())
+    for document in (officiel, non_classe):
+        chemin = document.fichier.name
+        assert client.post(f"/espace/fichiers/doc/{document.pk}/supprimer/").status_code == 404
+        assert Document.objects.filter(pk=document.pk).exists()
+        assert document.fichier.storage.exists(chemin)  # le fichier physique aussi
+
+
+def test_nouvelle_version_d_une_version_deja_remplacee_refusee(client, db):
+    """Repartir d'une ancienne version créait une seconde branche courante."""
+    v1 = _document(Document.Confidentialite.MEMBRES, titre="Statuts")
+    doc_services.remplacer_document(v1, fichier=SimpleUploadedFile("v2.pdf", b"v2"))
+    client.force_login(_staff())
+
+    reponse = client.post(
+        f"/espace/association/doc/{v1.pk}/nouvelle-version/",
+        {"fichier": SimpleUploadedFile("v3.pdf", b"v3")},
+    )
+
+    assert reponse.status_code == 302
+    assert Document.objects.count() == 2
+    assert Document.objects.filter(courant=True).count() == 1
+
+
+# Un compte rendu rend compte à TOUS les membres, réunion de bureau comprise —
+# décision de l'association (sept. 2026). La page d'une réunion de bureau reste
+# réservée au bureau ; son PV, non. Ce test fixe ce choix, qu'un audit avait
+# pris pour une fuite.
+
+
+def test_le_pv_d_une_reunion_de_bureau_est_lisible_par_tout_membre(client, db, monkeypatch):
+    from apps.gouvernance.services import generer_compte_rendu
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 pv"
+    )
+    reunion = Reunion.objects.create(
+        titre="Bureau de mars",
+        type_reunion=Reunion.TypeReunion.BUREAU,
+        statut=Reunion.Statut.TENUE,
+    )
+    pv = generer_compte_rendu(reunion, par=_staff())
+
+    client.force_login(_membre("alice").user)
+    assert client.get(f"/espace/documents/{pv.pk}/telecharger/").status_code == 200
+
+
 def test_landing_affiche_les_trois_branches(client, db):
     alice = _membre("alice")
     bob = _membre("bob")

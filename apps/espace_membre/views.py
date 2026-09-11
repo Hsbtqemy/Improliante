@@ -829,7 +829,10 @@ def deplacer_dossier(request, pk):
 def supprimer_dossier_membre(request, pk):
     """Supprime un dossier personnel VIDE (propriétaire seul)."""
     membre = _membre_connecte(request)
-    dossier = get_object_or_404(Dossier, pk=pk, proprietaire=membre)
+    if membre is None:
+        # Sans fiche, `proprietaire=None` désignerait les dossiers officiels et communs.
+        raise Http404
+    dossier = get_object_or_404(Dossier, pk=pk, espace=PERSO, proprietaire=membre)
     parent = dossier.get_parent()
     try:
         documents_services.supprimer_dossier_membre(dossier)
@@ -847,7 +850,13 @@ def supprimer_dossier_membre(request, pk):
 def supprimer_document_membre(request, pk):
     """Supprime un fichier personnel (anti-IDOR via le dossier)."""
     membre = _membre_connecte(request)
-    document = get_object_or_404(Document, pk=pk, dossier__proprietaire=membre)
+    if membre is None:
+        # Sans fiche, `dossier__proprietaire=None` viserait aussi les documents
+        # officiels, communs et non classés (PV…).
+        raise Http404
+    document = get_object_or_404(
+        Document, pk=pk, dossier__espace=PERSO, dossier__proprietaire=membre
+    )
     dossier_id = document.dossier_id
     documents_services.supprimer_document_membre(document)
     messages.success(request, "Fichier supprimé.")
@@ -1123,10 +1132,14 @@ def nouvelle_version_association(request, pk):
     )
     form = NouvelleVersionForm(request.POST, request.FILES)
     if form.is_valid():
-        documents_services.remplacer_document(
-            ancien, fichier=form.cleaned_data["fichier"], par=request.user
-        )
-        messages.success(request, "Nouvelle version enregistrée.")
+        try:
+            documents_services.remplacer_document(
+                ancien, fichier=form.cleaned_data["fichier"], par=request.user
+            )
+        except documents_services.VersionPerimee as erreur:
+            messages.error(request, str(erreur))
+        else:
+            messages.success(request, "Nouvelle version enregistrée.")
     else:
         messages.error(request, "Aucun fichier fourni.")
     if ancien.dossier_id:

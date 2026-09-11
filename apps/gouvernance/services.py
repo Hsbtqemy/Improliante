@@ -208,9 +208,15 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     Le PV assemble les **notes de séance** (synthèse + notes par point d'ordre du
     jour) avec les **données déjà saisies** (présences, pouvoirs, quorum,
     résolutions et leurs résultats) — aucune ressaisie. Le PDF est déposé comme
-    Document (confidentialité « Membres », donc visible des convoqués) et rattaché
-    à `reunion.compte_rendu`. Régénérer **remplace** le fichier du compte-rendu
-    existant (pas de doublon)."""
+    Document de confidentialité « Membres » et rattaché à `reunion.compte_rendu`.
+
+    « Membres », quel que soit le type de réunion : un compte rendu rend compte à
+    TOUS les membres, celui d'une réunion de bureau compris — décision de
+    l'association (sept. 2026). La page d'une réunion de bureau reste réservée
+    au bureau ; son PV, non. Ce n'est pas une fuite, et un test le fixe
+    (`espace_membre/tests.py`).
+
+    Régénérer **remplace** le fichier du compte-rendu existant (pas de doublon)."""
     presences = reunion.presences.select_related("membre").order_by("membre__nom", "membre__prenom")
 
     # Déroulé : préambule (blocs sans point) + chaque point suivi de ses blocs.

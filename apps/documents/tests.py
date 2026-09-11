@@ -14,6 +14,7 @@ from apps.coeur.models import Membre, Utilisateur
 from apps.documents.models import Document, Dossier
 from apps.documents.services import (
     DeplacementInterdit,
+    VersionPerimee,
     creer_dossier_association,
     creer_dossier_membre,
     deplacer_dossier,
@@ -53,6 +54,21 @@ def test_versions_successives_incrementent(db):
     v3 = remplacer_document(v2, fichier=SimpleUploadedFile("v3.pdf", b"v3"))
     assert [v1.version, v2.version, v3.version] == [1, 2, 3]
     assert Document.objects.filter(courant=True).count() == 1  # seule v3 est courante
+
+
+def test_remplacer_une_version_deja_remplacee_est_refuse(db):
+    """Deux remplacements partis de la même v1 (deux onglets) ne produisent
+    pas deux v2 courantes : le second apprend que le document a changé."""
+    v1 = _document()
+    onglet_a = Document.objects.get(pk=v1.pk)
+    onglet_b = Document.objects.get(pk=v1.pk)
+
+    remplacer_document(onglet_a, fichier=SimpleUploadedFile("a.pdf", b"a"))
+    with pytest.raises(VersionPerimee):
+        remplacer_document(onglet_b, fichier=SimpleUploadedFile("b.pdf", b"b"))
+
+    assert Document.objects.filter(courant=True).count() == 1
+    assert Document.objects.count() == 2
 
 
 # --- Déplacement de dossier -------------------------------------------------

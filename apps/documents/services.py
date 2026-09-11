@@ -28,6 +28,10 @@ class DeplacementInterdit(Exception):
     l'espace personnel — elle appartient à quelqu'un d'autre."""
 
 
+class VersionPerimee(Exception):
+    """Levée quand on remplace une version qui n'est plus la courante."""
+
+
 @transaction.atomic
 def creer_dossier_membre(membre, *, nom, description="", visibilite=None, parent=None) -> Dossier:
     """Crée un dossier PERSONNEL appartenant à `membre` (racine ou sous-dossier).
@@ -146,7 +150,17 @@ def remplacer_document(ancien: Document, *, fichier, par=None) -> Document:
 
     Le nouveau document reprend les métadonnées de l'ancien (titre, dossier,
     confidentialité…), incrémente la version et devient courant ; l'ancien est
-    conservé mais n'est plus courant (historique consultable)."""
+    conservé mais n'est plus courant (historique consultable).
+
+    `ancien` est relu sous verrou et doit être la version COURANTE : deux
+    remplacements partis de la même version (deux onglets) créaient sinon deux
+    successeurs courants. Lève `VersionPerimee` dans ce cas."""
+    ancien = Document.objects.select_for_update().get(pk=ancien.pk)
+    if not ancien.courant:
+        raise VersionPerimee(
+            f"« {ancien.titre} » a déjà été remplacé par une version plus récente : "
+            "rechargez la page pour repartir de la version courante."
+        )
     nouveau = Document.objects.create(
         titre=ancien.titre,
         dossier=ancien.dossier,
