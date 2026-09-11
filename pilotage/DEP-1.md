@@ -44,7 +44,7 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] `pg_dump` s'authentifie sans terminal : crontab de `postgres`, ou `.pgpass` en 0600 — sinon la sauvegarde échoue chaque nuit sans bruit
 - [ ] Une restauration d'essai repart d'un dump : la base restaurée porte les dernières adhésions, pas un schéma vide
 - [ ] L'archive des médias contient `media` **et** `media_prive` — `tar tzf` le montre ; sans le privé, ni facture ni reçu fiscal n'est sauvegardé
-- [ ] `RCLONE_REMOTE` est renseigné : sans lui le script crie sur stderr et les sauvegardes restent sur le VPS
+- [ ] `RCLONE_REMOTE` est renseigné : sans lui le script sort en **code 1** et les sauvegardes restent sur le VPS — encore faut-il que quelque chose lise ce code, un cron qui redirige tout dans un log ne le regarde pas
 
 ## Contexte
 
