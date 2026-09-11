@@ -44,14 +44,17 @@ class TransactionAdmin(admin.ModelAdmin):
 
 @admin.register(RecuFiscal)
 class RecuFiscalAdmin(admin.ModelAdmin):
-    """Consultation des reçus. L'émission passe par le service (numéro légal) :
-    pas de création directe en admin, et les champs figés sont en lecture seule."""
+    """Consultation des reçus, et rien d'autre.
+
+    L'émission passe par le service (numéro légal + snapshot) : pas de création
+    directe ici. Un reçu émis ne se retouche plus et ne se supprime pas — pas
+    même ses rattachements comptables, qui changent ce que le registre raconte.
+    Une erreur se corrige par une pièce, pas par une réécriture."""
 
     list_display = ("numero", "donateur_nom", "type_versement", "montant", "date_emission")
     list_filter = ("type_versement", "forme", "date_emission")
     search_fields = ("numero", "donateur_nom")
     date_hierarchy = "date_emission"
-    autocomplete_fields = ("membre", "adhesion", "transaction")
     readonly_fields = (
         "numero",
         "date_emission",
@@ -64,5 +67,13 @@ class RecuFiscalAdmin(admin.ModelAdmin):
         "date_modification",
     )
 
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return self.readonly_fields
+        return tuple(champ.name for champ in RecuFiscal._meta.fields if champ.name != "id")
+
     def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
         return False

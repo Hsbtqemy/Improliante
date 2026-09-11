@@ -116,6 +116,124 @@ def test_assurer_pdf_rend_une_seule_fois(db, monkeypatch):
     assert recu.fichier.open("rb").read().startswith(b"%PDF")
 
 
+# --- Le reçu émis est une pièce figée ---------------------------------------
+#
+# Le donateur et le montant sont déjà recopiés dans le reçu à l'émission. Le
+# BÉNÉFICIAIRE, lui, est lu au moment du rendu : tant que le PDF n'était produit
+# qu'au premier téléchargement, renommer l'association changeait une pièce déjà
+# émise. Même traitement que la facture.
+
+
+def test_le_pdf_du_recu_est_fige_des_l_emission(
+    db, monkeypatch, django_capture_on_commit_callbacks
+):
+    from apps.coeur.models import ParametresAssociation
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    params = ParametresAssociation.load()
+    # Un nom sans apostrophe : le gabarit l'échapperait (`&#x27;`) et la
+    # recherche dans le HTML rendu échouerait pour une raison sans rapport.
+    params.nom = "Association Improliante"
+    params.save()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        recu = _emettre()
+
+    params.nom = "Troupe renommée"
+    params.save()
+    recu.refresh_from_db()
+    assurer_pdf_recu(recu)  # ne rend rien : le fichier existe déjà
+
+    contenu = recu.fichier.open("rb").read().decode()
+    assert "Association Improliante" in contenu
+    assert "Troupe renommée" not in contenu
+
+
+def test_sans_moteur_pdf_l_emission_du_recu_tient(
+    db, monkeypatch, django_capture_on_commit_callbacks
+):
+    """Le numéro est légalement attribué même si le rendu échoue ; le PDF
+    retombe alors sur le premier téléchargement, comme avant."""
+    from apps.common.pdf import RenduPDFIndisponible
+
+    def moteur_absent(html, *, base_url=None):
+        raise RenduPDFIndisponible("pas de moteur")
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", moteur_absent)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        recu = _emettre()
+
+    recu.refresh_from_db()
+    assert recu.numero == "R2026-0001"
+    assert not recu.fichier
+
+
+def test_deux_premiers_telechargements_du_recu_ne_rendent_qu_une_fois(db, monkeypatch):
+    """Deux requêtes parties d'un reçu encore sans PDF : la seconde ne remplace
+    pas le fichier archivé par la première."""
+    rendus = []
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf",
+        lambda html, *, base_url=None: rendus.append(html) or b"%PDF-1.4",
+    )
+    recu = _emettre()  # sans commit : pas encore de PDF
+    requete_a = RecuFiscal.objects.get(pk=recu.pk)
+    requete_b = RecuFiscal.objects.get(pk=recu.pk)
+
+    assurer_pdf_recu(requete_a)
+    assurer_pdf_recu(requete_b)
+
+    assert len(rendus) == 1
+    assert requete_b.fichier.name == requete_a.fichier.name
+
+
+def test_un_second_recu_pour_la_meme_adhesion_est_refuse_par_le_service(db):
+    """Le garde-fou « un versement = un reçu » vivait dans la vue : un double
+    clic passait à côté, et l'admin comme le shell l'ignoraient."""
+    from apps.budget.services import RecuDejaEmis
+
+    membre = _membre()
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE, montant_verse=Decimal("40")
+    )
+
+    _emettre(adhesion=adhesion, membre=membre)
+    with pytest.raises(RecuDejaEmis):
+        _emettre(adhesion=adhesion, membre=membre)
+
+    assert RecuFiscal.objects.filter(adhesion=adhesion).count() == 1
+
+
+def test_admin_un_recu_emis_est_intouchable(db, rf):
+    """Une pièce légale ne se retouche ni ne se supprime — pas même le
+    rattachement comptable, qui change ce que le registre raconte."""
+    from django.contrib import admin
+
+    recu = _emettre()
+    requete = rf.get("/admin/")
+    requete.user = Utilisateur.objects.create_superuser(username="admin", password="x")
+    modele_admin = admin.site.get_model_admin(RecuFiscal)
+
+    figes = set(modele_admin.get_readonly_fields(requete, recu))
+    attendus = {
+        "type_versement",
+        "forme",
+        "donateur_adresse",
+        "donateur_code_postal",
+        "donateur_ville",
+        "membre",
+        "adhesion",
+        "transaction",
+        "signataire",
+    }
+    assert attendus <= figes
+    assert not modele_admin.has_delete_permission(requete, recu)
+
+
 def test_cerfa_utilise_le_signataire_choisi(db, monkeypatch):
     monkeypatch.setattr(
         "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()

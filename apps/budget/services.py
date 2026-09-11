@@ -2,15 +2,19 @@
 
 `emettre_recu` attribue un numéro SÉQUENTIEL, CONTINU et SANS TROU (contrainte
 légale identique aux factures), sous verrou dans une transaction, et fige un
-snapshot des données. Le PDF Cerfa est rendu paresseusement (WeasyPrint) au
-premier téléchargement puis mis en cache — la création ne dépend pas de la
-présence de WeasyPrint.
+snapshot des données. Le PDF Cerfa est rendu dès le commit de l'émission : le
+bénéficiaire et le signataire sont lus au rendu, et une pièce produite plus tard
+raconterait l'association d'aujourd'hui, pas celle de l'émission. Sans moteur
+PDF, le rendu retombe sur le premier téléchargement — le numéro, lui, reste
+attribué.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal
+from functools import partial
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -22,6 +26,12 @@ from apps.coeur.models import ParametresAssociation
 from apps.common import pdf
 
 from .models import Adhesion, CompteurRecu, RecuFiscal, SoldeTresorerie, Transaction
+
+logger = logging.getLogger(__name__)
+
+
+class RecuDejaEmis(Exception):
+    """Levée quand le versement visé a déjà donné lieu à un reçu Cerfa."""
 
 
 @transaction.atomic
@@ -45,7 +55,21 @@ def emettre_recu(
     """Émet un reçu fiscal : numéro annuel continu + snapshot des données.
 
     Numéro au format ``R{annee}-{séquence:04d}``.
+
+    Un versement ne donne lieu qu'à UN seul reçu : l'adhésion source est relue
+    sous verrou, et un second appel lève `RecuDejaEmis`. Ce garde-fou vivait
+    dans la vue, où un double clic passait à côté — et où ni l'admin ni le shell
+    ne le voyaient.
     """
+    if adhesion is not None:
+        verrouillee = Adhesion.objects.select_for_update().get(pk=adhesion.pk)
+        existant = verrouillee.recus_fiscaux.first()
+        if existant is not None:
+            raise RecuDejaEmis(
+                f"Un reçu fiscal ({existant.numero}) a déjà été émis pour l'adhésion "
+                f"de {verrouillee.membre}."
+            )
+
     jour = date_emission or timezone.localdate()
 
     # get_or_create couvre le 1er reçu de l'année ; on reprend la ligne SOUS
@@ -55,7 +79,7 @@ def emettre_recu(
     compteur.dernier += 1
     compteur.save(update_fields=["dernier"])
 
-    return RecuFiscal.objects.create(
+    recu = RecuFiscal.objects.create(
         numero=f"R{jour.year}-{compteur.dernier:04d}",
         date_emission=jour,
         type_versement=type_versement,
@@ -72,6 +96,10 @@ def emettre_recu(
         emis_par=emis_par,
         signataire=signataire,
     )
+    # Après le commit, pas dedans : un rendu raté n'annule pas un numéro
+    # légalement attribué (`robust` journalise au lieu de lever).
+    transaction.on_commit(partial(_figer_pdf_recu, recu.pk), robust=True)
+    return recu
 
 
 def donnees_depuis_adhesion(adhesion) -> dict:
@@ -95,15 +123,34 @@ def pdf_de_recu(recu: RecuFiscal, *, apercu: bool = False) -> bytes:
     return pdf.html_vers_pdf(html)
 
 
+@transaction.atomic
 def assurer_pdf_recu(recu: RecuFiscal) -> None:
     """Garantit que le PDF Cerfa du reçu existe dans le stockage privé.
 
-    Rendu une seule fois : une fois le fichier en cache, il n'est plus
-    régénéré (immuabilité du document légal)."""
+    Rendu une seule fois — normalement dès l'émission (`_figer_pdf_recu`) ; ce
+    rendu à la demande n'est plus qu'un repli, quand le moteur PDF manquait à ce
+    moment-là. L'absence de fichier est revérifiée sous verrou : deux premiers
+    téléchargements simultanés rendaient sinon deux fois, et le second
+    remplaçait la pièce archivée. L'instance reçue récupère le fichier."""
     if recu.fichier:
         return
-    octets = pdf_de_recu(recu)
-    recu.fichier.save(f"recu-{recu.numero}.pdf", ContentFile(octets), save=True)
+    courant = RecuFiscal.objects.select_for_update().get(pk=recu.pk)
+    if not courant.fichier:
+        octets = pdf_de_recu(courant)
+        courant.fichier.save(f"recu-{courant.numero}.pdf", ContentFile(octets), save=False)
+        courant.save(update_fields=["fichier"])
+    recu.refresh_from_db(fields=["fichier"])
+
+
+def _figer_pdf_recu(recu_pk: int) -> None:
+    """Rend et archive le Cerfa d'un reçu qui vient d'être émis.
+
+    Sans moteur PDF (poste Windows sans Pango), la pièce retombe sur le rendu au
+    premier téléchargement : moins sûr, mais le numéro reste valable."""
+    try:
+        assurer_pdf_recu(RecuFiscal.objects.get(pk=recu_pk))
+    except pdf.RenduPDFIndisponible as exc:
+        logger.warning("PDF du reçu #%s non figé à l'émission : %s", recu_pk, exc)
 
 
 # --- Bilan budgétaire -------------------------------------------------------

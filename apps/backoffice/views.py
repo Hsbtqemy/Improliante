@@ -34,6 +34,7 @@ from apps.budget.models import (
     Transaction,
 )
 from apps.budget.services import (
+    RecuDejaEmis,
     assurer_pdf_recu,
     bilan_par_categorie,
     classeur_bilan,
@@ -1016,19 +1017,19 @@ def creer_recu(request):
                 )
                 reponse["Content-Disposition"] = 'inline; filename="apercu-recu.pdf"'
                 return reponse
-            # Garde-fou légal : un versement donne lieu à un seul reçu Cerfa.
-            if adhesion and adhesion.recus_fiscaux.exists():
-                messages.error(
-                    request,
-                    f"Un reçu fiscal a déjà été émis pour l'adhésion de {adhesion.membre}.",
+            # Garde-fou légal (un versement = un seul reçu Cerfa) : porté par le
+            # service, qui relit l'adhésion sous verrou — ici, un double clic
+            # passait entre deux contrôles.
+            try:
+                recu = emettre_recu(
+                    **form.cleaned_data,
+                    membre=adhesion.membre if adhesion else None,
+                    adhesion=adhesion,
+                    emis_par=request.user,
                 )
+            except RecuDejaEmis as exc:
+                messages.error(request, str(exc))
                 return redirect("backoffice:liste_recus")
-            recu = emettre_recu(
-                **form.cleaned_data,
-                membre=adhesion.membre if adhesion else None,
-                adhesion=adhesion,
-                emis_par=request.user,
-            )
             messages.success(request, f"Reçu fiscal {recu.numero} émis.")
             return redirect("backoffice:liste_recus")
     else:
