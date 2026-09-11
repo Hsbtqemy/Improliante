@@ -190,4 +190,38 @@
   }
 
   document.querySelectorAll("[data-formset-lignes]").forEach(activer);
+
+  // « Valider » mène à un récapitulatif de ce qui est ENREGISTRÉ. Une saisie
+  // laissée dans le formulaire n'y figure pas : on le dit, et on neutralise le
+  // lien plutôt que de laisser émettre une version que personne n'a relue.
+  // Sans JavaScript, c'est le récapitulatif lui-même qui joue ce rôle — il
+  // montre l'état enregistré, donc l'écart se voit avant de confirmer.
+  function surveillerBrouillon(formulaire) {
+    var lien = document.querySelector("[data-valider-lien]");
+    var avertissement = document.querySelector("[data-non-enregistre]");
+    if (!lien || !avertissement) {
+      return;
+    }
+    var modifie = false;
+
+    function marquerModifie() {
+      if (modifie) {
+        return;
+      }
+      modifie = true;
+      avertissement.hidden = false;
+      lien.setAttribute("aria-disabled", "true");
+    }
+
+    formulaire.addEventListener("input", marquerModifie);
+    formulaire.addEventListener("change", marquerModifie);
+    lien.addEventListener("click", function (evenement) {
+      if (modifie) {
+        evenement.preventDefault();
+        avertissement.focus();
+      }
+    });
+  }
+
+  document.querySelectorAll("[data-brouillon-form]").forEach(surveillerBrouillon);
 })();

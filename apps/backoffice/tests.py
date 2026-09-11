@@ -2284,6 +2284,84 @@ def test_une_quantite_invalide_est_expliquee_dans_sa_ligne(client, db):
     assert "Saisissez un nombre" in corps
 
 
+# --- Valider : confirmer une version enregistrée -----------------------------
+#
+# « Enregistrer le brouillon » et « Valider » étaient deux formulaires distincts.
+# On pouvait donc modifier les champs à l'écran puis valider sans enregistrer :
+# l'émission portait sur la version sauvegardée, pas sur celle qu'on avait sous
+# les yeux. La validation passe maintenant par un écran de confirmation qui
+# montre ce qui est enregistré — et qui fonctionne sans JavaScript.
+
+
+def test_l_ecran_de_confirmation_montre_la_version_enregistree(client, db):
+    c = Client.objects.create(nom="Théâtre municipal")
+    facture = Facture.objects.create(client=c, objet="Représentation")
+    LigneFacture.objects.create(
+        facture=facture,
+        designation="Cachet",
+        quantite=2,
+        prix_unitaire_ht=Decimal("100"),
+        taux_tva=Decimal("20"),
+    )
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/factures/{facture.pk}/valider/").content.decode()
+
+    assert "Théâtre municipal" in corps
+    assert "Cachet" in corps
+    assert "240" in corps  # total TTC enregistré : 2 × 100 + 20 %
+    facture.refresh_from_db()
+    assert facture.numero is None  # regarder ne consomme aucun numéro
+
+
+def test_l_ecran_d_edition_mene_a_la_confirmation_et_non_a_l_emission(client, db):
+    """Le bouton n'émet plus directement : il ouvre le récapitulatif."""
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/factures/{facture.pk}/").content.decode()
+
+    assert f'href="/bureau/factures/{facture.pk}/valider/"' in corps
+
+
+def test_la_confirmation_d_une_facture_deja_emise_renvoie_a_la_piece(client, db):
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    client.force_login(_staff())
+
+    reponse = client.get(f"/bureau/factures/{facture.pk}/valider/")
+
+    assert reponse.status_code == 302
+    assert reponse.url == f"/bureau/factures/{facture.pk}/"
+
+
+def test_un_double_clic_sur_confirmer_n_annonce_pas_une_erreur(client, db):
+    """La seconde requête constate que la pièce est déjà émise. Rien n'a échoué
+    et le numéro de la première tient : le dire en rouge alarmait pour rien."""
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    client.force_login(_staff())
+
+    client.post(f"/bureau/factures/{facture.pk}/valider/")
+    reponse = client.post(f"/bureau/factures/{facture.pk}/valider/", follow=True)
+
+    annonces = [(m.level_tag, str(m)) for m in reponse.context["messages"]]
+    assert any(tag == "info" and "déjà" in texte for tag, texte in annonces), annonces
+    facture.refresh_from_db()
+    assert facture.numero == "F2026-0001"
+
+
 def test_la_duplication_est_reservee_au_bureau(client, db):
     c = Client.objects.create(nom="Théâtre")
     facture = Facture.objects.create(client=c)

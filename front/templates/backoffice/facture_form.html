@@ -11,7 +11,7 @@
     <h1>{% if facture %}Modifier la facture (brouillon){% else %}Nouvelle facture{% endif %}</h1>
   </header>
 
-  <form method="post" class="formulaire">
+  <form method="post" class="formulaire" data-brouillon-form>
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="erreurs" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -71,17 +71,26 @@
       <h2 id="titre-validation">Validation</h2>
       <p class="carte-projet__meta">
         La validation attribue un numéro légal définitif (série continue) et fige la facture.
-        Vérifiez d'abord le rendu avec l'aperçu — il ne consomme aucun numéro.
+        L'écran suivant récapitule la facture <strong>telle qu'elle est enregistrée</strong>, et
+        demande confirmation — rien n'est émis avant. L'aperçu, lui, ne consomme aucun numéro.
+      </p>
+      {% comment %}
+        Révélé par facturation.js dès que le formulaire est modifié : le
+        récapitulatif ne montrerait pas la saisie en cours. Sans JavaScript, il
+        reste muet, et c'est le récapitulatif qui fait voir l'écart.
+      {% endcomment %}
+      <p class="champ__erreur" role="status" tabindex="-1" data-non-enregistre hidden>
+        Modifications non enregistrées : enregistrez le brouillon avant de valider,
+        sinon l'émission portera sur la version précédente.
       </p>
       <p class="formulaire__actions">
         <a class="lien-bouton" href="{% url 'backoffice:apercu_facture' pk=facture.pk %}" target="_blank">
           Aperçu PDF (brouillon)
         </a>
+        <a class="lien-bouton" href="{% url 'backoffice:valider_facture' pk=facture.pk %}" data-valider-lien>
+          Valider et numéroter…
+        </a>
       </p>
-      <form method="post" action="{% url 'backoffice:valider_facture' pk=facture.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="lien-bouton">Valider et numéroter</button>
-      </form>
     </section>
   {% endif %}
 {% endblock %}

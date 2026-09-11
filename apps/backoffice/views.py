@@ -61,6 +61,7 @@ from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
     DevisDejaFacture,
+    FactureDejaValidee,
     FactureNonAvoirable,
     ValidationRefusee,
     assurer_pdf_facture,
@@ -1204,18 +1205,33 @@ def _editer_facture(request, *, facture: Facture):
 
 
 @bureau_requis
-@require_POST
 def valider_facture_vue(request, pk):
-    """Valide une facture : lui attribue son numéro légal. Les refus (déjà
-    validée, sans ligne, avoir excessif) viennent du service, pour que l'admin
-    les applique aussi."""
+    """Émission d'une facture, en deux temps.
+
+    GET récapitule ce qui est ENREGISTRÉ — client, lignes, totaux. L'édition et
+    la validation étant deux formulaires distincts, on pouvait sinon valider une
+    version qu'on n'avait pas sous les yeux : celle d'avant la dernière saisie.
+    POST émet la pièce.
+
+    Les refus (sans ligne, avoir excessif) viennent du service, pour que l'admin
+    les applique aussi. Une pièce déjà émise n'est pas une erreur : c'est le
+    second clic d'un double clic, et le numéro du premier tient — on le dit sans
+    alarmer.
+    """
     facture = get_object_or_404(Facture, pk=pk)
-    try:
-        valider_facture(facture)
-        messages.success(request, f"Facture {facture.numero} validée.")
-    except ValidationRefusee as exc:
-        messages.error(request, str(exc))
-    return redirect("backoffice:editer_facture", pk=facture.pk)
+    if request.method == "POST":
+        try:
+            valider_facture(facture)
+            messages.success(request, f"Facture {facture.numero} validée.")
+        except FactureDejaValidee:
+            messages.info(request, f"La facture {facture} était déjà validée : rien n'a changé.")
+        except ValidationRefusee as exc:
+            messages.error(request, str(exc))
+        return redirect("backoffice:editer_facture", pk=facture.pk)
+
+    if facture.statut != Facture.Statut.BROUILLON:
+        return redirect("backoffice:editer_facture", pk=facture.pk)
+    return render(request, "backoffice/facture_valider.html", {"facture": facture})
 
 
 @bureau_requis
