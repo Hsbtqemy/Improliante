@@ -149,15 +149,29 @@ contrôlant les droits, via `apps/common/fichiers.py::reponse_fichier_prive`
 ### Documents PDF (WeasyPrint)
 `apps/common/pdf.py::html_vers_pdf` importe WeasyPrint **paresseusement** (libs
 natives requises seulement au rendu, sur le VPS). Les documents légaux (facture,
-reçu) rendent leur PDF au 1ᵉʳ téléchargement puis le **mettent en cache** (privé,
-immuable) ; devis rendu à la volée. Un **signataire** optionnel
-(`coeur.Signataire`, image en base64) peut être apposé.
+reçu) rendent leur PDF **dès l'émission** (`transaction.on_commit`) et le
+conservent (privé, immuable) : l'émetteur, le signataire et les paramètres de
+l'association sont lus AU RENDU, si bien qu'une pièce produite plus tard
+raconterait l'association d'aujourd'hui. Sans moteur PDF, le rendu retombe sur le
+1ᵉʳ téléchargement (`assurer_pdf_facture` / `assurer_pdf_recu`, qui revérifient
+l'absence de fichier sous verrou) — le numéro, lui, reste attribué. L'aperçu
+d'une pièce émise sert le fichier archivé ; devis rendu à la volée. Un
+**signataire** optionnel (`coeur.Signataire`, image en base64) peut être apposé.
 
 ### Numérotation légale
 `valider_facture` attribue un numéro **séquentiel, continu, sans trou** à la
 validation, sous verrou (`select_for_update`) dans une transaction. Séquence
 partagée facture/avoir (préfixe `F`/`A`). Idem `emettre_recu` (préfixe `R`).
 Les devis sont numérotés plus souplement (préfixe `D`, sans criticité légale).
+
+Toute transition relit sa pièce **sous verrou avant de la contrôler** : l'instance
+reçue par un service peut être périmée (double clic, deux onglets), et tester son
+état ne prouve rien. Vaut pour `valider_facture`, `transformer_en_facture`,
+`creer_avoir`, `emettre_recu` (un versement = un seul reçu) et
+`remplacer_document` (une seule version courante). L'édition d'un brouillon suit
+la même règle : `form.save()` réécrit toute l'instance lue à l'ouverture de la
+page, et effacerait le numéro d'une facture validée entre-temps.
+
 > Nuance de test : SQLite rend `select_for_update` inopérant ; les tests
 > valident les règles fonctionnelles, la sûreté concurrentielle repose sur
 > PostgreSQL.
