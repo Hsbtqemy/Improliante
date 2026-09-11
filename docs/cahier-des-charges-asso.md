@@ -230,8 +230,10 @@ Spectacle / Projet
   intercalables n'importe où (préambule, comptes rendus d'échanges, transitions),
   et une conclusion. Le PV est ensuite **généré en PDF** — présences, pouvoirs,
   quorum et résolutions (avec résultats) sont repris automatiquement, sans
-  ressaisie — et déposé dans la GED (visible des convoqués). Le dépôt d'un PV
-  externe reste possible.
+  ressaisie — et déposé dans la GED, **visible de tous les membres**, réunion de
+  bureau comprise : un compte rendu rend compte à toute l'association (décision
+  du 11 septembre 2026). La page d'une réunion de bureau, elle, reste réservée
+  au bureau ; son PV, non. Le dépôt d'un PV externe reste possible.
 - Une réunion **peut être** un `Evenement` de l'agenda (visibilité membres/interne) — pas de duplication.
 
 ### 8.3 Votes / pouvoirs / quorum — **dès la v1**
