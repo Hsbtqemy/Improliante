@@ -51,18 +51,23 @@ echo "  Médias publics et privés sauvegardés : $MEDIA_FILE"
 
 # --- 3. Envoi hors VPS ------------------------------------------------
 # L'externalisation est demandée dès le départ (cahier §14) : une sauvegarde
-# qui reste sur le VPS disparaît avec le VPS. Le script REFUSE donc de se
-# terminer en silence tant que `RCLONE_REMOTE` n'est pas renseigné — sans quoi
-# on croit sauvegarder pendant des mois, et on ne le découvre qu'au sinistre.
+# qui reste sur le VPS disparaît avec le VPS. Sans `RCLONE_REMOTE`, le script
+# garde les archives locales mais SORT EN ÉCHEC (code 1) : un superviseur
+# (timer systemd, sonde) doit lire une sauvegarde incomplète, pas un succès.
+# Un avertissement sur stderr ne suffisait pas — le cron de l'en-tête le
+# redirige dans le log, où personne ne le lit. Ce code non plus, d'ailleurs,
+# tant qu'aucune supervision ne le regarde.
 #
 # Renseigner le remote une fois rclone configuré :
 #   RCLONE_REMOTE="swissbackup:asso"   (ou export dans l'environnement du cron)
 RCLONE_REMOTE="${RCLONE_REMOTE:-}"
+EXTERNALISEE=0
 
 if [ -n "$RCLONE_REMOTE" ]; then
     rclone copy "$DUMP_FILE"  "$RCLONE_REMOTE/db/"
     rclone copy "$MEDIA_FILE" "$RCLONE_REMOTE/media/"
     echo "  Sauvegardes envoyées vers $RCLONE_REMOTE"
+    EXTERNALISEE=1
 else
     echo "  ATTENTION : RCLONE_REMOTE vide — sauvegardes gardées SUR LE VPS," >&2
     echo "  donc perdues avec lui. Configurer rclone (cahier §14)." >&2
@@ -73,4 +78,8 @@ find "$BACKUP_DIR" -name "db-*.sql.gz"   -mtime +"$RETENTION_JOURS" -delete
 find "$BACKUP_DIR" -name "media-*.tar.gz" -mtime +"$RETENTION_JOURS" -delete
 echo "  Purge des sauvegardes de plus de $RETENTION_JOURS jours effectuée."
 
+if [ "$EXTERNALISEE" -ne 1 ]; then
+    echo "[$(date '+%F %T')] Sauvegarde INCOMPLÈTE : aucune copie hors VPS." >&2
+    exit 1
+fi
 echo "[$(date '+%F %T')] Sauvegarde terminée."
