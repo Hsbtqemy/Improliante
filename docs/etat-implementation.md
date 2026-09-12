@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~590 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~605 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---
@@ -52,7 +52,8 @@ La même `dossier_detail.html` sert les quatre branches, pilotée par `peut_ecri
 l'espace de son dossier : `PERSO` → `_peut_voir_dossier_membre` (Perso =
 propriétaire seul, **bureau exclu** ; Bureau = propriétaire + bureau) ; `COMMUN` →
 `_peut_voir_espace_commun` (tout membre) ; `ASSOCIATION`/non classé → par
-`confidentialite` (`_documents_accessibles` : bureau tout, `PUBLIC`→connecté,
+`confidentialite` (`_documents_accessibles` : bureau tout, `CONNECTES`→tout compte
+connecté (valeur stockée `public`, libellé corrigé — il n'a jamais rien mis en ligne),
 `MEMBRES`→membre, `PRIVE`→déposant). **Étanchéité** : chaque famille d'URL filtre
 son espace (`get_object_or_404(..., espace=…)` → un pk d'un autre espace = 404) ;
 l'écriture Association est gardée par `est_bureau` (POST non-bureau → 404).

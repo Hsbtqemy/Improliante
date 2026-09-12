@@ -1,7 +1,12 @@
 {% comment %}
 Bouton + formulaire (replié) de création d'un dossier racine dans une branche.
 Attendu : `branche` (perso/partage/bureau), `dossier_form`, `branche_active`.
+
+Le garde-fou est ICI plutôt que sur chacune des quatre inclusions : une adhésion
+terminée ferme le dépôt (SEC-05), et un cinquième appel ne doit pas rouvrir le
+formulaire par oubli.
 {% endcomment %}
+{% if peut_ecrire_espace %}
 <div class="ged-barre">
   <details class="ged-action"{% if branche_active == branche and dossier_form.errors %} open{% endif %}>
     <summary class="lien-bouton lien-bouton--discret">
@@ -19,3 +24,4 @@ Attendu : `branche` (perso/partage/bureau), `dossier_form`, `branche_active`.
     </form>
   </details>
 </div>
+{% endif %}

@@ -40,7 +40,8 @@ Attendu dans le contexte : `est_bureau` (context processor backoffice).
       <li><a href="{% url 'espace_membre:mes_evenements' %}" {% if vn == 'espace_membre:mes_evenements' or vn == 'espace_membre:creer_evenement' or vn == 'espace_membre:voir_evenement' or vn == 'espace_membre:editer_evenement' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-calendrier"></use></svg><span>Mes événements</span></a></li>
       <li><a href="{% url 'espace_membre:mes_convocations' %}" {% if vn == 'espace_membre:mes_convocations' or vn == 'espace_membre:detail_convocation' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-enveloppe"></use></svg><span>Mes convocations</span></a></li>
       <li><a href="{% url 'espace_membre:mes_fichiers' %}" {% if vn == 'espace_membre:mes_fichiers' or vn == 'espace_membre:dossier_membre' or vn == 'espace_membre:editer_dossier_membre' or vn == 'espace_membre:dossier_commun' or vn == 'espace_membre:editer_dossier_commun' or vn == 'espace_membre:dossier_association' or vn == 'espace_membre:editer_dossier_association' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-dossier"></use></svg><span>Fichiers</span></a></li>
-      <li><a href="{% url 'espace_membre:mon_profil' %}" {% if vn == 'espace_membre:mon_profil' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>
+      {# « Mon profil » n'est qu'un formulaire : une adhésion terminée n'y a rien à lire (SEC-05). #}
+      {% if peut_ecrire_espace %}<li><a href="{% url 'espace_membre:mon_profil' %}" {% if vn == 'espace_membre:mon_profil' %}aria-current="page"{% endif %}><svg class="ico" aria-hidden="true"><use href="#ico-profil"></use></svg><span>Mon profil</span></a></li>{% endif %}
     </ul>
   </details>
 

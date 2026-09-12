@@ -5,7 +5,7 @@ Ce fichier est court par nature : il **oriente**. Le détail fonctionnel complet
 vit dans `docs/cahier-des-charges-asso.md` — s'y référer pour toute question métier.
 
 > État du projet : **v1 fonctionnelle implémentée** (modèles, services, front
-> public, espace membre, back-office). ~590 tests pytest verts, `ruff` propre,
+> public, espace membre, back-office). ~605 tests pytest verts, `ruff` propre,
 > `manage.py check` et `check --deploy` passent. Carte détaillée des modules et
 > des conventions transverses → `docs/etat-implementation.md`.
 > **Reste à faire** : le déploiement VPS (fichiers prêts dans `deploiement/`).

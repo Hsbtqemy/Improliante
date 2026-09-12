@@ -2136,3 +2136,79 @@ def test_un_membre_du_bureau_ecrit_meme_si_sa_fiche_est_inactive(client, db):
     client.post("/espace/projets/nouveau/", _donnees_projet(action="enregistrer"))
 
     assert Spectacle.objects.count() == 1
+
+
+def test_membre_inactif_ne_recoit_pas_un_formulaire_qui_sera_refuse(client, db):
+    """Défaut trouvé en relecture du lot 6 : les liens étaient bien masqués,
+    mais les écrans restaient atteignables par leur adresse et affichaient un
+    formulaire complet. L'ancien membre l'aurait rempli pour se voir refuser
+    l'enregistrement à la fin — sa saisie perdue pour une réponse qu'on pouvait
+    lui donner au début. Un écran qui n'est QUE un geste d'écriture se ferme."""
+    membre = _membre_inactif()
+    projet = Spectacle.objects.create(
+        titre="Ancien", type_portage=Spectacle.TypePortage.PERSONNEL, cree_par=membre.user
+    )
+    projet.porteurs.add(membre)
+    racine = _dossier_membre(membre, Visibilite.PRIVE, nom="Racine")
+    sous = _dossier_membre(membre, Visibilite.PRIVE, nom="Sous", parent=racine)
+    client.force_login(membre.user)
+
+    ecrans = (
+        "/espace/profil/",
+        "/espace/projets/nouveau/",
+        f"/espace/projets/{projet.pk}/modifier/",
+        "/espace/evenements/nouveau/",
+        f"/espace/fichiers/{sous.pk}/deplacer/",
+        f"/espace/fichiers/{sous.pk}/editer/",
+    )
+    for url in ecrans:
+        reponse = client.get(url)
+        assert reponse.status_code == 302, f"{url} rend encore un formulaire"
+        assert reponse["Location"] == "/espace/", url
+
+
+def test_le_membre_a_jour_atteint_toujours_ces_ecrans(client, db):
+    """Le garde-fou ci-dessus ne doit pas fermer la porte à qui a le droit."""
+    membre = _membre("active")
+    client.force_login(membre.user)
+
+    for url in ("/espace/profil/", "/espace/projets/nouveau/", "/espace/evenements/nouveau/"):
+        assert client.get(url).status_code == 200, url
+
+
+def test_une_page_membre_ne_redemande_pas_les_groupes_a_chaque_controle(client, db):
+    """Régression introduite puis corrigée dans le lot 6 : `est_bureau` retourne
+    en base à chaque appel, et le contrôle d'écriture l'appelait une fois de
+    plus par vue ET par gabarit — trois requêtes de groupes identiques sur
+    chaque page servie à un membre connecté, là où une suffit.
+
+    L'assertion porte sur cette requête précise, pas sur un total : un total se
+    périme au premier `select_related` ajouté ailleurs et ne dirait plus rien."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.get("/espace/")  # première passe : cache de gabarits
+
+    with CaptureQueriesContext(connection) as requetes:
+        client.get("/espace/")
+
+    groupes = [r["sql"] for r in requetes.captured_queries if "auth_group" in r["sql"]]
+    assert len(groupes) <= 1, f"{len(groupes)} requêtes de groupes pour une seule page"
+
+
+def test_aucun_ecran_lisible_n_offre_de_formulaire_a_un_membre_inactif(client, db):
+    """Le pendant du test précédent, pour les écrans qui RESTENT ouverts : ils
+    se consultent, et n'y proposent plus aucun geste. Deux oublis trouvés en
+    relecture — le formulaire « Nouveau dossier » de la page Fichiers, et le
+    lien « Mon profil » du rail, qui ne mène plus qu'à un refus."""
+    membre = _membre_inactif()
+    dossier = _dossier_membre(membre, Visibilite.PRIVE, nom="Perso")
+    client.force_login(membre.user)
+
+    for url in ("/espace/", "/espace/fichiers/", f"/espace/fichiers/{dossier.pk}/"):
+        corps = client.get(url).content.decode()
+        assert "Nouveau dossier" not in corps, url
+        assert 'name="form_type"' not in corps, url
+        assert "/espace/profil/" not in corps, url

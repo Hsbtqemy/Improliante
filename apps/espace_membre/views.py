@@ -86,33 +86,58 @@ MESSAGE_LECTURE_SEULE = (
 METHODES_DE_LECTURE = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
+def _adhesion_terminee(request) -> bool:
+    """Vrai pour un compte dont la fiche membre existe et n'est plus active.
+
+    On distingue ce cas de « pas de fiche membre du tout » : ce dernier est
+    déjà traité par chaque vue, et mieux — par un 404 qui ne révèle pas
+    l'existence de l'objet visé (SEC-01). Le lui voler rendrait un 302 bavard
+    et lui servirait un message d'adhésion qu'il n'a jamais eue.
+    """
+    return _membre_connecte(request) is not None and not peut_ecrire_espace_membre(request.user)
+
+
 def ecriture_requise(view):
     """Ferme l'ÉCRITURE à un membre dont l'adhésion a pris fin, pas la lecture.
 
-    Posé sur des vues qui mêlent GET et POST : les décorer entièrement
-    fermerait aussi la consultation, qui reste ouverte par décision (SEC-05).
-    Seules les méthodes qui écrivent sont refusées, et elles le sont par un
-    message plutôt que par un 403 — l'ancien membre n'a rien fait de mal.
+    Posé sur les écrans qui MÊLENT consultation et geste d'écriture (un dossier
+    et son formulaire de dépôt, une convocation et sa réponse) : les fermer
+    entièrement fermerait la consultation, qui reste ouverte par décision
+    (SEC-05). Seules les méthodes qui écrivent sont refusées, et par un message
+    plutôt qu'un 403 — l'ancien membre n'a rien fait de mal.
+
+    Pour un écran qui n'est QUE le geste, voir `page_d_ecriture`.
     """
 
     @wraps(view)
     def _verifie_ecriture(request, *args, **kwargs):
-        # On n'intercepte QUE la fin d'adhésion — une fiche membre existe et
-        # n'est plus active. Le compte sans fiche membre est déjà traité par
-        # chaque vue, et mieux : par un 404 qui ne révèle pas l'existence de
-        # l'objet visé (SEC-01). Le lui voler ici rendrait un 302 bavard et lui
-        # servirait un message d'adhésion qu'il n'a jamais eue.
-        fiche = _membre_connecte(request)
-        if (
-            request.method not in METHODES_DE_LECTURE
-            and fiche is not None
-            and not peut_ecrire_espace_membre(request.user)
-        ):
+        if request.method not in METHODES_DE_LECTURE and _adhesion_terminee(request):
             messages.error(request, MESSAGE_LECTURE_SEULE)
             return redirect("espace_membre:tableau_de_bord")
         return view(request, *args, **kwargs)
 
     return login_required(_verifie_ecriture)
+
+
+def page_d_ecriture(view):
+    """Écran dont le seul objet est un geste d'écriture : créer, modifier,
+    renommer, déplacer.
+
+    La consultation n'y perd rien, puisqu'il n'y a rien à y consulter — et
+    laisser passer le GET serait pire que de le fermer : le formulaire
+    s'afficherait, l'ancien membre le remplirait, et l'enregistrement seul
+    serait refusé. Il aurait perdu sa saisie pour apprendre à la fin ce qu'on
+    pouvait lui dire au début.
+    """
+
+    @wraps(view)
+    def _verifie_page(request, *args, **kwargs):
+        if _adhesion_terminee(request):
+            messages.error(request, MESSAGE_LECTURE_SEULE)
+            return redirect("espace_membre:tableau_de_bord")
+        return view(request, *args, **kwargs)
+
+    return login_required(_verifie_page)
 
 
 @login_required
@@ -190,7 +215,7 @@ def tableau_de_bord(request):
     return render(request, "espace_membre/tableau_de_bord.html", contexte)
 
 
-@ecriture_requise
+@page_d_ecriture
 def mon_profil(request):
     """Édition par le membre de SA propre fiche (bio, rôle, site, réseaux, photo).
 
@@ -242,7 +267,7 @@ def mes_projets(request):
     )
 
 
-@ecriture_requise
+@page_d_ecriture
 def creer_projet(request):
     """Création d'un projet par un membre : enregistré en brouillon, puis
     éventuellement soumis à la modération (bouton « Soumettre »)."""
@@ -293,7 +318,7 @@ def voir_projet(request, pk):
     )
 
 
-@ecriture_requise
+@page_d_ecriture
 def editer_projet(request, pk):
     """Édition d'un projet du membre. La propriété est vérifiée par le filtre
     `porteurs=membre` (anti-IDOR). L'auteur édite en brouillon, après refus et
@@ -364,7 +389,7 @@ def mes_evenements(request):
     )
 
 
-@ecriture_requise
+@page_d_ecriture
 def creer_evenement(request):
     """Proposition d'un événement : enregistré en brouillon puis, au choix,
     soumis à la modération. La visibilité reste fixée par le bureau."""
@@ -414,7 +439,7 @@ def voir_evenement(request, pk):
     )
 
 
-@ecriture_requise
+@page_d_ecriture
 def editer_evenement(request, pk):
     """Édition d'un événement du membre. Propriété vérifiée par
     `cree_par=request.user` (anti-IDOR). L'auteur édite en brouillon, après refus
@@ -777,7 +802,7 @@ def dossier_membre(request, pk):
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
-@ecriture_requise
+@page_d_ecriture
 def editer_dossier_membre(request, pk):
     """Renomme / redécrit un dossier personnel — propriétaire seul (404 sinon)."""
     membre = _membre_connecte(request)
@@ -834,7 +859,7 @@ def _peut_deplacer(user, membre, dossier) -> bool:
     return est_bureau(user)
 
 
-@ecriture_requise
+@page_d_ecriture
 def deplacer_dossier(request, pk):
     """Range un dossier ailleurs dans SON espace.
 
@@ -975,7 +1000,7 @@ def dossier_commun(request, pk):
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
-@ecriture_requise
+@page_d_ecriture
 def editer_dossier_commun(request, pk):
     """Renomme / redécrit un dossier commun (tout membre)."""
     membre = _membre_connecte(request)
@@ -1109,7 +1134,7 @@ def dossier_association(request, pk):
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
-@ecriture_requise
+@page_d_ecriture
 def editer_dossier_association(request, pk):
     """Renomme / redécrit un dossier officiel — bureau seul (404 sinon)."""
     if not est_bureau(request.user):

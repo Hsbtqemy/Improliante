@@ -40,10 +40,15 @@ def peut_ecrire_espace_membre(user) -> bool:
     """
     if not user.is_authenticated or not user.is_active:
         return False
-    if est_bureau(user):
-        return True
+    # La fiche membre AVANT le bureau, et l'ordre n'est pas cosmétique : la
+    # relation est mise en cache sur l'utilisateur au premier accès, alors que
+    # `est_bureau` retourne en base à chaque appel. Dans l'autre sens, le cas
+    # courant — un membre à jour — payait une requête de groupes par appel, et
+    # cette fonction est appelée sur chaque page servie.
     membre = getattr(user, "membre", None)
-    return membre is not None and membre.actif
+    if membre is not None and membre.actif:
+        return True
+    return est_bureau(user)
 
 
 def bureau_requis(view):
