@@ -6,9 +6,9 @@ audit: docs/audit-externe-2026-09-11-constats.md
 
 # SEC-1 — consolidation après l'audit externe
 
-**Arrêté sur** — lot 4 : gouvernance (GOU-01) — un seul service pour les pouvoirs avec le
-plafond statutaire, registre électoral complet (le quorum se calcule enfin sur l'électorat,
-absents compris) et règles figées à la clôture, commit `d1ba3a5`, 12 septembre.
+**Arrêté sur** — lot 5 : le moteur PDF absent s'explique au lieu de planter (six vues), et
+les dépendances directes sont épinglées à ce qui est éprouvé, outils de développement mis à
+part, commit `af9ea9c`, 12 septembre.
 
 ## Reste
 
@@ -17,7 +17,7 @@ absents compris) et règles figées à la clôture, commit `d1ba3a5`, 12 septemb
 - [x] FIN-02 : une facture dont le PDF archivé a disparu se régénère à l'identique — instantané d'émission, dont le rendu part désormais
 - [x] FIN-04 : un avoir dupliqué ne peut plus annuler plus que sa facture — détaché de son origine, il ne s'émet plus du tout
 - [ ] L'avoir dupliqué a une issue : soit un écran pour le rattacher à une facture, soit la duplication d'un avoir disparaît — aujourd'hui il se prépare et reste bloqué là
-- [ ] Télécharger ou prévisualiser une facture sans moteur PDF affiche un message, pas une erreur 500 — la vue du PV le fait déjà, les vues de facture non
+- [x] Télécharger ou prévisualiser une facture, un devis ou un reçu sans moteur PDF affiche un message, pas une erreur 500 — côté membre aussi
 
 ### Saisie et parcours
 - [x] « Valider » ne porte plus que sur une version enregistrée : un écran de confirmation récapitule la pièce telle qu'elle est en base, et seul le POST émet
@@ -39,7 +39,7 @@ absents compris) et règles figées à la clôture, commit `d1ba3a5`, 12 septemb
 - [ ] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — aucune route ne le permet aujourd'hui
 - [ ] FRONT-08 : une campagne d'accessibilité a été menée (375 px et bureau, zoom 200 %, clavier, focus après erreur, contraste de la palette retenue) et ce qu'elle trouve est corrigé ou fiché
 - [x] GOU-01 : une réunion close garde son résultat, et l'électorat n'est plus réduit aux présences enregistrées
-- [ ] OPS-04 : l'environnement testé est verrouillé (lockfile), et le README annonce la bonne version de Python et un compte de tests exact
+- [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
 
 ## Contexte
