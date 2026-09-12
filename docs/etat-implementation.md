@@ -125,6 +125,29 @@ orchestrent et rendent le retour utilisateur). Points d'entrée notables :
   Validation d'upload partagée : `apps/documents/validators.py`
   (`valider_fichier_document` : taille max + extensions exécutables refusées).
 
+### Champs de formulaire : une seule convention d'identifiants
+Django ≥ 5 relie lui-même l'aide et l'erreur d'un champ à son widget par
+`aria-describedby` (`forms/boundfield.py::aria_describedby`), en nommant
+`<auto_id>_helptext` et `<auto_id>_error`. **Le gabarit doit rendre ces id-là** ;
+une référence vers un id absent est ignorée **sans erreur**, si bien que l'aide
+s'affiche à l'écran et ne s'annonce jamais. Un mixin maison posait une seconde
+convention (`_aide`) : tout formulaire qui l'oubliait pendait dans le vide. Il a
+été retiré (lot 9 de SEC-1) — ne pas le réintroduire, et ne **pas** poser
+`aria-describedby` à la main sur un widget : Django s'effacerait devant lui et le
+rattachement de l'erreur serait perdu.
+
+Le passage obligé est `front/templates/_champ.html`. **Vingt-cinq gabarits rendent
+encore un champ à la main** et n'ont pas d'id sur leurs messages d'erreur : la
+référence `_error` y pend dès qu'un formulaire est refusé, état qu'aucun balayage
+ne visite. C'est un cas de l'inventaire ARCH-01. Un nouveau formulaire passe par
+`_champ.html`, sans exception.
+
+Trois invariants de balayage tiennent tout ça sur les 64 pages rendues
+(`apps/common/tests.py`) : aucune référence `aria-*` dans le vide, aucun
+identifiant rendu deux fois, un nom accessible pour chaque champ, bouton et lien.
+Un formulaire rendu plusieurs fois sur une page doit porter un `auto_id` distinct
+par copie (cf. `_form_dossier` dans `apps/espace_membre/views.py`).
+
 ### Rôles & autorisation bureau
 `apps/coeur/roles.py` est la **seule** porte : `est_bureau(user)` (groupe Django
 « Bureau » **ou** `is_staff`/superuser, compte actif) et le décorateur

@@ -1923,6 +1923,12 @@ th.montant {
   font-weight: 400;
   margin: 0;
 }
+/* Enveloppe des messages d'un champ : elle porte l'id référencé par
+   `aria-describedby` (un seul, quel que soit le nombre d'erreurs) et laisse
+   ses messages s'empiler. */
+.champ__erreurs {
+  display: block;
+}
 .champ__erreur {
   display: block;
   margin-top: 0.25rem;

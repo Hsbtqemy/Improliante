@@ -697,7 +697,6 @@ def mes_fichiers(request):
 
     formulaires_dossier = {b: _form_dossier(b) for b in BRANCHES_DOSSIER}
     branche = request.POST.get("branche")
-    dossier_form = formulaires_dossier.get(branche) or _form_dossier()
     if request.method == "POST" and request.POST.get("form_type") == "dossier":
         if branche == "association":
             if not peut_ecrire_asso:

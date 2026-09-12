@@ -835,6 +835,11 @@ _PAIRES_AA = [
     ("accent sur en-tête (gros titre)", "--accent", "--ink", None, 3.0),
     ("encre sur bouton accent", "--ink", "--accent", None, 4.5),
     ("texte muet sur canvas", "--couleur-muet", "--canvas", None, 4.5),
+    # Ajoutée au lot 9 avec la règle du lien neutralisé : elle peint une paire
+    # que rien ne mesurait, sur les dix-huit palettes et dans les deux modes. Un
+    # bouton neutralisé reste à LIRE — il dit pourquoi on ne peut pas cliquer —
+    # donc il tient le même seuil que le texte courant, pas celui d'un ornement.
+    ("texte sur bouton neutralisé", "--couleur-texte", "--surface-alt", None, 4.5),
 ]
 
 

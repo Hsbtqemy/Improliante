@@ -14,5 +14,11 @@ qu'aucune erreur ne se produise. Un test de balayage garde l'invariant
   <label for="{{ field.id_for_label }}">{{ field.label }}</label>
   {{ field }}
   {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
-  {% if field.errors %}<span class="champ__erreur" id="{{ field.auto_id }}_error" role="alert">{% for erreur in field.errors %}{{ erreur }}{% if not forloop.last %} {% endif %}{% endfor %}</span>{% endif %}
+  {% comment %}
+    Un seul élément porte l'id, sinon deux erreurs le rendraient deux fois — et
+    un id dupliqué rend la référence ambiguë. Les messages restent un bloc
+    chacun à l'intérieur : les mettre bout à bout dans un span unique les
+    ferait lire comme une seule phrase.
+  {% endcomment %}
+  {% if field.errors %}<span class="champ__erreurs" id="{{ field.auto_id }}_error" role="alert">{% for erreur in field.errors %}<span class="champ__erreur">{{ erreur }}</span>{% endfor %}</span>{% endif %}
 </p>

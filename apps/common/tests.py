@@ -645,13 +645,12 @@ def test_aucune_page_ne_porte_deux_fois_le_meme_identifiant(client, db):
 
     fautives = []
     for url, html in _pages_sans_parametre(client):
-        # Les gabarits de formset portent `__prefix__` : ce sont des modèles
-        # inertes clonés par le JS, qui réécrit l'indice. Deux occurrences y
-        # sont attendues, pas un défaut.
-        sans_modele = re.sub(r"<[^>]*__prefix__[^>]*>", "", html)
-        doubles = [
-            i for i, n in Counter(re.findall(r'\bid="([^"]+)"', sans_modele)).items() if n > 1
-        ]
+        # Aucune exception, y compris pour les gabarits `__prefix__` des
+        # formsets : j'en avais posé une par précaution, et le test passe sans
+        # elle. Elle écartait du calcul toute balise contenant `__prefix__`,
+        # donc une vraie duplication qui s'y trouverait serait passée
+        # inaperçue — pour couvrir un cas que le dépôt ne produit pas.
+        doubles = [i for i, n in Counter(re.findall(r'\bid="([^"]+)"', html)).items() if n > 1]
         if doubles:
             fautives.append(f"{url} → {', '.join(sorted(doubles)[:4])}")
 
@@ -677,3 +676,40 @@ def test_chaque_bouton_et_lien_a_un_nom_accessible(client, db):
             muets.append(f"{url} → {balise.strip()[:60]}")
 
     assert not muets, "contrôle sans nom accessible :\n  " + "\n  ".join(sorted(set(muets))[:10])
+
+
+def test_un_champ_refuse_relie_ses_messages_sans_dupliquer_d_identifiant():
+    """L'état que le balayage ne visite PAS : un formulaire refusé.
+
+    Django référence `<id>_error` dès qu'un champ porte une erreur. Le gabarit
+    doit donc rendre cet id, UNE seule fois quel que soit le nombre de messages
+    — deux spans le portant chacun rendraient la référence ambiguë — et laisser
+    les messages s'empiler plutôt que se lire comme une seule phrase.
+    """
+    import re
+
+    from django import forms
+    from django.template.loader import render_to_string
+
+    class FormulaireEprouve(forms.Form):
+        code = forms.CharField(help_text="Trois lettres.")
+
+        def clean_code(self):
+            raise forms.ValidationError(["Première raison.", "Seconde raison."])
+
+    formulaire = FormulaireEprouve(data={"code": "x"})
+    assert not formulaire.is_valid()
+    html = render_to_string("_champ.html", {"field": formulaire["code"]})
+
+    cibles = set()
+    for valeur in re.findall(r'aria-describedby="([^"]+)"', html):
+        cibles |= set(valeur.split())
+    assert "id_code_error" in cibles, f"l'erreur n'est pas reliée au champ : {cibles}"
+    assert "id_code_helptext" in cibles, "l'aide cesse d'être reliée quand le champ est refusé"
+
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    assert ids.count("id_code_error") == 1, f"id d'erreur rendu {ids.count('id_code_error')} fois"
+    for cible in cibles:
+        assert cible in ids, f"référence dans le vide : {cible}"
+
+    assert html.count('class="champ__erreur"') == 2, "les deux messages ne sont plus deux blocs"
