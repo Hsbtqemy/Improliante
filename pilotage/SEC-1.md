@@ -1,14 +1,15 @@
 ---
 chantier: SEC-1
 statut: interrompu
+audit: docs/audit-externe-2026-09-11.md
 ---
 
 # SEC-1 — consolidation après l'audit externe
 
 **Arrêté sur** — lot 2 : reçu fiscal figé à l'émission et registre verrouillé (un
 versement = un seul reçu, admin en lecture seule), puis validation d'une facture en deux
-temps — un récapitulatif de ce qui est ENREGISTRÉ avant d'émettre, commit `6236e67`,
-12 septembre.
+temps — un récapitulatif de ce qui est ENREGISTRÉ avant d'émettre, relu et corrigé (classe
+CSS inventée, cas « sans ligne » sans test), commit `98abd08`, 12 septembre.
 
 ## Reste
 
@@ -34,8 +35,9 @@ temps — un récapitulatif de ce qui est ENREGISTRÉ avant d'émettre, commit `
 ## Contexte
 
 Un audit externe du dépôt (révision `8525e56`, daté du 11 septembre) a été relu constat par
-constat contre le code. Le document lui-même ne vit pas dans le dépôt ; ce qui compte en a
-été repris ici. Deux de ses constats ont été écartés :
+constat contre le code. Il est versé tel quel dans `docs/audit-externe-2026-09-11.md`, cité
+par l'en-tête `audit:` ci-dessus : chaque case ci-dessous reste ainsi rattachable au constat
+dont elle vient. Deux de ses constats ont été écartés :
 
 - **Les PV de bureau lisibles par les membres** ne sont pas une fuite mais la règle voulue —
   un compte rendu rend compte à toute l'association. Le cahier §233 et un test le disent
