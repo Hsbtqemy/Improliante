@@ -48,7 +48,7 @@ constats sur trente sont clos.
 - [x] FRONT-08, sans navigateur : l'aide de chaque champ s'annonce (une convention au lieu de deux), aucun identifiant n'est rendu deux fois, aucune référence `aria-*` ne pend dans le vide, et trois invariants de balayage les retiennent sur 64 pages
 - [ ] FRONT-08, passe QA : `pilotage/qa/accessibilite-front-08.md` est jouée et cochée par un humain — clavier réel, zoom 200 et 400 %, 375 px, et ce qu'un lecteur d'écran annonce sur un formulaire REFUSÉ, état qu'aucun balayage ne visite
 - [ ] Les 25 gabarits qui rendent un champ à la main donnent un identifiant à leurs messages d'erreur, ou passent par `_champ.html` : la référence `<id>_error` de Django y pend dès qu'un formulaire est refusé — à trancher avec l'inventaire ARCH-01, dont c'est un cas d'école
-- [x] GOU-01, les règles : une réunion close garde ses règles, et l'électorat n'est plus réduit aux présences enregistrées (lot 4)
+- [x] GOU-01, les règles : une réunion close garde ses règles, et l'électorat n'est plus réduit aux présences enregistrées (lot 4) — le gel valant sur les TROIS chemins de clôture, création d'une séance déjà archivée comprise, où il manquait (relecture du lot 12)
 - [x] GOU-01, le contenu : une réunion **archivée** refuse une résolution, un point d'ordre du jour, une présence, un pouvoir et une réécriture de compte rendu — une seule ligne (`contenu_scelle`), relue sous verrou par cinq services, lue par les écrans qui n'offrent plus les formulaires, et par l'admin (inlines en lecture seule, voix et notes figées). Le PV se régénère encore et la réunion se rouvre par son statut : exprès, et la réouverture s'annonce
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
@@ -148,6 +148,15 @@ Deux gestes restent permis, assumés : le PV se régénère, parce qu'il ne fait
 un contenu scellé et que le refuser enfermerait une séance sans son PV dans une impasse ;
 et la réunion se rouvre par son statut, parce qu'une clôture par erreur doit se défaire.
 Son en-tête, lui, est figé, et la réouverture s'annonce à l'écran.
+
+La relecture a trouvé deux règles qui ne valaient pas partout. Le compte rendu en
+portait deux au lieu d'une : une note absente de l'envoi était laissée telle quelle, une
+synthèse absente était remise à blanc — la conclusion de séance s'effaçait sans qu'on la
+demande, et l'encart de l'inventaire décrivait déjà la règle uniforme que le code
+n'appliquait qu'à moitié. Et le gel des règles vivait sur le chemin de l'ÉDITION : une
+réunion créée déjà archivée — une séance passée saisie après coup, ce que l'écran de
+création permet — ne figeait rien, et ses seuils suivaient les paramètres pour toujours.
+Les deux sont reproduites par sonde avant d'être corrigées.
 
 Trouvaille de chemin : la fiche d'une réunion n'était dans aucun balayage
 d'accessibilité, alors que c'est l'écran le plus dense du bureau. L'aide de son champ
