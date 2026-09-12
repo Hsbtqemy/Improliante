@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from django import forms
+from django.contrib.auth.forms import PasswordResetForm, _unicode_ci_compare
 from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
-from apps.coeur.models import LienReseau, Membre
+from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
 from apps.common.forms import AideAccessibleMixin
 from apps.documents.models import Document, Dossier
@@ -316,3 +317,43 @@ class ReponseConvocationForm(forms.Form):
         if donnees.get("statut") == Presence.Statut.REPRESENTE and not donnees.get("mandataire"):
             self.add_error("mandataire", "Choisissez le membre à qui vous donnez pouvoir.")
         return donnees
+
+
+class MotDePasseOublieForm(PasswordResetForm):
+    """Demande de réinitialisation, ouverte aussi aux comptes jamais activés.
+
+    `PasswordResetForm.get_users` de Django écarte les comptes dont le mot de
+    passe est INUTILISABLE. C'est le bon défaut là où « inutilisable » signifie
+    « ce compte s'authentifie ailleurs » (LDAP, fournisseur externe) : lui
+    envoyer un lien local ne mènerait à rien.
+
+    Ici, il signifie l'inverse. `apps.coeur.services.ouvrir_compte` pose un mot
+    de passe inutilisable **exprès** : le bureau ouvre l'accès, et le membre
+    choisit son mot de passe lui-même par le lien d'activation. La personne la
+    plus susceptible d'avoir oublié le sien est donc celle qui n'en a jamais
+    défini — invitée il y a six mois, lien d'activation perdu — et le défaut de
+    Django lui répondait par le silence, sur une page lui affirmant qu'un
+    courriel était parti.
+
+    Le jeton, lui, fonctionne dans les deux cas : `default_token_generator` le
+    dérive du hachage stocké, et un mot de passe inutilisable en est un
+    (`!` suivi d'aléa). Poser un mot de passe par ce chemin revient exactement à
+    l'activation, jeton d'usage unique compris.
+
+    `_unicode_ci_compare` est un nom privé de Django, importé sciemment : le
+    réécrire ici le figerait au comportement d'aujourd'hui, alors qu'il porte un
+    correctif de sécurité et peut être affiné en amont. La contrepartie est une
+    montée de version de Django à surveiller — le test du parcours complet la
+    verrait casser.
+    """
+
+    def get_users(self, email):
+        # On retire UNIQUEMENT le filtre sur le mot de passe utilisable. Les
+        # deux autres garde-fous de Django restent, et ce ne sont pas des
+        # détails : `is_active` (un compte désactivé par le bureau ne se rouvre
+        # pas tout seul par un courriel) et `_unicode_ci_compare`, qui reprend
+        # la comparaison en Python parce que le `iexact` de la base peut, selon
+        # sa collation, rapprocher deux adresses Unicode distinctes — et
+        # enverrait alors le lien au mauvais compte.
+        actifs = Utilisateur.objects.filter(email__iexact=email, is_active=True)
+        return (u for u in actifs if _unicode_ci_compare(email, u.email))

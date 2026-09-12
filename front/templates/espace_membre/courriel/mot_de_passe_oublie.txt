@@ -1,0 +1,15 @@
+{% autoescape off %}Bonjour,
+
+Une demande de nouveau mot de passe a été faite pour votre compte sur le site de
+L'Improliante.
+
+Pour en choisir un, suivez ce lien :
+
+{{ protocol }}://{{ domain }}{% url 'espace_membre:mot_de_passe_nouveau' uidb64=uid token=token %}
+
+Ce lien ne sert qu'une fois et expire au bout de quelques jours. Si vous n'êtes
+pas à l'origine de cette demande, vous pouvez ignorer ce message : votre mot de
+passe actuel reste valable.
+
+L'Improliante
+{% endautoescape %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Mot de passe oublié — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mot de passe oublié</h1>
+
+  <p>
+    Indiquez l'adresse e-mail de votre compte : vous recevrez un lien pour choisir
+    un nouveau mot de passe. Le lien est valable un temps limité et ne sert qu'une fois.
+  </p>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <p class="champ">
+      <label for="{{ form.email.id_for_label }}">Adresse e-mail</label>
+      {{ form.email }}
+      {% for erreur in form.email.errors %}
+        <span class="champ__erreur" role="alert">{{ erreur }}</span>
+      {% endfor %}
+    </p>
+    <div class="formulaire__actions">
+      <button type="submit" class="lien-bouton lien-bouton--primaire">Envoyer le lien</button>
+    </div>
+  </form>
+
+  <p><a href="{% url 'espace_membre:connexion' %}">← Retour à la connexion</a></p>
+{% endblock %}

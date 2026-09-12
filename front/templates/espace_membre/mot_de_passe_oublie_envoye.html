@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Lien envoyé — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Vérifiez votre messagerie</h1>
+
+  {% comment %}
+    Formulé sans confirmer que l'adresse existe : la page est la même dans les
+    deux cas, sinon elle servirait à savoir qui est membre de l'association.
+  {% endcomment %}
+  <p>
+    Si un compte correspond à cette adresse, un lien vient d'y être envoyé.
+    Il ne sert qu'une fois et expire au bout de quelques jours.
+  </p>
+  <p>
+    Rien ne vous parvient ? Regardez dans les indésirables, vérifiez l'adresse
+    saisie, puis contactez le bureau — l'adresse connue de l'association n'est
+    peut-être pas celle que vous utilisez aujourd'hui.
+  </p>
+
+  <p><a href="{% url 'espace_membre:connexion' %}">← Retour à la connexion</a></p>
+{% endblock %}

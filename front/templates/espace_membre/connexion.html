@@ -24,4 +24,6 @@
     <input type="hidden" name="next" value="{{ next }}" />
     <button type="submit" class="lien-bouton">Se connecter</button>
   </form>
+
+  <p><a href="{% url 'espace_membre:mot_de_passe_oublie' %}">Mot de passe oublié ?</a></p>
 {% endblock %}

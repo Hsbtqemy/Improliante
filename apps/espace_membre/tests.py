@@ -2217,3 +2217,120 @@ def test_aucun_ecran_lisible_n_offre_de_formulaire_a_un_membre_inactif(client, d
         assert "Nouveau dossier" not in corps, url
         assert 'name="form_type"' not in corps, url
         assert "/espace/profil/" not in corps, url
+
+
+# --- Mot de passe oublié (FRONT-07) -----------------------------------------
+#
+# Aucune route ne le permettait : il fallait intervenir à la main sur le serveur.
+# Le parcours s'écrit et s'éprouve avec le backend console de Django ; brancher un
+# vrai SMTP au déploiement est une ligne de réglage.
+
+
+def _lien_de_reinitialisation(corps):
+    """Extrait le chemin du lien contenu dans le courriel envoyé."""
+    import re
+
+    trouve = re.search(r"/mot-de-passe/nouveau/[^\s]+", corps)
+    return trouve.group(0) if trouve else None
+
+
+def test_la_page_de_connexion_mene_au_mot_de_passe_oublie(client, db):
+    """Sans ce lien, le parcours n'existe que pour qui connaît l'adresse."""
+    corps = client.get("/connexion/").content.decode()
+    assert "/mot-de-passe/oublie/" in corps
+
+
+def test_un_membre_recoit_un_lien_et_change_son_mot_de_passe(client, db, mailoutbox):
+    membre = _membre("alice")
+    membre.user.email = "alice@example.org"
+    membre.user.save(update_fields=["email"])
+
+    client.post("/mot-de-passe/oublie/", {"email": "alice@example.org"})
+
+    assert len(mailoutbox) == 1
+    lien = _lien_de_reinitialisation(mailoutbox[0].body)
+    assert lien is not None, "aucun lien dans le courriel"
+
+    # Django redirige vers une URL à jeton masqué avant d'afficher le formulaire.
+    reponse = client.get(lien, follow=True)
+    assert reponse.status_code == 200
+    client.post(
+        reponse.request["PATH_INFO"],
+        {"new_password1": "unMotDePasse!42", "new_password2": "unMotDePasse!42"},
+        follow=True,
+    )
+
+    client.logout()
+    assert client.login(username="alice", password="unMotDePasse!42")
+
+
+def test_un_membre_invite_mais_jamais_activo_recoit_le_lien(client, db, mailoutbox):
+    """LE piège du parcours. `ouvrir_compte` pose un mot de passe INUTILISABLE
+    (le membre le choisit via son lien d'activation), et le formulaire de Django
+    écarte justement ces comptes. La personne la plus susceptible d'avoir oublié
+    son mot de passe est celle qui n'en a jamais défini : sans correctif, elle
+    reçoit le silence, sur une page qui lui affirme qu'un courriel est parti."""
+    from apps.coeur.services import creer_membre, ouvrir_compte
+
+    membre = creer_membre(prenom="Bob", nom="Martin", email="bob@example.org")
+    ouvrir_compte(membre)
+    membre.user.refresh_from_db()
+    assert not membre.user.has_usable_password()
+
+    client.post("/mot-de-passe/oublie/", {"email": "bob@example.org"})
+
+    assert len(mailoutbox) == 1, "le compte invité n'a rien reçu"
+    assert _lien_de_reinitialisation(mailoutbox[0].body) is not None
+
+
+def test_une_adresse_inconnue_ne_se_trahit_pas(client, db, mailoutbox):
+    """Anti-énumération, comme les 404 de l'espace membre : la réponse est la
+    même que pour une adresse connue, et rien ne part."""
+    membre = _membre("alice")
+    membre.user.email = "alice@example.org"
+    membre.user.save(update_fields=["email"])
+
+    connue = client.post("/mot-de-passe/oublie/", {"email": "alice@example.org"})
+    mailoutbox.clear()
+    inconnue = client.post("/mot-de-passe/oublie/", {"email": "personne@example.org"})
+
+    assert inconnue.status_code == connue.status_code
+    assert inconnue.url == connue.url
+    assert len(mailoutbox) == 0
+
+
+def test_un_lien_perime_ne_propose_pas_de_formulaire(client, db):
+    """Le cas que l'audit demandait explicitement. Un jeton invalide ne doit pas
+    rendre une page vide ni une erreur : il s'explique, et renvoie au départ."""
+    from django.utils.encoding import force_bytes
+    from django.utils.http import urlsafe_base64_encode
+
+    membre = _membre("alice")
+    uidb64 = urlsafe_base64_encode(force_bytes(membre.user.pk))
+
+    corps = client.get(f"/mot-de-passe/nouveau/{uidb64}/jeton-invalide/", follow=True)
+    texte = corps.content.decode()
+
+    assert 'name="new_password1"' not in texte, "un formulaire est offert sur un lien mort"
+    assert "expiré" in texte or "invalide" in texte
+    assert "/mot-de-passe/oublie/" in texte, "aucun moyen de recommencer"
+
+
+def test_un_lien_ne_sert_qu_une_fois(client, db, mailoutbox):
+    """Usage unique : le mot de passe changé, le lien reçu par courriel est mort.
+    Sans quoi un courriel ancien rouvrirait le compte indéfiniment."""
+    membre = _membre("alice")
+    membre.user.email = "alice@example.org"
+    membre.user.save(update_fields=["email"])
+    client.post("/mot-de-passe/oublie/", {"email": "alice@example.org"})
+    lien = _lien_de_reinitialisation(mailoutbox[0].body)
+
+    premiere = client.get(lien, follow=True)
+    client.post(
+        premiere.request["PATH_INFO"],
+        {"new_password1": "unMotDePasse!42", "new_password2": "unMotDePasse!42"},
+        follow=True,
+    )
+
+    texte = client.get(lien, follow=True).content.decode()
+    assert 'name="new_password1"' not in texte, "le lien sert une seconde fois"

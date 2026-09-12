@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import path, reverse_lazy
 
 from . import views
+from .forms import MotDePasseOublieForm
 
 app_name = "espace_membre"
 
@@ -17,6 +18,45 @@ urlpatterns = [
     ),
     path("deconnexion/", auth_views.LogoutView.as_view(), name="deconnexion"),
     path("activation/<uidb64>/<token>/", views.activer_compte, name="activer_compte"),
+    # Mot de passe oublié (FRONT-07). Les quatre vues de Django, avec les
+    # gabarits du site : la demande, l'accusé, la saisie du nouveau mot de passe
+    # et la confirmation. `PasswordResetConfirmView` masque le jeton dans la
+    # session et redirige vers `.../set-password/` avant d'afficher le
+    # formulaire — c'est elle aussi qui rend la page « lien périmé », sans
+    # formulaire, quand le jeton ne vaut plus.
+    path(
+        "mot-de-passe/oublie/",
+        auth_views.PasswordResetView.as_view(
+            template_name="espace_membre/mot_de_passe_oublie.html",
+            email_template_name="espace_membre/courriel/mot_de_passe_oublie.txt",
+            subject_template_name="espace_membre/courriel/mot_de_passe_oublie_sujet.txt",
+            form_class=MotDePasseOublieForm,
+            success_url=reverse_lazy("espace_membre:mot_de_passe_oublie_envoye"),
+        ),
+        name="mot_de_passe_oublie",
+    ),
+    path(
+        "mot-de-passe/envoye/",
+        auth_views.PasswordResetDoneView.as_view(
+            template_name="espace_membre/mot_de_passe_oublie_envoye.html",
+        ),
+        name="mot_de_passe_oublie_envoye",
+    ),
+    path(
+        "mot-de-passe/nouveau/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="espace_membre/mot_de_passe_nouveau.html",
+            success_url=reverse_lazy("espace_membre:mot_de_passe_change"),
+        ),
+        name="mot_de_passe_nouveau",
+    ),
+    path(
+        "mot-de-passe/change/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="espace_membre/mot_de_passe_change.html",
+        ),
+        name="mot_de_passe_change",
+    ),
     path("espace/", views.tableau_de_bord, name="tableau_de_bord"),
     path("espace/profil/", views.mon_profil, name="mon_profil"),
     path("espace/projets/", views.mes_projets, name="mes_projets"),

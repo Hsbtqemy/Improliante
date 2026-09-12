@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Mot de passe enregistré — L'Improliante{% endblock %}
+
+{% block contenu %}
+  <h1>Mot de passe enregistré</h1>
+
+  <p>Vous pouvez maintenant vous connecter à votre espace membre.</p>
+
+  <p>
+    <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:connexion' %}">
+      Se connecter
+    </a>
+  </p>
+{% endblock %}
