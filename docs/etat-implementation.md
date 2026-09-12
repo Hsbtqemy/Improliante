@@ -184,6 +184,19 @@ page, et effacerait le numéro d'une facture validée entre-temps.
 > valident les règles fonctionnelles, la sûreté concurrentielle repose sur
 > PostgreSQL.
 
+### Résultat d'une réunion
+Le quorum se calcule sur le **registre électoral** de la réunion : tous les
+électeurs y sont inscrits — absents compris — par `preremplir_droit_de_vote`
+(membre actif, et à jour de cotisation si les statuts le demandent). Un registre
+réduit aux présents ferait paraître le quorum atteint alors qu'il ne l'est pas.
+
+À la **clôture** (statut « archivée »), les seuils statutaires du jour sont figés
+dans `Reunion.regles_figees` et le registre ne se rouvre plus : modifier ensuite
+quorum ou majorités dans les paramètres ne réécrit aucune assemblée passée. Avant
+la clôture, les paramètres courants s'appliquent, pour qu'un seuil mal saisi reste
+corrigeable. Les pouvoirs passent par un seul service — plafond statutaire
+compris — que la saisie vienne du membre ou du bureau.
+
 ### Invariants d'une pièce émise
 `valider_facture` refuse : une pièce déjà émise, une pièce sans ligne, un avoir
 détaché de sa facture, un avoir qui annulerait plus que le reste à annuler, et

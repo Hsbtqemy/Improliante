@@ -26,7 +26,7 @@ qu'elle ne dit pas la même chose que ce qui reste à faire aujourd'hui.
 | PUB-02 | 🟠 | P1 — documentation de confidentialité incomplète | Ouvert : la page reste un modèle à compléter, et l'inventaire des traitements à écrire |
 | FIN-03 | ✅ | P1 — transformation devis → facture non idempotente | Corrigé, lot 1 : devis relu sous verrou. La limite de numérotation des devis est désormais documentée, pas niée |
 | FIN-04 | ✅ | P1 — invariants des pièces et des montants | Corrigé, lots 2 et 3 (`93a9fe3`) : un seul avoir en préparation, jamais plus que le reste à annuler, ligne obligatoire dans le service, signe de la pièce contrôlé (une remise reste possible), avoir détaché non émissible, taux de TVA borné en base |
-| GOU-01 | 🟠 | P1 — le résultat d'une réunion doit être figé avec ses règles | Ouvert : électorat, instantané des règles, gel à la clôture |
+| GOU-01 | ✅ | P1 — le résultat d'une réunion doit être figé avec ses règles | Corrigé, lot 4 (`d1ba3a5`) : registre électoral complet (le quorum se calcule sur l'électorat, absents compris), règles figées à la clôture, registre non réouvrable après archivage, et un seul service pour les pouvoirs — plafond statutaire compris, quel que soit le chemin |
 | ARCH-01 | 🟡 | P1 — les règles centrales restent trop dépendantes des vues | Ouvert |
 | ARCH-02 | 🟡 | P2 — les modifications concurrentes des fiches peuvent se perdre | Ouvert |
 | PERF-01 | 🟡 | P2 — quelques requêtes et médias croîtront avec le contenu | Ouvert : N+1 des affiches, images non redimensionnées |
