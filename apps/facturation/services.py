@@ -15,6 +15,7 @@ import logging
 from datetime import date
 from decimal import Decimal
 from functools import partial
+from types import SimpleNamespace
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -22,6 +23,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from apps.coeur.models import ParametresAssociation
+from apps.common import instantane as fige
 from apps.common import pdf
 
 from .models import CompteurFacture, Devis, Facture, LigneFacture
@@ -99,7 +101,8 @@ def valider_facture(facture: Facture, *, date_emission: date | None = None) -> F
     courante.statut = Facture.Statut.VALIDEE
     courante.date = jour
     courante.date_validation = timezone.now()
-    champs = ["numero", "statut", "date", "date_validation"]
+    courante.instantane = _instantane(courante)
+    champs = ["numero", "statut", "date", "date_validation", "instantane"]
     courante.save(update_fields=champs)
     for champ in champs:
         setattr(facture, champ, getattr(courante, champ))
@@ -214,14 +217,73 @@ def dupliquer_facture(facture: Facture) -> Facture:
     return copie
 
 
-def pdf_de_facture(facture: Facture, *, apercu: bool = False) -> bytes:
-    """Rend le PDF d'une facture. `apercu=True` produit un brouillon filigrané
-    « sans valeur » (dry-run avant validation), sans numéro légal."""
-    html = render_to_string(
-        "facture/facture.html",
-        {"facture": facture, "asso": ParametresAssociation.load(), "apercu": apercu},
+def _instantane(facture: Facture) -> dict:
+    """Fige émetteur, client, lignes et totaux au moment de l'émission.
+
+    Les montants y sont figés en TEXTE : le JSON ne connaît pas le décimal, et
+    passer par un flottant ferait mentir la pièce d'un centime."""
+    return {
+        "version": 1,
+        "emetteur": fige.emetteur(ParametresAssociation.load()),
+        "client": {
+            champ: getattr(facture.client, champ)
+            for champ in ("nom", "adresse", "code_postal", "ville", "siret", "numero_tva")
+        },
+        "signataire": fige.signataire(facture.signataire),
+        "lignes": [
+            {
+                "designation": ligne.designation,
+                "quantite": str(ligne.quantite),
+                "prix_unitaire_ht": str(ligne.prix_unitaire_ht),
+                "taux_tva": str(ligne.taux_tva),
+                "total_ht": str(ligne.total_ht),
+            }
+            for ligne in facture.lignes.all()
+        ],
+        "totaux": {
+            "total_ht": str(facture.total_ht),
+            "total_tva": str(facture.total_tva),
+            "total_ttc": str(facture.total_ttc),
+        },
+    }
+
+
+def _facture_figee(facture: Facture) -> SimpleNamespace:
+    """La facture telle qu'elle a été émise, sous la forme qu'attend le gabarit."""
+    instant = facture.instantane
+    return SimpleNamespace(
+        numero=facture.numero,
+        date=facture.date,
+        date_echeance=facture.date_echeance,
+        objet=facture.objet,
+        type_piece=facture.type_piece,
+        mentions_legales=facture.mentions_legales,
+        client=fige.en_objet(instant["client"]),
+        signataire=fige.en_objet(instant["signataire"]),
+        avoir_de=SimpleNamespace(numero=facture.avoir_de.numero) if facture.avoir_de_id else None,
+        lignes=SimpleNamespace(all=[fige.en_objet(ligne) for ligne in instant["lignes"]]),
+        **instant["totaux"],
     )
-    return pdf.html_vers_pdf(html)
+
+
+def pdf_de_facture(facture: Facture, *, apercu: bool = False) -> bytes:
+    """Rend le PDF d'une facture.
+
+    Une pièce ÉMISE est rendue depuis son INSTANTANÉ : si le PDF archivé
+    disparaît, on le reconstruit tel qu'il a été émis — pas avec le nom que
+    l'association porte aujourd'hui, ni l'adresse que le client a depuis.
+    `apercu=True` fait l'inverse, et c'est son rôle : un brouillon filigrané
+    « sans valeur », rendu à partir des données vivantes, pour vérifier avant
+    d'émettre."""
+    if not apercu and facture.instantane:
+        contexte = {
+            "facture": _facture_figee(facture),
+            "asso": fige.en_objet(facture.instantane["emetteur"]),
+            "apercu": False,
+        }
+    else:
+        contexte = {"facture": facture, "asso": ParametresAssociation.load(), "apercu": apercu}
+    return pdf.html_vers_pdf(render_to_string("facture/facture.html", contexte))
 
 
 @transaction.atomic

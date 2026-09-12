@@ -190,6 +190,47 @@ def test_deux_premiers_telechargements_du_recu_ne_rendent_qu_une_fois(db, monkey
     assert requete_b.fichier.name == requete_a.fichier.name
 
 
+def test_l_emission_fige_le_beneficiaire_du_recu(db):
+    """Le donateur est déjà recopié dans les colonnes ; le bénéficiaire, lui,
+    vivait dans les paramètres de l'association."""
+    from apps.coeur.models import ParametresAssociation
+
+    params = ParametresAssociation.load()
+    params.nom = "Association Improliante"
+    params.save()
+
+    recu = _emettre()
+
+    recu.refresh_from_db()
+    assert recu.instantane["emetteur"]["nom"] == "Association Improliante"
+
+
+def test_un_cerfa_perdu_se_regenere_a_l_identique(
+    db, monkeypatch, django_capture_on_commit_callbacks
+):
+    from apps.coeur.models import ParametresAssociation
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    params = ParametresAssociation.load()
+    params.nom = "Association Improliante"
+    params.save()
+    with django_capture_on_commit_callbacks(execute=True):
+        recu = _emettre()
+
+    recu.refresh_from_db()
+    recu.fichier.delete(save=True)  # sinistre : le Cerfa archivé a disparu
+    params.nom = "Troupe renommée"
+    params.save()
+
+    assurer_pdf_recu(recu)
+
+    contenu = recu.fichier.open("rb").read().decode()
+    assert "Association Improliante" in contenu
+    assert "Troupe renommée" not in contenu
+
+
 def test_un_second_recu_pour_la_meme_adhesion_est_refuse_par_le_service(db):
     """Le garde-fou « un versement = un reçu » vivait dans la vue : un double
     clic passait à côté, et l'admin comme le shell l'ignoraient."""

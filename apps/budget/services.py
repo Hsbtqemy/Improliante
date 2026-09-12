@@ -15,6 +15,7 @@ import logging
 from datetime import date
 from decimal import Decimal
 from functools import partial
+from types import SimpleNamespace
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -23,6 +24,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from apps.coeur.models import ParametresAssociation
+from apps.common import instantane as fige
 from apps.common import pdf
 
 from .models import Adhesion, CompteurRecu, RecuFiscal, SoldeTresorerie, Transaction
@@ -95,6 +97,13 @@ def emettre_recu(
         transaction=transaction_source,
         emis_par=emis_par,
         signataire=signataire,
+        # Le donateur est dans les colonnes ci-dessus ; le bénéficiaire et le
+        # signataire, eux, vivent ailleurs et peuvent changer après l'émission.
+        instantane={
+            "version": 1,
+            "emetteur": fige.emetteur(ParametresAssociation.load()),
+            "signataire": fige.signataire(signataire),
+        },
     )
     # Après le commit, pas dedans : un rendu raté n'annule pas un numéro
     # légalement attribué (`robust` journalise au lieu de lever).
@@ -113,14 +122,40 @@ def donnees_depuis_adhesion(adhesion) -> dict:
     }
 
 
-def pdf_de_recu(recu: RecuFiscal, *, apercu: bool = False) -> bytes:
-    """Rend le PDF Cerfa d'un reçu. `apercu=True` produit un document filigrané
-    « sans valeur » pour prévisualiser AVANT émission (reçu non enregistré)."""
-    html = render_to_string(
-        "recu/cerfa.html",
-        {"recu": recu, "asso": ParametresAssociation.load(), "apercu": apercu},
+def _recu_fige(recu: RecuFiscal) -> SimpleNamespace:
+    """Le reçu tel qu'il a été émis, sous la forme qu'attend le gabarit Cerfa."""
+    return SimpleNamespace(
+        numero=recu.numero,
+        date_emission=recu.date_emission,
+        montant=recu.montant,
+        date_versement=recu.date_versement,
+        donateur_nom=recu.donateur_nom,
+        donateur_adresse=recu.donateur_adresse,
+        donateur_code_postal=recu.donateur_code_postal,
+        donateur_ville=recu.donateur_ville,
+        get_type_versement_display=recu.get_type_versement_display,
+        get_forme_display=recu.get_forme_display,
+        signataire=fige.en_objet(recu.instantane["signataire"]),
     )
-    return pdf.html_vers_pdf(html)
+
+
+def pdf_de_recu(recu: RecuFiscal, *, apercu: bool = False) -> bytes:
+    """Rend le PDF Cerfa d'un reçu.
+
+    Un reçu ÉMIS est rendu depuis son INSTANTANÉ : un Cerfa perdu se reconstruit
+    tel qu'il a été délivré, et non au nom que l'association porte aujourd'hui.
+    `apercu=True` produit à l'inverse un document filigrané « sans valeur » à
+    partir des données vivantes, pour prévisualiser AVANT émission (reçu non
+    enregistré, donc sans instantané)."""
+    if not apercu and getattr(recu, "instantane", None):
+        contexte = {
+            "recu": _recu_fige(recu),
+            "asso": fige.en_objet(recu.instantane["emetteur"]),
+            "apercu": False,
+        }
+    else:
+        contexte = {"recu": recu, "asso": ParametresAssociation.load(), "apercu": apercu}
+    return pdf.html_vers_pdf(render_to_string("recu/cerfa.html", contexte))
 
 
 @transaction.atomic

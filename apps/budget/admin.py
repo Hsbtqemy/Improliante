@@ -70,7 +70,13 @@ class RecuFiscalAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             return self.readonly_fields
-        return tuple(champ.name for champ in RecuFiscal._meta.fields if champ.name != "id")
+        # `instantane` est écarté de l'affichage : archive technique, illisible
+        # en bloc, et le Cerfa en est déjà la forme lisible.
+        return tuple(
+            champ.name
+            for champ in RecuFiscal._meta.fields
+            if champ.name not in {"id", "instantane"}
+        )
 
     def has_add_permission(self, request):
         return False

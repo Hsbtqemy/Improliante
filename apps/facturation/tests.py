@@ -430,6 +430,78 @@ def test_deux_premiers_telechargements_ne_rendent_le_pdf_qu_une_fois(client_fact
     assert requete_b.fichier.name == requete_a.fichier.name
 
 
+# --- Instantané d'émission ---------------------------------------------------
+#
+# Le PDF archivé EST la pièce. Mais s'il disparaît — fichier perdu, stockage
+# restauré à moitié — le régénérer depuis les données du jour donnerait une autre
+# facture : autre nom d'association, autre adresse de client, autre signataire.
+# L'émission fige donc aussi ce que la pièce disait d'elle-même.
+
+
+def test_la_validation_fige_l_emetteur_et_le_client(client_facture):
+    from apps.coeur.models import ParametresAssociation
+
+    params = ParametresAssociation.load()
+    params.nom = "Association Improliante"
+    params.save()
+    facture = _brouillon(client_facture)
+
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    facture.refresh_from_db()
+    assert facture.instantane["emetteur"]["nom"] == "Association Improliante"
+    assert facture.instantane["client"]["nom"] == "Association X"
+    assert facture.instantane["totaux"]["total_ttc"] == "100.00"
+    assert [ligne["designation"] for ligne in facture.instantane["lignes"]] == ["Prestation"]
+
+
+def test_un_pdf_perdu_se_regenere_a_l_identique(
+    client_facture, monkeypatch, django_capture_on_commit_callbacks
+):
+    """Le fichier n'est plus là ; la pièce, elle, ne bouge pas."""
+    from apps.coeur.models import ParametresAssociation
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    params = ParametresAssociation.load()
+    params.nom = "Association Improliante"
+    params.save()
+    facture = _brouillon(client_facture)
+    with django_capture_on_commit_callbacks(execute=True):
+        valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    facture.refresh_from_db()
+    facture.fichier.delete(save=True)  # sinistre : le PDF archivé a disparu
+    params.nom = "Troupe renommée"
+    params.save()
+    client_facture.nom = "Autre client"
+    client_facture.save()
+
+    assurer_pdf_facture(facture)
+
+    contenu = facture.fichier.open("rb").read().decode()
+    assert "Association Improliante" in contenu
+    assert "Association X" in contenu
+    assert "Troupe renommée" not in contenu
+    assert "Autre client" not in contenu
+
+
+def test_l_apercu_d_un_brouillon_montre_les_donnees_du_jour(client_facture, monkeypatch):
+    """Avant l'émission il n'y a rien à figer : l'aperçu doit refléter ce qui est
+    saisi, sinon il ne sert à rien."""
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    client_facture.nom = "Nom corrigé avant émission"
+    client_facture.save()
+    facture = _brouillon(client_facture)
+
+    html = pdf_de_facture(facture, apercu=True).decode()
+
+    assert "Nom corrigé avant émission" in html
+
+
 # --- Admin : mêmes règles que les écrans du bureau ---------------------------
 #
 # Le formulaire du bureau refusait déjà d'éditer une pièce émise ; l'admin, lui,

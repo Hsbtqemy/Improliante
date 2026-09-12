@@ -100,7 +100,11 @@ class FactureAdmin(admin.ModelAdmin):
             return (*self.readonly_fields, "statut")
         # Pièce émise : tout est figé sauf le suivi de paiement — aucun écran du
         # bureau ne marque encore une facture payée, l'admin est ce chemin-là.
-        return tuple(f.name for f in Facture._meta.fields if f.name not in {"id", "statut"})
+        # `instantane` est écarté de l'affichage : c'est une archive technique,
+        # illisible en bloc, et le PDF en est déjà la forme lisible.
+        return tuple(
+            f.name for f in Facture._meta.fields if f.name not in {"id", "statut", "instantane"}
+        )
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)

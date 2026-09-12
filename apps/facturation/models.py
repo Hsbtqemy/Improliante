@@ -202,6 +202,12 @@ class Facture(AvecTotaux, Horodatage):
         "PDF de la facture", upload_to="factures/%Y/", storage=StockagePrive, blank=True
     )
 
+    # Ce que la pièce disait d'elle-même à l'émission : émetteur, client, lignes
+    # et totaux. Le PDF en est l'archive ; ceci permet de le reconstruire à
+    # l'identique s'il disparaît, plutôt que de le recalculer avec les données du
+    # jour (cf. apps/common/instantane.py).
+    instantane = models.JSONField("instantané d'émission", default=dict, blank=True, editable=False)
+
     class Meta:
         verbose_name = "facture"
         verbose_name_plural = "factures"

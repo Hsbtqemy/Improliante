@@ -228,6 +228,11 @@ class RecuFiscal(Horodatage):
     fichier = models.FileField(
         "PDF du reçu", upload_to="recus/%Y/", storage=StockagePrive, blank=True
     )
+
+    # Bénéficiaire et signataire tels qu'ils étaient à l'émission : le donateur
+    # est déjà recopié dans les colonnes ci-dessus, eux vivaient ailleurs
+    # (cf. apps/common/instantane.py).
+    instantane = models.JSONField("instantané d'émission", default=dict, blank=True, editable=False)
     emis_par = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
