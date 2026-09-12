@@ -12,8 +12,10 @@ association de spectacle vivant. Priorité : **sur-mesure et flexible**.
 
 ## Stack
 
-Django 6 + Django REST Framework · PostgreSQL · templates Django (rendu
-serveur) · WeasyPrint (PDF) · openpyxl (Excel) · django-treebeard (arbres GED).
+Django 6 · PostgreSQL · templates Django (rendu serveur) · WeasyPrint (PDF) ·
+openpyxl (Excel) · django-treebeard (arbres GED). Django REST Framework est
+installé et prévu pour une API, mais **pas encore utilisé** : aucune vue n'en
+dépend, et `rest_framework` reste commenté dans les applications installées.
 Déploiement : VPS Infomaniak, Nginx + Gunicorn (systemd) + PostgreSQL,
 déploiement auto par webhook GitHub.
 
