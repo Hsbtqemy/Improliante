@@ -48,9 +48,14 @@ constats sur trente sont clos.
 - [x] FRONT-08, sans navigateur : l'aide de chaque champ s'annonce (une convention au lieu de deux), aucun identifiant n'est rendu deux fois, aucune référence `aria-*` ne pend dans le vide, et trois invariants de balayage les retiennent sur 64 pages
 - [ ] FRONT-08, passe QA : `pilotage/qa/accessibilite-front-08.md` est jouée et cochée par un humain — clavier réel, zoom 200 et 400 %, 375 px, et ce qu'un lecteur d'écran annonce sur un formulaire REFUSÉ, état qu'aucun balayage ne visite
 - [ ] Les 25 gabarits qui rendent un champ à la main donnent un identifiant à leurs messages d'erreur, ou passent par `_champ.html` : la référence `<id>_error` de Django y pend dès qu'un formulaire est refusé — à trancher avec l'inventaire ARCH-01, dont c'est un cas d'école
-- [x] GOU-01 : une réunion close garde son résultat, et l'électorat n'est plus réduit aux présences enregistrées
+- [x] GOU-01, les règles : une réunion close garde ses règles, et l'électorat n'est plus réduit aux présences enregistrées (lot 4)
+- [ ] GOU-01, le contenu : une réunion **archivée** refuse une résolution, un sujet et une réécriture de compte rendu — aujourd'hui les trois passent depuis le back-office, formulaires affichés, et l'inventaire du lot 10 l'a reproduit
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
-- [ ] ARCH-01 : l'inventaire des règles métier qui n'existent que dans les vues est écrit, chacune avec ce qu'un accès admin ou shell pourrait faire malgré elle — la remontée se décide ensuite, tout n'a pas besoin de bouger
+- [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
+- [ ] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée (`devis_origine`) et non sur un statut que l'admin peut remettre en arrière — point 3 de l'inventaire, le moins coûteux
+- [ ] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1
+- [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4
+- [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
 - [ ] PERF-01 : la galerie et les listes d'affiches ne dégradent plus avec le contenu — N+1 mesuré supprimé, pagination posée, images servies à la taille affichée et non en pleine résolution
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
@@ -117,6 +122,28 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 10 — l'inventaire ARCH-01, et deux constats à rouvrir.** L'inventaire
+(`docs/regles-hors-services.md`) a trouvé trois choses qui pèsent plus que le constat
+d'origine, et deux d'entre elles démentent des cases déjà cochées.
+
+Un PV régénéré **supprime le fichier précédent du disque** : ni version, ni trace, alors
+que `remplacer_document` est juste à côté depuis le lot 1. Un compte rendu part à toute
+l'association ; celui que les membres ont téléchargé peut cesser d'exister.
+
+Une réunion **archivée** accepte encore résolutions, sujets et compte rendu — depuis le
+back-office, formulaires à l'écran, pas par contournement d'URL. Le lot 4 avait figé les
+RÈGLES d'une réunion close, pas son CONTENU. GOU-01 est donc rouvert, sur ce point seul.
+
+Un devis facturé peut redevenir « accepté » depuis l'admin, puis être refacturé :
+`transformer_en_facture` se garde sur le statut, pas sur l'existence d'une facture liée.
+Le verrou du lot 1 sérialise l'opération, il ne la rend pas idempotente.
+
+Et une correction qui m'incombe : le lot 4 annonçait « un seul service pour les pouvoirs,
+quel que soit le chemin ». Faux — `PouvoirInline` de l'admin écrit sans passer par
+`donner_pouvoir`, donc sans le plafond statutaire. Je l'avais écrit sans ouvrir l'inline.
+La leçon vaut au-delà : « quel que soit le chemin » est une affirmation qui se vérifie
+chemin par chemin, l'admin compris.
 
 **Le lot 9 — FRONT-08, et une panne qui ne faisait aucun bruit.** Django ≥ 5 relie
 lui-même l'aide d'un champ à son widget par `aria-describedby`, vers `<id>_helptext`.
