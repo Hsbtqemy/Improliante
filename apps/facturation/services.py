@@ -47,6 +47,14 @@ class AvoirExcessif(ValidationRefusee):
     """Levée quand un avoir annulerait plus que ce qui reste de sa facture."""
 
 
+class AvoirSansOrigine(ValidationRefusee):
+    """Levée quand un avoir n'indique pas la facture qu'il annule."""
+
+
+class MontantIncoherent(ValidationRefusee):
+    """Levée quand le signe du total ne correspond pas au type de la pièce."""
+
+
 class DevisDejaFacture(Exception):
     """Levée quand on tente de transformer un devis déjà transformé en facture."""
 
@@ -64,7 +72,9 @@ def valider_facture(facture: Facture, *, date_emission: date | None = None) -> F
     """Valide une facture : lui attribue un numéro et fige sa date d'émission.
 
     - Refuse une facture déjà validée (pas de renumérotation) ou sans ligne.
-    - Refuse un avoir qui annulerait plus que ce qui reste de sa facture.
+    - Refuse un avoir détaché de sa facture, ou qui annulerait plus que ce qui
+      reste de celle-ci.
+    - Refuse une pièce dont le total n'a pas le signe de son type.
     - Numéro au format ``F{annee}-{séquence:04d}`` (série annuelle continue).
     - Le PDF est rendu dès le commit : la pièce est figée telle qu'émise, pas
       telle que seraient le client ou l'association au premier téléchargement.
@@ -82,8 +92,14 @@ def valider_facture(facture: Facture, *, date_emission: date | None = None) -> F
         )
     if not courante.lignes.exists():
         raise FactureSansLigne("Impossible de valider une facture sans ligne.")
-    if courante.type_piece == Facture.TypePiece.AVOIR and courante.avoir_de_id:
+    if courante.type_piece == Facture.TypePiece.AVOIR:
+        if not courante.avoir_de_id:
+            raise AvoirSansOrigine(
+                "Cet avoir n'indique pas la facture qu'il annule : sans elle, rien ne "
+                "borne ce qu'il rembourse. Rattachez-le avant de l'émettre."
+            )
         _verifier_reste_a_annuler(courante)
+    _verifier_signe(courante)
 
     jour = date_emission or timezone.localdate()
 
@@ -130,6 +146,26 @@ def _verifier_reste_a_annuler(avoir: Facture) -> None:
         raise AvoirExcessif(
             f"Cet avoir annulerait {_euros(-avoir.total_ttc)} TTC, alors qu'il ne reste "
             f"que {_euros(reste)} à annuler sur la facture {origine}."
+        )
+
+
+def _verifier_signe(piece: Facture) -> None:
+    """Une facture ne rembourse pas, un avoir ne facture pas.
+
+    Interdire toute ligne négative serait faux — une remise en est une — mais le
+    total, lui, doit garder le signe de son type. Sans cette règle, un avoir
+    « remis à l'endroit » passerait le contrôle du reste à annuler, qui suppose
+    des montants négatifs, et facturerait sous un numéro d'avoir."""
+    total = piece.total_ttc
+    if piece.type_piece == Facture.TypePiece.AVOIR and total > 0:
+        raise MontantIncoherent(
+            f"Un avoir ne peut pas être positif ({_euros(total)} TTC) : il annule, "
+            "il ne facture pas."
+        )
+    if piece.type_piece == Facture.TypePiece.FACTURE and total < 0:
+        raise MontantIncoherent(
+            f"Une facture ne peut pas être négative ({_euros(total)} TTC) : "
+            "pour rembourser, il faut un avoir."
         )
 
 

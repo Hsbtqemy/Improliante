@@ -29,10 +29,12 @@ from apps.facturation.models import (
 )
 from apps.facturation.services import (
     AvoirExcessif,
+    AvoirSansOrigine,
     DevisDejaFacture,
     FactureDejaValidee,
     FactureNonAvoirable,
     FactureSansLigne,
+    MontantIncoherent,
     assurer_pdf_facture,
     creer_avoir,
     dupliquer_facture,
@@ -289,6 +291,96 @@ def test_avoir_valide_prend_un_numero_de_serie_a_continue(client_facture):
     avoir.refresh_from_db()
     assert facture.numero == "F2026-0001"
     assert avoir.numero == "A2026-0002"  # séquence partagée, continue
+
+
+# --- Signe des pièces et bornes des lignes (FIN-04) --------------------------
+#
+# Interdire tout nombre négatif serait faux : une remise est une ligne négative
+# légitime dans une facture. Ce qui doit tenir, c'est le SIGNE DE LA PIÈCE — une
+# facture ne rembourse pas, un avoir ne facture pas — car le contrôle « jamais
+# plus que le reste à annuler » suppose des avoirs négatifs.
+
+
+def test_un_taux_de_tva_hors_bornes_est_refuse_par_la_base(client_facture):
+    from django.db import IntegrityError
+
+    facture = Facture.objects.create(client=client_facture)
+    with pytest.raises(IntegrityError):
+        LigneFacture.objects.create(
+            facture=facture, designation="TVA impossible", taux_tva=Decimal("120")
+        )
+
+
+def test_un_taux_de_tva_negatif_est_refuse_par_la_base(client_facture):
+    from django.db import IntegrityError
+
+    facture = Facture.objects.create(client=client_facture)
+    with pytest.raises(IntegrityError):
+        LigneFacture.objects.create(
+            facture=facture, designation="TVA négative", taux_tva=Decimal("-1")
+        )
+
+
+def test_une_remise_reste_possible_dans_une_facture(client_facture):
+    """Une ligne négative est tolérée tant que la pièce reste une facture."""
+    facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture, designation="Prestation", prix_unitaire_ht=Decimal("100")
+    )
+    LigneFacture.objects.create(
+        facture=facture,
+        designation="Remise fidélité",
+        quantite=Decimal("-1"),
+        prix_unitaire_ht=Decimal("20"),
+        ordre=1,
+    )
+
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    facture.refresh_from_db()
+    assert facture.numero == "F2026-0001"
+    assert facture.total_ttc == Decimal("80.00")
+
+
+def test_une_facture_au_total_negatif_ne_s_emet_pas(client_facture):
+    """Ce serait un avoir déguisé : ni le bon type, ni le bon préfixe de numéro."""
+    facture = Facture.objects.create(client=client_facture)
+    LigneFacture.objects.create(
+        facture=facture,
+        designation="Remboursement",
+        quantite=Decimal("-1"),
+        prix_unitaire_ht=Decimal("100"),
+    )
+
+    with pytest.raises(MontantIncoherent):
+        valider_facture(facture, date_emission=date(2026, 3, 1))
+
+    facture.refresh_from_db()
+    assert facture.numero is None
+
+
+def test_un_avoir_remis_a_l_endroit_ne_s_emet_pas(client_facture):
+    """Sans cette règle, il passerait le contrôle du reste à annuler, qui
+    suppose des montants négatifs — et facturerait au lieu d'annuler."""
+    facture = _facture_validee(client_facture)
+    avoir = creer_avoir(facture)
+    avoir.lignes.update(quantite=Decimal("2"))
+
+    with pytest.raises(MontantIncoherent):
+        valider_facture(avoir, date_emission=date(2026, 3, 1))
+
+
+def test_un_avoir_detache_de_sa_facture_ne_s_emet_pas(client_facture):
+    """`dupliquer_facture` détache volontairement la copie d'un avoir. Sans
+    facture d'origine, elle échappait au contrôle du reste à annuler : elle peut
+    donc se préparer, mais pas s'émettre telle quelle."""
+    origine = _facture_validee(client_facture)
+    copie = dupliquer_facture(creer_avoir(origine))
+
+    with pytest.raises(AvoirSansOrigine):
+        valider_facture(copie, date_emission=date(2026, 3, 1))
+
+    assert copie.numero is None
 
 
 def test_creer_avoir_sur_brouillon_refuse(client_facture):

@@ -75,6 +75,18 @@ class LigneCommerciale(models.Model):
 
     class Meta:
         abstract = True
+        constraints = [
+            # Un taux hors de [0, 100] ne se rattrape pas à la lecture : il fausse
+            # la TVA de la pièce. La base le refuse, quel que soit le chemin —
+            # formulaire, admin ou shell. Quantité et prix, eux, restent libres de
+            # signe : une remise est une ligne négative légitime, et c'est le
+            # SIGNE DE LA PIÈCE que le service contrôle à l'émission.
+            models.CheckConstraint(
+                condition=models.Q(taux_tva__gte=0) & models.Q(taux_tva__lte=100),
+                name="%(app_label)s_%(class)s_taux_tva_entre_0_et_100",
+                violation_error_message="Le taux de TVA doit être compris entre 0 et 100 %.",
+            ),
+        ]
 
     @property
     def total_ht(self) -> Decimal:
@@ -135,7 +147,7 @@ class Devis(AvecTotaux, Horodatage):
 class LigneDevis(LigneCommerciale):
     devis = models.ForeignKey(Devis, on_delete=models.CASCADE, related_name="lignes")
 
-    class Meta:
+    class Meta(LigneCommerciale.Meta):
         verbose_name = "ligne de devis"
         verbose_name_plural = "lignes"
         ordering = ["ordre", "id"]
@@ -221,7 +233,7 @@ class Facture(AvecTotaux, Horodatage):
 class LigneFacture(LigneCommerciale):
     facture = models.ForeignKey(Facture, on_delete=models.CASCADE, related_name="lignes")
 
-    class Meta:
+    class Meta(LigneCommerciale.Meta):
         verbose_name = "ligne de facture"
         verbose_name_plural = "lignes"
         ordering = ["ordre", "id"]
