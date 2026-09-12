@@ -55,6 +55,22 @@ factures, que l'audit classait P0 : une pièce distribuée ne se réécrit pas e
 place. Le remède existe déjà à côté — passer par `remplacer_document`, qui garde
 l'ancienne version et marque la nouvelle `courante`.
 
+> **Corrigé le 12 septembre 2026** (lot 13). Régénérer crée une nouvelle version
+> et la réunion pointe dessus ; l'ancienne est conservée, avec son fichier. Les
+> écrans ne listent que la version courante — c'était déjà le cas partout —,
+> donc rien ne se dédouble à l'affichage : c'est ce que l'ancien test protégeait
+> de juste, et cette moitié-là est gardée.
+>
+> **Trouvé en corrigeant, et c'est le plus gênant des deux.** `reunion.compte_rendu`
+> pointe une version PRÉCISE, et le bureau peut déposer un PV corrigé depuis les
+> pièces de l'association — cet écran couvre les documents non classés, donc les
+> PV. La fiche de la réunion et la convocation du membre servaient alors le
+> fichier d'AVANT la correction pendant que la GED montrait le bon, et une
+> régénération repartait de la version périmée : deux documents qui divergent.
+> Les deux écrans suivent désormais la version courante, et la régénération
+> repart de la correction. Reproduit par sonde, puis retenu par un test par
+> écran — les deux échouent contre l'ancien code, vérifié en le remettant.
+
 ## 2. Une réunion archivée accepte encore du contenu — **éprouvé**
 
 **Où** : `apps/backoffice/views.py::gouvernance_ajouter_resolution`,
@@ -258,7 +274,9 @@ légitime.
    n'était pas clos. Il demande un service de transition et trois écrans à
    ajuster. *Fait le 12 septembre (lot 12) : le sceau, cinq services, deux
    formulaires, l'admin et le balayage.*
-3. **Le point 1** — même famille que FIN-02, remède déjà présent dans le dépôt.
+3. ✅ **Le point 1** — même famille que FIN-02, remède déjà présent dans le
+   dépôt. *Fait le 12 septembre (lot 13), avec une divergence trouvée en chemin
+   entre le PV que sert la réunion et celui que montre la GED.*
 4. **Le point 4** — trois lignes. C'est ce qui reste de GOU-01 : le plafond
    statutaire de pouvoirs se contourne encore sur une réunion OUVERTE, le sceau
    du lot 12 ne fermant que les séances closes.

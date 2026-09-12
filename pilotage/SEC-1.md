@@ -53,7 +53,7 @@ constats sur trente sont clos.
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
 - [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée — une seule lecture (`devis_deja_facture`), partagée par le service, l'écran d'édition du bureau, son changement de statut et l'admin, qui fige en plus le statut. Un devis dont la facture a été supprimée redevient pilotable À L'ÉCRAN au lieu de rester dans une impasse — les deux directions sont testées
-- [ ] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1
+- [x] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1. Et la réunion sert la version COURANTE de son PV : un PV corrigé depuis la GED laissait sa fiche et la convocation du membre sur celui d'avant
 - [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4 de l'inventaire, et c'est tout ce qui reste de GOU-01 ; le sceau du lot 12 ne ferme que les séances CLOSES, ce contournement vaut sur une réunion ouverte
 - [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
@@ -122,6 +122,29 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 13 — le PV régénéré, et un PV corrigé que personne ne voyait.** Régénérer un
+compte rendu écrasait son fichier sur le disque : le PV que les membres avaient
+téléchargé cessait d'exister, sans trace du changement, alors qu'il part en
+confidentialité « Membres », donc à toute l'association. C'est l'invariant de FIN-02
+sur les factures, et le remède — `remplacer_document` — était à côté depuis le lot 1.
+Un test fixait le défaut à l'endroit du correctif (« même Document, fichier
+remplacé ») ; il est remplacé, en gardant ce qu'il protégeait de juste : un seul
+document COURANT, donc pas de doublon dans les listes.
+
+Le plus gênant s'est trouvé en corrigeant. `reunion.compte_rendu` pointe une version
+précise, et le bureau peut déposer un PV corrigé depuis les pièces de l'association —
+cet écran couvre les documents non classés, donc les PV. La fiche de la réunion et la
+convocation du membre servaient alors le fichier d'AVANT la correction pendant que la
+GED montrait le bon, et une régénération repartait de la version périmée : deux
+documents qui divergent, sans que rien ne le signale. Les deux écrans suivent
+maintenant la version courante.
+
+Détail de méthode qui a compté : le service lisait d'abord le document par la
+relation portée par la réunion, donc depuis le cache de l'instance — il se croyait
+courant. La relecture en base l'a corrigé. C'est la même règle que le sceau du lot 12
+et que les pièces de facturation : on décide sur ce que dit la base, pas sur ce qu'on
+tient en main.
 
 **Le lot 12 — GOU-01, le contenu d'une séance close.** Le lot 4 avait figé les
 RÈGLES d'une réunion archivée et la fiche s'était close là-dessus. Son CONTENU restait

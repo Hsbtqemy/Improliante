@@ -91,7 +91,9 @@ préremplissage des droits de vote, pouvoirs, résolutions avec résultat ;
 **compte-rendu en déroulé** — note/décision par point + **blocs de récit
 libre** (`BlocCompteRendu`) intercalables (préambule, échanges, transitions) +
 conclusion — et **génération du PV en PDF** reprenant présences/pouvoirs/quorum/
-résolutions, déposé dans la GED via `gouvernance.services.generer_compte_rendu` ;
+résolutions, déposé dans la GED via `gouvernance.services.generer_compte_rendu`
+(régénérer crée une **nouvelle version**, l'ancienne est conservée ; les écrans
+servent la version courante, y compris quand le PV a été corrigé depuis la GED) ;
 **édition de la réunion** — statut, convocation — hors admin),
 **réglages** (paramètres de l'association, équipe = groupe « Bureau »). Listes
 filtrables et paginées.
