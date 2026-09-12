@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~168 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~570 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---
@@ -158,6 +158,14 @@ l'absence de fichier sous verrou) — le numéro, lui, reste attribué. L'aperç
 d'une pièce émise sert le fichier archivé ; devis rendu à la volée. Un
 **signataire** optionnel (`coeur.Signataire`, image en base64) peut être apposé.
 
+Chaque pièce émise porte en outre un **instantané** (champ JSON `instantane`,
+cf. `apps/common/instantane.py`) : émetteur, client ou donateur, signataire —
+fac-similé compris — lignes et totaux, tels qu'ils étaient ce jour-là. Le PDF
+d'une pièce émise est rendu DEPUIS cet instantané : un fichier perdu se
+reconstruit à l'identique, et non avec le nom que l'association porte
+aujourd'hui. L'aperçu d'un brouillon, lui, part des données vivantes — c'est ce
+qu'on veut vérifier avant d'émettre.
+
 ### Numérotation légale
 `valider_facture` attribue un numéro **séquentiel, continu, sans trou** à la
 validation, sous verrou (`select_for_update`) dans une transaction. Séquence
@@ -175,6 +183,14 @@ page, et effacerait le numéro d'une facture validée entre-temps.
 > Nuance de test : SQLite rend `select_for_update` inopérant ; les tests
 > valident les règles fonctionnelles, la sûreté concurrentielle repose sur
 > PostgreSQL.
+
+### Invariants d'une pièce émise
+`valider_facture` refuse : une pièce déjà émise, une pièce sans ligne, un avoir
+détaché de sa facture, un avoir qui annulerait plus que le reste à annuler, et
+une pièce dont le total n'a pas le signe de son type — une facture ne rembourse
+pas, un avoir ne facture pas. Les lignes, elles, gardent quantités et prix libres
+de signe (une remise est une ligne négative légitime) ; la base borne seulement le
+taux de TVA à [0, 100].
 
 ### Cycle de modération
 `brouillon → proposé → publié / refusé` (mixin `apps.common.models.Moderation`),

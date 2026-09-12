@@ -15,7 +15,7 @@ qu'elle ne dit pas la même chose que ce qui reste à faire aujourd'hui.
 | SEC-01 | ✅ | P0 — suppression de documents officiels par un compte sans fiche membre | Corrigé, lot 1 (`2dd86ef`). Couvre aussi les documents **sans dossier**, donc les PV, que le rapport n'avait pas vus |
 | SEC-02 | ✅ | P0 — les PV de bureau deviennent accessibles aux membres | **Écarté** : c'est la règle voulue. Un compte rendu rend compte à toute l'association (cahier §233, test dédié) |
 | FIN-01 | ✅ | P0 — une même facture peut être renumérotée | Corrigé, lot 1 (`cc4b384`) : relecture sous verrou avant contrôle, édition périmée bloquée |
-| FIN-02 | 🟠 | P0 — l'immuabilité des factures n'est pas assurée sur tous les parcours | **Partiel** : PDF figé à l'émission, aperçu servi depuis l'archive, admin aligné. L'instantané des identités et mentions reste à faire |
+| FIN-02 | ✅ | P0 — l'immuabilité des factures n'est pas assurée sur tous les parcours | Corrigé, lots 2 et 3 (`566b9cd`) : PDF figé à l'émission, aperçu servi depuis l'archive, admin aligné, et instantané d'émission (émetteur, client, signataire, lignes, totaux) d'où le PDF se reconstruit à l'identique. Vaut aussi pour le reçu |
 | SEC-03 | 🟠 | P1 — les protections installées ne sont pas toutes actives | Report **décidé** jusqu'au déploiement (axes, OTP, CSP, historique) — voir DEP-1 |
 | SEC-04 | 🟡 | P1 — le rôle Bureau est trop large pour une délégation fine | Décision métier à prendre ; `is_staff` valant bureau reste à trancher |
 | SEC-05 | 🟡 | P1 — distinguer fin d'adhésion, statut du membre et accès au compte | Décision métier à prendre |
@@ -25,7 +25,7 @@ qu'elle ne dit pas la même chose que ce qui reste à faire aujourd'hui.
 | PUB-01 | 🟠 | P1 — les formulaires publics restent exposés aux abus | Ouvert : limitation de débit à poser, côté Nginx au déploiement |
 | PUB-02 | 🟠 | P1 — documentation de confidentialité incomplète | Ouvert : la page reste un modèle à compléter, et l'inventaire des traitements à écrire |
 | FIN-03 | ✅ | P1 — transformation devis → facture non idempotente | Corrigé, lot 1 : devis relu sous verrou. La limite de numérotation des devis est désormais documentée, pas niée |
-| FIN-04 | 🟠 | P1 — invariants des pièces et des montants | **Partiel** : un seul avoir en préparation, jamais plus que le reste à annuler, ligne obligatoire passée dans le service. Les bornes de quantité, prix et TVA restent |
+| FIN-04 | ✅ | P1 — invariants des pièces et des montants | Corrigé, lots 2 et 3 (`93a9fe3`) : un seul avoir en préparation, jamais plus que le reste à annuler, ligne obligatoire dans le service, signe de la pièce contrôlé (une remise reste possible), avoir détaché non émissible, taux de TVA borné en base |
 | GOU-01 | 🟠 | P1 — le résultat d'une réunion doit être figé avec ses règles | Ouvert : électorat, instantané des règles, gel à la clôture |
 | ARCH-01 | 🟡 | P1 — les règles centrales restent trop dépendantes des vues | Ouvert |
 | ARCH-02 | 🟡 | P2 — les modifications concurrentes des fiches peuvent se perdre | Ouvert |
