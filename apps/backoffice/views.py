@@ -8,6 +8,7 @@ un retour à l'utilisateur.
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from pathlib import PurePosixPath
 
@@ -981,14 +982,25 @@ def supprimer_projet(request, pk):
     return redirect("backoffice:liste_projets")
 
 
+logger = logging.getLogger(__name__)
+
+
 def _pdf_indisponible(request, exc, vue, **kwargs):
     """Le moteur PDF manque : le dire et revenir, plutôt qu'une erreur 500.
 
     WeasyPrint a besoin de bibliothèques natives (Pango, Cairo), installées sur
     le VPS mais absentes d'un poste Windows. La vue du PV traitait déjà ce cas ;
     factures, devis et reçus tombaient en 500, sans rien apprendre à qui
-    demandait le document."""
-    messages.error(request, str(exc))
+    demandait le document.
+
+    Le détail technique part dans les journaux, pas à l'écran : « installez
+    GTK/Pango » ne veut rien dire pour un trésorier, et expose la tuyauterie."""
+    logger.warning("Rendu PDF impossible (%s) : %s", request.path, exc)
+    messages.error(
+        request,
+        "Le document n'a pas pu être produit : le moteur PDF est indisponible sur "
+        "cette machine. Le détail figure dans les journaux du serveur.",
+    )
     return redirect(vue, **kwargs)
 
 
@@ -1033,7 +1045,12 @@ def creer_recu(request):
                 except RenduPDFIndisponible as exc:
                     # On revient au formulaire plutôt que de rediriger : la
                     # saisie en cours ne doit pas être perdue pour autant.
-                    messages.error(request, str(exc))
+                    logger.warning("Rendu PDF impossible (aperçu de reçu) : %s", exc)
+                    messages.error(
+                        request,
+                        "L'aperçu n'a pas pu être produit : le moteur PDF est "
+                        "indisponible sur cette machine. Votre saisie est conservée.",
+                    )
                     return render(
                         request,
                         "backoffice/recu_form.html",
@@ -1075,10 +1092,10 @@ def telecharger_recu(request, pk):
 
 
 def servir_recu(recu: RecuFiscal):
-    """Garantit le PDF (rendu paresseux + cache) puis le sert depuis le privé.
+    """Garantit le PDF (rendu à la demande + archive) puis le sert depuis le privé.
 
-    Réutilisé par l'espace membre pour le téléchargement par le membre concerné.
-    """
+    L'appelant attrape `RenduPDFIndisponible` : cette fonction ne sait pas où
+    revenir. L'espace membre a sa propre vue, filtrée par membre (anti-IDOR)."""
     assurer_pdf_recu(recu)
     nom = f"recu-{recu.numero}{PurePosixPath(recu.fichier.name).suffix}"
     return reponse_fichier_prive(recu.fichier, nom_telechargement=nom)

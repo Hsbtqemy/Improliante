@@ -9,6 +9,7 @@ si le membre n'est pas porteur, sans révéler l'existence de la fiche.
 
 from __future__ import annotations
 
+import logging
 from pathlib import PurePosixPath
 
 from django.contrib import messages
@@ -61,6 +62,8 @@ from .forms import (
     ProjetMembreForm,
     ReponseConvocationForm,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _membre_connecte(request):
@@ -1279,9 +1282,15 @@ def telecharger_recu(request, pk):
     try:
         assurer_pdf_recu(recu)
     except RenduPDFIndisponible as exc:
-        # Le membre n'a rien à faire d'une erreur 500 : il doit savoir que le
-        # document n'a pas pu être produit, et que ce n'est pas lui.
-        messages.error(request, str(exc))
+        # Le membre n'a rien à faire d'une erreur 500 — ni du nom des
+        # bibliothèques manquantes. Il doit savoir que le document n'a pas pu
+        # être produit, que ce n'est pas lui, et à qui s'adresser.
+        logger.warning("Rendu du reçu #%s impossible : %s", recu.pk, exc)
+        messages.error(
+            request,
+            "Votre reçu n'a pas pu être produit pour le moment. Réessayez plus "
+            "tard ; si cela dure, signalez-le au bureau.",
+        )
         return redirect("espace_membre:mes_fichiers")
     extension = PurePosixPath(recu.fichier.name).suffix
     return reponse_fichier_prive(recu.fichier, nom_telechargement=f"recu-{recu.numero}{extension}")

@@ -1001,8 +1001,13 @@ def test_un_membre_sans_moteur_pdf_recoit_un_message_pas_une_500(client, db, mon
 
     reponse = client.get(f"/espace/recus/{recu.pk}/telecharger/", follow=True)
 
+    corps = reponse.content.decode()
     assert reponse.status_code == 200
-    assert "WeasyPrint" in reponse.content.decode()
+    # Sans apostrophe dans l'assertion : le gabarit l'échappe en `&#x27;`.
+    assert "pas pu être produit" in corps
+    # Le membre n'a pas à lire le nom des bibliothèques manquantes.
+    assert "WeasyPrint" not in corps
+    assert "GTK" not in corps
 
 
 def test_le_pv_d_une_reunion_de_bureau_est_lisible_par_tout_membre(client, db, monkeypatch):

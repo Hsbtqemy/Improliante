@@ -2374,8 +2374,10 @@ def test_telecharger_une_facture_sans_moteur_pdf_explique(client, db, monkeypatc
 
     reponse = client.get(f"/bureau/factures/{facture.pk}/telecharger/", follow=True)
 
+    corps = reponse.content.decode()
     assert reponse.status_code == 200
-    assert "WeasyPrint" in reponse.content.decode()
+    assert "moteur PDF est indisponible" in corps
+    assert "GTK" not in corps  # le détail technique va aux journaux, pas à l'écran
 
 
 def test_apercu_d_un_devis_sans_moteur_pdf_explique(client, db, monkeypatch):
@@ -2386,8 +2388,10 @@ def test_apercu_d_un_devis_sans_moteur_pdf_explique(client, db, monkeypatch):
 
     reponse = client.get(f"/bureau/devis/{devis.pk}/telecharger/", follow=True)
 
+    corps = reponse.content.decode()
     assert reponse.status_code == 200
-    assert "WeasyPrint" in reponse.content.decode()
+    assert "moteur PDF est indisponible" in corps
+    assert "GTK" not in corps  # le détail technique va aux journaux, pas à l'écran
 
 
 def test_telecharger_un_recu_sans_moteur_pdf_explique(client, db, monkeypatch):
@@ -2402,8 +2406,10 @@ def test_telecharger_un_recu_sans_moteur_pdf_explique(client, db, monkeypatch):
 
     reponse = client.get(f"/bureau/recus/{recu.pk}/telecharger/", follow=True)
 
+    corps = reponse.content.decode()
     assert reponse.status_code == 200
-    assert "WeasyPrint" in reponse.content.decode()
+    assert "moteur PDF est indisponible" in corps
+    assert "GTK" not in corps  # le détail technique va aux journaux, pas à l'écran
 
 
 # --- Valider : confirmer une version enregistrée -----------------------------
