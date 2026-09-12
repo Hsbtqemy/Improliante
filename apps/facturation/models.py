@@ -84,7 +84,10 @@ class LigneCommerciale(models.Model):
             models.CheckConstraint(
                 condition=models.Q(taux_tva__gte=0) & models.Q(taux_tva__lte=100),
                 name="%(app_label)s_%(class)s_taux_tva_entre_0_et_100",
-                violation_error_message="Le taux de TVA doit être compris entre 0 et 100 %.",
+                # Le `%%` n'est pas une coquille : Django interpole ce message
+                # (`%(name)s`), et un `%` seul y lève « incomplete format » —
+                # une erreur 500 à la place du message attendu.
+                violation_error_message="Le taux de TVA doit être compris entre 0 et 100 %%.",
             ),
         ]
 

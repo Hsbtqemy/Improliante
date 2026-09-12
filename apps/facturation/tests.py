@@ -321,6 +321,17 @@ def test_un_taux_de_tva_negatif_est_refuse_par_la_base(client_facture):
         )
 
 
+def test_la_borne_de_tva_vaut_aussi_pour_les_lignes_de_devis(client_facture):
+    """La contrainte vit dans la classe abstraite : elle ne tient que parce que
+    les `Meta` concrets en héritent. Un `class Meta:` neuf la ferait disparaître
+    sans bruit, des deux côtés."""
+    from django.db import IntegrityError
+
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    with pytest.raises(IntegrityError):
+        LigneDevis.objects.create(devis=devis, designation="X", taux_tva=Decimal("120"))
+
+
 def test_une_remise_reste_possible_dans_une_facture(client_facture):
     """Une ligne négative est tolérée tant que la pièce reste une facture."""
     facture = Facture.objects.create(client=client_facture)

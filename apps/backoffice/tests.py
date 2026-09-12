@@ -2271,6 +2271,21 @@ def test_l_apercu_d_une_facture_validee_montre_la_piece_archivee(client, db, mon
     assert "Nouveau nom" not in contenu
 
 
+def test_un_taux_de_tva_impossible_est_explique_et_ne_plante_pas(client, db):
+    """La borne est en base : mal posée, elle sortirait en erreur 500 au lieu
+    d'un message. Le formulaire doit l'expliquer comme n'importe quelle saisie
+    refusée."""
+    c = Client.objects.create(nom="Théâtre")
+    client.force_login(_staff())
+    donnees = _lignes_post(_donnees_facture(c), [("Atelier", "1", "100.00", "120.00")])
+
+    reponse = client.post("/bureau/factures/nouvelle/", donnees)
+
+    assert reponse.status_code == 200
+    assert not Facture.objects.exists()
+    assert "compris entre 0 et 100" in reponse.content.decode()
+
+
 def test_une_quantite_invalide_est_expliquee_dans_sa_ligne(client, db):
     """Le formulaire était refusé sans rien dire : seule la désignation
     affichait ses erreurs."""
