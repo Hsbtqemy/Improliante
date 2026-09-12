@@ -11,14 +11,14 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 ## Reste
 
 ### Arbitrages
-- [ ] Arrêter la palette parmi les dix-huit du sélecteur (numérotées 1 à 18, voir la table ci-dessous)
+- [x] Arrêter la palette parmi les dix-huit — **sans objet depuis le 12 septembre 2026** : les dix-huit restent offertes au visiteur, le choix n'a plus lieu d'être (voir « Décision du 12 septembre » plus bas)
 - [ ] Arrêter le fond parmi les trois (plat teinté, mesh animé, grain)
 - [ ] Arrêter la police de titre parmi les cinq (système, Fraunces, Playfair, Instrument, Bricolage)
 
 ### Retrait du panneau DEV
-- [ ] Supprimer le bloc `.theme-switch` et son script de `base.html`, une fois les trois choix faits
-- [ ] Figer les trois choix dans `:root` et retirer les attributs `data-theme` / `data-fond` / `data-titre` de `<html>`
-- [ ] Purger le CSS des dix-sept palettes et des deux fonds écartés, et supprimer leurs blocs `html[data-theme=…]`
+- [ ] Le sélecteur de palette RESTE, les deux autres partent : le bloc `.theme-switch` se réduit au choix de palette, et son script ne pilote plus que `data-theme`
+- [ ] Figer fond et police dans `:root` et retirer `data-fond` / `data-titre` de `<html>` — `data-theme` reste, c'est lui qui porte la palette choisie par le visiteur
+- [ ] Purger le CSS des deux fonds écartés. **Pas les palettes** : les dix-huit sont servies
 - [ ] Ne garder que le `.woff2` retenu dans `front/static/fonts/` ; supprimer les trois autres et leurs `@font-face`
 
 ### Mise en production de la fonte
@@ -37,6 +37,24 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 choix ne sont pas arrêtés. Il n'est donc **pas** conditionné à `settings.DEBUG` —
 il sera retiré d'un bloc, avec les variantes écartées, quand les choix seront
 faits. C'est le geste que décrit la zone « Retrait du panneau DEV » ci-dessus.
+
+**Décision du 12 septembre 2026 — la palette ne se choisit plus.** Les dix-huit
+restent offertes au visiteur : c'est une fonctionnalité de confort de lecture, au
+même titre que le panneau d'accessibilité, et non un outil de mise au point
+oublié en production. L'audit externe demandait de le retirer (FRONT-03) ; le
+constat est écarté.
+
+Ce que ça change ici : le premier arbitrage tombe, et la purge des dix-sept
+palettes avec lui — c'est l'ordre que cette fiche donnait, et il aurait été suivi
+sans se souvenir de la décision. Le contraste AA des dix-huit est déjà mesuré en
+clair et en sombre par `apps/vitrine/tests.py::test_les_palettes_respectent_le_contraste_AA`,
+donc l'élargissement ne coûte rien de ce côté ; reste la lisibilité d'ensemble,
+qui ne se mesure pas et garde sa case en « Vérifications ».
+
+**Les deux autres arbitrages restent entiers**, et le troisième a un coût qui
+n'est pas affaire de goût : quatre `.woff2` partent au visiteur au lieu d'un, et
+toute la zone « Mise en production de la fonte » — sous-réglage, préchargement,
+`size-adjust` contre le CLS — attend qu'une police soit retenue.
 
 Conséquence à ne pas perdre de vue : en l'état, le panneau est servi à **tous les
 visiteurs**. Il doit donc disparaître avant DEP-1, et cette fiche est ce qui le
