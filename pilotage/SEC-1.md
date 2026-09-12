@@ -6,9 +6,10 @@ audit: docs/audit-externe-2026-09-11-constats.md
 
 # SEC-1 — consolidation après l'audit externe
 
-**Arrêté sur** — lot 5 : le moteur PDF absent s'explique au lieu de planter (six vues), et
-les dépendances directes sont épinglées à ce qui est éprouvé, outils de développement mis à
-part, commit `af9ea9c`, 12 septembre.
+**Arrêté sur** — lot 6 : les trois corrections décidées le 12 septembre — l'avoir ne se
+duplique plus, la fin d'adhésion ferme l'écriture sans fermer la lecture, et le niveau
+« Public » dit enfin ce qu'il fait. Commit `1dde96e`, 12 septembre. Douze décisions ont
+été prises le même jour ; quatre constats se ferment sans code.
 
 ## Reste
 
@@ -16,7 +17,7 @@ part, commit `af9ea9c`, 12 septembre.
 - [x] Le reçu fiscal suit les mêmes règles que la facture : rien d'éditable ni de supprimable dans l'admin une fois émis, PDF rendu dès l'émission
 - [x] FIN-02 : une facture dont le PDF archivé a disparu se régénère à l'identique — instantané d'émission, dont le rendu part désormais
 - [x] FIN-04 : un avoir dupliqué ne peut plus annuler plus que sa facture — détaché de son origine, il ne s'émet plus du tout
-- [ ] L'avoir dupliqué a une issue : soit un écran pour le rattacher à une facture, soit la duplication d'un avoir disparaît — aujourd'hui il se prépare et reste bloqué là
+- [x] L'avoir dupliqué a une issue : la duplication d'un avoir disparaît, du bouton comme du service — il visait UNE facture, la copie ne pouvait pas rejouer ce lien
 - [x] Télécharger ou prévisualiser une facture, un devis ou un reçu sans moteur PDF affiche un message, pas une erreur 500 — côté membre aussi
 
 ### Saisie et parcours
@@ -30,17 +31,27 @@ part, commit `af9ea9c`, 12 septembre.
 - [ ] Le PDF rendu à l'émission est éprouvé avec le vrai WeasyPrint : le fichier archivé s'ouvre et porte le bon numéro
 
 ### Livraison
-- [ ] OPS-01 : une vérification distante sur PostgreSQL est la barrière avant `main` : un commit non validé ne part pas en déploiement — aujourd'hui le webhook se déclenche sur le push, et le hook local se contourne ou s'oublie à chaque clone
+- [ ] OPS-01, la vérification : un workflow distant rejoue `TEST_POSTGRES=1 pytest`, `ruff` et `check --deploy` sur PostgreSQL à chaque commit — les trois tests de concurrence, « skipped » sous SQLite, tourneraient enfin
+- [ ] OPS-01, le branchement : le webhook écoute le succès de cette vérification et non le push — un commit non validé ne part pas en déploiement. Demande la machine, donc DEP-1
+
+### Fin d'adhésion et audiences
+- [x] SEC-05 : un membre dont l'adhésion a pris fin consulte encore ses reçus, ses documents et son historique, et ne dépose ni ne modifie plus rien — les boutons qui mèneraient à un refus ont disparu avec
+- [x] FRONT-06 : le niveau de confidentialité le plus ouvert s'appelle « Tout compte connecté » — il ne met rien en ligne, et il est plus large que « Membres »
 
 ### Constats du rapport encore ouverts, à programmer
 - [ ] PUB-01 : une limitation de débit protège contact et réservations — des envois répétés depuis la même origine sont ralentis ou refusés, et une jauge ne peut plus être saturée par des réservations successives
-- [ ] PUB-02 : la page de confidentialité décrit les traitements réels (comptes, adhésions, réservations, documents, photos, gouvernance) et leurs durées, au lieu de se présenter comme un modèle à compléter
-- [ ] FRONT-03 : le sélecteur de 18 palettes a disparu des pages servies, une palette ayant été choisie — il s'affiche aujourd'hui sans condition `DEBUG`
-- [ ] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — aucune route ne le permet aujourd'hui
-- [ ] FRONT-08 : une campagne d'accessibilité a été menée (375 px et bureau, zoom 200 %, clavier, focus après erreur, contraste de la palette retenue) et ce qu'elle trouve est corrigé ou fiché
+- [ ] PUB-02 est **différé** (12 septembre) : la page de confidentialité reste un modèle à compléter, et reste servie publiquement en l'état
+- [ ] FRONT-03 est **écarté** (12 septembre) : le sélecteur de 18 palettes est offert au visiteur, pas oublié. Ce qu'il coûte est reporté sur FRONT-08 ci-dessous — le contraste se vérifie sur les 18
+- [ ] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — écrit et éprouvé avec le backend console, le SMTP venant au déploiement
+- [ ] FRONT-08, sans navigateur d'abord : HTML sémantique, libellés de champs, `aria`, ordre de tabulation, focus après erreur, et le contraste AA calculé sur les **18** palettes — ce qui échoue est corrigé ou fiché
+- [ ] FRONT-08, passe QA ensuite : une passe rejouable dans `pilotage/qa/` couvre ce qui demande un vrai navigateur (375 px et bureau, zoom 200 %, clavier), et l'humain la coche
 - [x] GOU-01 : une réunion close garde son résultat, et l'électorat n'est plus réduit aux présences enregistrées
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
+- [ ] ARCH-01 : l'inventaire des règles métier qui n'existent que dans les vues est écrit, chacune avec ce qu'un accès admin ou shell pourrait faire malgré elle — la remontée se décide ensuite, tout n'a pas besoin de bouger
+- [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
+- [ ] PERF-01 : la galerie et les listes d'affiches ne dégradent plus avec le contenu — N+1 mesuré supprimé, pagination posée, images servies à la taille affichée et non en pleine résolution
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
+- [ ] FRONT-04 et FRONT-05 sont portés par VIT-4, à venir : cette case tombe quand VIT-4 les cite dans son propre `Reste`. GED-02 et GED-03 restent en v2 assumée, sans case ici
 
 ## Contexte
 
@@ -74,7 +85,31 @@ ligne, au pair le plus proche — celui de `Decimal.quantize`, pas l'arrondi com
 demi supérieur. Aucun texte ne l'impose, changer toucherait tous les montants, et le
 JavaScript reproduit désormais ce calcul à l'identique. Deux tests fixent la convention.
 
+**Douze décisions du 12 septembre.** Quatre constats se ferment sans une ligne de code —
+SEC-04, FRONT-03, ARCH-02, PUB-02 — et ce n'est pas la même chose que quatre oublis.
+Les deux premiers sont en mémoire de travail, parce qu'une relecture à froid les
+reprendrait pour des défauts : le bureau indivisible (`is_staff` ouvre tout le
+back-office, c'est voulu) et le sélecteur de palettes offert au visiteur.
+
+FRONT-03 écarté a un coût que le constat ne portait pas : les 18 palettes restant
+offertes, le contraste AA se vérifie sur les 18 et non sur une. C'est passé dans
+FRONT-08, où ça se paiera.
+
+**Le lot 6 en trois corrections.** L'avoir dupliqué avait une impasse ouverte depuis
+FIN-04 : il se préparait puis refusait de s'émettre, sans qu'aucun écran ne dise quoi en
+faire. Le geste lui-même n'avait pas de sens, il disparaît. La fin d'adhésion ne fermait
+rien du tout : un ancien membre déposait encore des fichiers et se déclarait présent à
+une AG où il n'est plus électeur. Et le niveau « Public » des documents n'a jamais rien
+mis en ligne — il veut dire « tout compte connecté », et il est plus large que
+« Membres » ; le mot disait l'inverse du contrôle, ce qui se paie en documents mal
+classés.
+
+Un détail du décorateur mérite d'être retenu : il n'intercepte **que** la fin
+d'adhésion. Le compte sans fiche membre garde le 404 anti-énumération gagné en SEC-01,
+qu'une redirection bavarde aurait affaibli — deux tests l'ont dit avant moi.
+
 Hors périmètre tant que ce n'est pas demandé, et donc volontairement absent du `Reste`
 ci-dessus : corbeille et journal des suppressions, quotas par membre, antivirus, MFA,
-verrouillage optimiste des fiches, matrice de rôles fins. Ce sont des fonctionnalités v2,
-pas des correctifs — cf. CLAUDE.md, « Périmètre v1 vs plus tard ».
+matrice de rôles fins. Ce sont des fonctionnalités v2, pas des correctifs — cf.
+CLAUDE.md, « Périmètre v1 vs plus tard ». Le verrouillage optimiste des fiches les
+rejoint par décision (ARCH-02).
