@@ -23,6 +23,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from apps.budget.models import Adhesion
 from apps.coeur.models import Membre, ParametresAssociation
@@ -49,22 +50,91 @@ class ResultatQuorum:
     seuil: Decimal
 
 
-def calcul_quorum(reunion: Reunion) -> ResultatQuorum:
-    """Calcule le quorum d'une réunion à partir des présences enregistrées."""
+@dataclass(frozen=True)
+class ReglesApplicables:
+    """Les seuils statutaires qui valent pour une réunion donnée."""
+
+    quorum: Decimal
+    majorite_simple: Decimal
+    majorite_qualifiee: Decimal
+    base_majorite: str
+    figees: bool
+
+
+def _seuil_quorum(reunion: Reunion, params: ParametresGouvernance) -> Decimal:
+    if reunion.type_reunion == Reunion.TypeReunion.AG_EXTRAORDINAIRE:
+        return params.quorum_ag_extraordinaire
+    if reunion.type_reunion == Reunion.TypeReunion.AG_ORDINAIRE:
+        return params.quorum_ag_ordinaire
+    return Decimal("0")  # réunion de bureau : pas de quorum statutaire
+
+
+def regles_applicables(reunion: Reunion) -> ReglesApplicables:
+    """Les règles de cette réunion : figées si elle est close, courantes sinon.
+
+    Une réunion tenue s'est tenue sous les statuts de son jour. Les relire dans
+    les paramètres courants faisait tomber une AG de janvier quand on relevait le
+    quorum en février — et changeait l'adoption d'une résolution sans que
+    personne n'ait touché à un vote."""
+    figees = reunion.regles_figees
+    if figees:
+        return ReglesApplicables(
+            quorum=Decimal(figees["quorum"]),
+            majorite_simple=Decimal(figees["majorite_simple"]),
+            majorite_qualifiee=Decimal(figees["majorite_qualifiee"]),
+            base_majorite=figees["base_majorite"],
+            figees=True,
+        )
     params = ParametresGouvernance.load()
+    return ReglesApplicables(
+        quorum=_seuil_quorum(reunion, params),
+        majorite_simple=params.majorite_simple,
+        majorite_qualifiee=params.majorite_qualifiee,
+        base_majorite=params.base_majorite,
+        figees=False,
+    )
+
+
+def figer_les_regles(reunion: Reunion) -> bool:
+    """Fige les règles statutaires d'une réunion CLOSE (archivée).
+
+    Idempotent, et c'est le cœur du geste : refiger remplacerait les règles du
+    jour par celles d'aujourd'hui, précisément ce qu'on cherche à empêcher.
+    Retourne True si le gel vient d'avoir lieu."""
+    if reunion.regles_figees or reunion.statut != Reunion.Statut.ARCHIVEE:
+        return False
+    regles = regles_applicables(reunion)
+    reunion.regles_figees = {
+        "version": 1,
+        "quorum": str(regles.quorum),
+        "majorite_simple": str(regles.majorite_simple),
+        "majorite_qualifiee": str(regles.majorite_qualifiee),
+        "base_majorite": regles.base_majorite,
+        "fige_le": timezone.now().isoformat(),
+    }
+    reunion.save(update_fields=["regles_figees"])
+    return True
+
+
+def calcul_quorum(reunion: Reunion) -> ResultatQuorum:
+    """Calcule le quorum sur le REGISTRE ÉLECTORAL de la réunion.
+
+    Dénominateur : les électeurs inscrits au registre (cf.
+    `preremplir_droit_de_vote`), absents compris. Seuil : celui figé à la
+    clôture si la réunion est close, celui des paramètres courants sinon."""
     votants = reunion.presences.filter(peut_voter=True)
     electorat = votants.count()
     presents_representes = votants.filter(
         statut__in=[Presence.Statut.PRESENT, Presence.Statut.REPRESENTE]
     ).count()
 
-    if reunion.type_reunion == Reunion.TypeReunion.AG_EXTRAORDINAIRE:
-        seuil = params.quorum_ag_extraordinaire
-    elif reunion.type_reunion == Reunion.TypeReunion.AG_ORDINAIRE:
-        seuil = params.quorum_ag_ordinaire
-    else:  # réunion de bureau : pas de quorum statutaire
+    if reunion.type_reunion not in (
+        Reunion.TypeReunion.AG_ORDINAIRE,
+        Reunion.TypeReunion.AG_EXTRAORDINAIRE,
+    ):  # réunion de bureau : pas de quorum statutaire
         return ResultatQuorum(False, True, presents_representes, electorat, Decimal("0"))
 
+    seuil = regles_applicables(reunion).quorum
     atteint = electorat > 0 and _proportion(presents_representes, electorat) >= seuil
     return ResultatQuorum(True, atteint, presents_representes, electorat, seuil)
 
@@ -79,8 +149,10 @@ class ResultatResolution:
 
 
 def resultat_resolution(resolution: Resolution) -> ResultatResolution:
-    """Détermine si une résolution est adoptée selon son type de majorité."""
-    params = ParametresGouvernance.load()
+    """Détermine si une résolution est adoptée selon son type de majorité.
+
+    Les seuils sont ceux applicables à SA réunion : figés si elle est close."""
+    params = regles_applicables(resolution.reunion)
     pour = resolution.nombre_pour
     contre = resolution.nombre_contre
     abstention = resolution.nombre_abstention
@@ -200,6 +272,11 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
 
     Retourne le nombre de présences créées ou modifiées.
     """
+    if reunion.statut == Reunion.Statut.ARCHIVEE:
+        raise ValueError(
+            "Cette réunion est close : son registre électoral ne se rouvre pas. "
+            "Les électeurs inscrits ce jour-là font son quorum."
+        )
     params = ParametresGouvernance.load()
     reserve = params.vote_reserve_aux_membres_a_jour
     if reserve and saison is None:

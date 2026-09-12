@@ -115,6 +115,13 @@ class Reunion(Horodatage):
         related_name="reunions_pv",
         verbose_name="compte-rendu (PV)",
     )
+
+    # Règles statutaires figées à la CLÔTURE (quorum, majorités, base) : sans
+    # elles, relever un seuil dans les paramètres réécrirait le résultat d'une
+    # assemblée passée. Vide tant que la réunion n'est pas archivée.
+    regles_figees = models.JSONField(
+        "règles figées à la clôture", default=dict, blank=True, editable=False
+    )
     documents = models.ManyToManyField(
         "documents.Document",
         blank=True,

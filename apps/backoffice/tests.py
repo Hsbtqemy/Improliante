@@ -1393,6 +1393,30 @@ def test_pouvoir_mandant_egal_mandataire_refuse(client, db):
     assert Pouvoir.objects.count() == 0  # refusé : mandant == mandataire
 
 
+def test_archiver_une_reunion_fige_ses_regles(client, db):
+    """Le gel se déclenche sur le vrai chemin : l'écran qui change le statut."""
+    from django.urls import reverse
+
+    reunion = _reunion()
+    client.force_login(_staff())
+
+    client.post(
+        reverse("backoffice:gouvernance_editer_reunion", args=[reunion.pk]),
+        {
+            "titre": reunion.titre,
+            "type_reunion": reunion.type_reunion,
+            "statut": Reunion.Statut.ARCHIVEE,
+            "date": "",
+            "lieu_texte": "",
+            "convocation_texte": "",
+        },
+    )
+
+    reunion.refresh_from_db()
+    assert reunion.statut == Reunion.Statut.ARCHIVEE
+    assert reunion.regles_figees["quorum"]  # seuil du jour, conservé
+
+
 def test_le_bureau_ne_peut_pas_depasser_le_plafond_de_pouvoirs(client, db):
     """Le plafond est statutaire : il vaut aussi pour la saisie du bureau, qui
     écrivait jusqu'ici directement en base, sans passer par le service."""

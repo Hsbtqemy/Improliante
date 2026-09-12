@@ -23,6 +23,7 @@ from apps.gouvernance.services import (
     calcul_quorum,
     donner_pouvoir,
     enregistrer_presence_membre,
+    figer_les_regles,
     generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
@@ -290,6 +291,107 @@ def test_donner_pouvoir_refuse_au_dela_du_plafond(params, make_membre):
     donner_pouvoir(reunion, make_membre(), mandataire)  # 1er pouvoir : accepté
     with pytest.raises(ReponseConvocationImpossible):
         donner_pouvoir(reunion, make_membre(), mandataire)  # 2e : dépasse le plafond
+
+
+# --- Gel des règles à la clôture (GOU-01) ------------------------------------
+#
+# Quorum et majorités étaient relus dans les paramètres COURANTS, à chaque
+# affichage. Relever le quorum en février pouvait donc faire tomber une AG de
+# janvier — ou l'inverse : une résolution adoptée redevenait rejetée sans que
+# personne n'ait touché aux votes.
+
+
+def _reunion_close(type_reunion=Reunion.TypeReunion.AG_ORDINAIRE):
+    reunion = _reunion(type_reunion)
+    reunion.statut = Reunion.Statut.ARCHIVEE
+    reunion.save(update_fields=["statut"])
+    figer_les_regles(reunion)
+    return reunion
+
+
+def test_une_reunion_close_garde_son_quorum(params, make_membre):
+    params.quorum_ag_ordinaire = Decimal("0.500")
+    params.save()
+    reunion = _reunion()
+    for membre in [make_membre() for _ in range(4)]:
+        _presence(reunion, membre, Presence.Statut.PRESENT)
+    assert calcul_quorum(reunion).atteint is True
+
+    reunion.statut = Reunion.Statut.ARCHIVEE
+    reunion.save(update_fields=["statut"])
+    figer_les_regles(reunion)
+    params.quorum_ag_ordinaire = Decimal("0.900")  # statuts modifiés après coup
+    params.save()
+
+    quorum = calcul_quorum(reunion)
+    assert quorum.seuil == Decimal("0.500")
+    assert quorum.atteint is True
+
+
+def test_une_reunion_close_garde_sa_majorite(params, make_membre):
+    params.majorite_simple = Decimal("0.500")
+    params.save()
+    reunion = _reunion_close()
+    resolution = Resolution.objects.create(
+        reunion=reunion,
+        intitule="Approbation",
+        type_majorite=Resolution.TypeMajorite.SIMPLE,
+        nombre_pour=6,
+        nombre_contre=4,
+    )
+    assert resultat_resolution(resolution).adoptee is True
+
+    params.majorite_simple = Decimal("0.900")
+    params.save()
+
+    assert resultat_resolution(resolution).adoptee is True
+
+
+def test_avant_cloture_les_regles_courantes_s_appliquent(params, make_membre):
+    """Tant que la réunion n'est pas close, elle suit les statuts en vigueur —
+    sinon corriger un seuil mal saisi serait impossible."""
+    params.majorite_simple = Decimal("0.500")
+    params.save()
+    reunion = _reunion()
+    resolution = Resolution.objects.create(
+        reunion=reunion,
+        intitule="Approbation",
+        type_majorite=Resolution.TypeMajorite.SIMPLE,
+        nombre_pour=6,
+        nombre_contre=4,
+    )
+    assert resultat_resolution(resolution).adoptee is True
+
+    params.majorite_simple = Decimal("0.900")
+    params.save()
+
+    assert resultat_resolution(resolution).adoptee is False
+
+
+def test_le_gel_ne_se_rejoue_pas(params):
+    """Refiger écraserait les règles du jour par celles d'aujourd'hui."""
+    params.quorum_ag_ordinaire = Decimal("0.500")
+    params.save()
+    reunion = _reunion_close()
+
+    params.quorum_ag_ordinaire = Decimal("0.900")
+    params.save()
+    assert figer_les_regles(reunion) is False
+
+    assert calcul_quorum(reunion).seuil == Decimal("0.500")
+
+
+def test_le_registre_d_une_reunion_close_ne_se_rouvre_pas(params, make_membre):
+    """Rouvrir le registre après la clôture changerait l'électorat d'une
+    assemblée déjà tenue, donc son quorum — et le gel des règles n'y pourrait
+    rien, puisqu'il ne porte que sur les seuils."""
+    params.vote_reserve_aux_membres_a_jour = False
+    params.save()
+    reunion = _reunion_close()
+    make_membre()  # un membre arrivé après la séance
+
+    with pytest.raises(ValueError):
+        preremplir_droit_de_vote(reunion)
 
 
 # --- Registre électoral (GOU-01) ---------------------------------------------

@@ -79,6 +79,7 @@ from apps.gouvernance.services import (
     ReponseConvocationImpossible,
     calcul_quorum,
     donner_pouvoir,
+    figer_les_regles,
     generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
@@ -1827,6 +1828,12 @@ def gouvernance_editer_reunion(request, pk):
     form = ReunionForm(request.POST or None, instance=reunion)
     if request.method == "POST" and form.is_valid():
         form.save()
+        # Archiver, c'est clore : les règles du jour sont figées ici. Sans ce
+        # geste, un seuil relevé plus tard réécrirait le résultat de la séance.
+        if figer_les_regles(reunion):
+            messages.info(
+                request, "Réunion close : le quorum et les majorités de ce jour sont figés."
+            )
         messages.success(request, "Réunion mise à jour.")
         return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
     return render(
