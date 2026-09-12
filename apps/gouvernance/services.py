@@ -16,6 +16,8 @@ Conventions (documentées, ajustables via les paramètres) :
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -31,7 +33,15 @@ from apps.common import pdf
 from apps.documents.models import Document
 from apps.documents.services import televerser_fichier
 
-from .models import ParametresGouvernance, Pouvoir, Presence, Resolution, Reunion
+from .models import (
+    BlocCompteRendu,
+    ParametresGouvernance,
+    Pouvoir,
+    Presence,
+    Resolution,
+    Reunion,
+    Sujet,
+)
 
 _TROIS_DECIMALES = Decimal("0.001")
 
@@ -114,6 +124,125 @@ def figer_les_regles(reunion: Reunion) -> bool:
     }
     reunion.save(update_fields=["regles_figees"])
     return True
+
+
+class ReunionClose(Exception):
+    """Écriture refusée : le contenu d'une réunion archivée est scellé."""
+
+
+def contenu_scelle(reunion: Reunion) -> bool:
+    """Vrai si le contenu de cette réunion ne se réécrit plus (archivée).
+
+    `figer_les_regles` ci-dessus fige les RÈGLES d'une séance close ; celui-ci
+    scelle son CONTENU. Il manquait : une réunion archivée acceptait encore une
+    résolution, un point d'ordre du jour, un compte rendu — depuis le
+    back-office, formulaires affichés, pas par contournement d'URL.
+
+    Les écrans lisent cette ligne pour ne plus OFFRIR le geste ; les services
+    ci-dessous la relisent sous verrou pour le REFUSER. Offrir sans refuser
+    laisse l'URL ouverte ; refuser sans retirer le formulaire fait remplir un
+    écran pour rien."""
+    return reunion.statut == Reunion.Statut.ARCHIVEE
+
+
+def _refuser_si_scellee(reunion: Reunion) -> None:
+    """Lève `ReunionClose` si le contenu de cette réunion est scellé."""
+    if contenu_scelle(reunion):
+        raise ReunionClose(
+            f"« {reunion.titre} » est archivée : son contenu ne se réécrit plus. "
+            "Pour la corriger, rouvrez-la d'abord (statut « Tenue »)."
+        )
+
+
+@contextmanager
+def _ecriture_du_contenu(reunion: Reunion) -> Iterator[Reunion]:
+    """Relit la réunion sous verrou et refuse d'écrire si elle est close.
+
+    La décision se prend sur la valeur relue en base, jamais sur l'objet que
+    l'appelant tient en main : la séance peut avoir été archivée entre
+    l'affichage de l'écran et l'envoi du formulaire. Même motif que les pièces
+    de facturation, et c'est lui qui fait du sceau une règle plutôt qu'un
+    affichage. Privé exprès — tout ce qui écrit le contenu d'une réunion passe
+    par un service nommé de ce module."""
+    with transaction.atomic():
+        courante = Reunion.objects.select_for_update().get(pk=reunion.pk)
+        _refuser_si_scellee(courante)
+        yield courante
+
+
+def ajouter_sujet_a_l_ordre_du_jour(reunion: Reunion, sujet: Sujet) -> Sujet:
+    """Porte un sujet à l'ordre du jour d'une réunion (statut du sujet compris)."""
+    with _ecriture_du_contenu(reunion) as courante:
+        sujet.reunion = courante
+        sujet.statut = Sujet.Statut.ORDRE_DU_JOUR
+        sujet.save()
+    return sujet
+
+
+def enregistrer_resolution(reunion: Reunion, resolution: Resolution) -> Resolution:
+    """Rattache une résolution à sa réunion et l'enregistre avec ses décomptes."""
+    with _ecriture_du_contenu(reunion) as courante:
+        resolution.reunion = courante
+        resolution.save()
+    return resolution
+
+
+def saisir_presence(reunion: Reunion, membre, *, statut, peut_voter: bool) -> Presence:
+    """Le bureau consigne une présence constatée, et le droit de vote qui va avec.
+
+    À distinguer de `enregistrer_presence_membre`, par lequel le membre se
+    déclare lui-même : ici le droit de vote est saisi, là il ne se touche pas."""
+    with _ecriture_du_contenu(reunion) as courante:
+        presence, _ = Presence.objects.update_or_create(
+            reunion=courante,
+            membre=membre,
+            defaults={"statut": statut, "peut_voter": peut_voter},
+        )
+    return presence
+
+
+def ajouter_bloc_de_recit(
+    reunion: Reunion, *, titre: str = "", texte: str = "", apres_sujet=None
+) -> BlocCompteRendu:
+    """Ajoute un bloc de récit au déroulé (préambule si `apres_sujet` est nul)."""
+    with _ecriture_du_contenu(reunion) as courante:
+        return BlocCompteRendu.objects.create(
+            reunion=courante, apres_sujet=apres_sujet, titre=titre, texte=texte
+        )
+
+
+def enregistrer_compte_rendu(
+    reunion: Reunion,
+    *,
+    synthese: str = "",
+    notes: dict[int, str] | None = None,
+    blocs: dict[int, dict[str, str]] | None = None,
+    blocs_supprimes: set[int] | None = None,
+) -> None:
+    """Enregistre le compte rendu d'une séance en une seule fois.
+
+    Synthèse, notes par point de l'ordre du jour, texte des blocs de récit, et
+    suppression des blocs cochés. Les boucles partent des points et des blocs
+    DE CETTE RÉUNION : une clé désignant le point d'une autre séance n'écrit
+    rien, et c'est la seule protection qui vaille ici — les clés viennent d'un
+    formulaire, donc de l'extérieur."""
+    notes = notes or {}
+    blocs = blocs or {}
+    blocs_supprimes = blocs_supprimes or set()
+    with _ecriture_du_contenu(reunion) as courante:
+        courante.compte_rendu_texte = synthese
+        courante.save(update_fields=["compte_rendu_texte"])
+        for sujet in courante.sujets.all():
+            if sujet.pk in notes:
+                sujet.notes = notes[sujet.pk]
+                sujet.save(update_fields=["notes"])
+        for bloc in courante.blocs.all():
+            if bloc.pk in blocs_supprimes:
+                bloc.delete()
+            elif bloc.pk in blocs:
+                bloc.titre = blocs[bloc.pk].get("titre", "")
+                bloc.texte = blocs[bloc.pk].get("texte", "")
+                bloc.save(update_fields=["titre", "texte"])
 
 
 def calcul_quorum(reunion: Reunion) -> ResultatQuorum:
@@ -227,10 +356,11 @@ def donner_pouvoir(
     mandataire différent du mandant, plafond `max_pouvoirs_par_personne`, et —
     pour un membre — réunion encore ouverte aux réponses.
 
-    `par_le_bureau=True` lève cette dernière condition, et elle seule : un
-    pouvoir papier se saisit pendant ou après la séance. Le plafond, lui, est
-    STATUTAIRE et ne dépend pas de qui saisit — le bureau écrivait jusqu'ici
-    directement en base, sans aucun contrôle.
+    `par_le_bureau=True` remplace cette dernière condition par le sceau de
+    clôture, et elle seule : un pouvoir papier se saisit pendant ou après la
+    séance, jamais sur une réunion archivée. Le plafond, lui, est STATUTAIRE et
+    ne dépend pas de qui saisit — le bureau écrivait jusqu'ici directement en
+    base, sans aucun contrôle.
 
     Le décompte se fait sous verrou de la réunion : deux pouvoirs donnés au même
     instant au même mandataire lisaient sinon le même total, et passaient tous
@@ -239,7 +369,13 @@ def donner_pouvoir(
         raise ReponseConvocationImpossible("Vous ne pouvez pas vous donner pouvoir à vous-même.")
     with transaction.atomic():
         reunion = Reunion.objects.select_for_update().get(pk=reunion.pk)
-        if not par_le_bureau and not _accepte_les_reponses(reunion):
+        if par_le_bureau:
+            # Le bureau saisit un pouvoir papier pendant ou après la séance —
+            # mais pas après la clôture. Un membre, lui, ne peut de toute façon
+            # répondre qu'à une réunion « Convoquée » : l'ordre compte, pour que
+            # l'espace membre continue de ne voir qu'une seule exception.
+            _refuser_si_scellee(reunion)
+        elif not _accepte_les_reponses(reunion):
             raise ReponseConvocationImpossible("Cette convocation n'accepte plus de réponse.")
         params = ParametresGouvernance.load()
         deja_detenus = (
@@ -294,8 +430,8 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
         # Sous verrou : deux préremplissages lancés ensemble calculeraient les
         # mêmes manquants et se heurteraient à l'unicité (réunion, membre).
         reunion = Reunion.objects.select_for_update().get(pk=reunion.pk)
-        if reunion.statut == Reunion.Statut.ARCHIVEE:
-            raise ValueError(
+        if contenu_scelle(reunion):
+            raise ReunionClose(
                 "Cette réunion est close : son registre électoral ne se rouvre pas. "
                 "Les électeurs inscrits ce jour-là font son quorum."
             )
@@ -344,7 +480,12 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     au bureau ; son PV, non. Ce n'est pas une fuite, et un test le fixe
     (`espace_membre/tests.py`).
 
-    Régénérer **remplace** le fichier du compte-rendu existant (pas de doublon)."""
+    Régénérer **remplace** le fichier du compte-rendu existant (pas de doublon).
+
+    Seul geste qui reste permis sur une réunion ARCHIVÉE, et c'est voulu : le PV
+    ne fait que RENDRE un contenu scellé, il n'en écrit pas. Le refuser
+    enfermerait une séance archivée sans son PV dans une impasse — le contenu
+    ne se corrige plus, et le document ne se produit pas."""
     presences = reunion.presences.select_related("membre").order_by("membre__nom", "membre__prenom")
 
     # Déroulé : préambule (blocs sans point) + chaque point suivi de ses blocs.

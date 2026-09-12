@@ -444,7 +444,7 @@ def _ecrans_a_identifiant(membre):
     from apps.documents.models import Dossier
     from apps.facturation.models import Client as ClientFacturation
     from apps.facturation.models import Devis, Facture
-    from apps.gouvernance.models import Reunion
+    from apps.gouvernance.models import BlocCompteRendu, Reunion, Sujet
     from apps.spectacles.models import Spectacle
 
     publie = Moderation.StatutModeration.PUBLIE
@@ -465,6 +465,11 @@ def _ecrans_a_identifiant(membre):
         type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
         statut=Reunion.Statut.CONVOQUEE,
     )
+    # La fiche d'une réunion porte un champ PAR point d'ordre du jour et trois
+    # par bloc de récit : sans un point et un bloc, le balayage passerait sur
+    # l'écran le plus dense du bureau sans en voir les champs.
+    Sujet.objects.create(titre="Point témoin", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR)
+    BlocCompteRendu.objects.create(reunion=reunion, texte="Récit témoin")
     client_fact = ClientFacturation.objects.create(nom="Client témoin")
     facture = Facture.objects.create(client=client_fact, date=aujourdhui.date())
     devis = Devis.objects.create(client=client_fact, date=aujourdhui.date())
@@ -482,6 +487,7 @@ def _ecrans_a_identifiant(membre):
         f"/espace/projets/{spectacle.pk}/",
         f"/espace/evenements/{evenement.pk}/",
         f"/espace/convocations/{reunion.pk}/",
+        f"/bureau/gouvernance/reunion/{reunion.pk}/",
         f"/espace/fichiers/{dossier.pk}/",
         f"/bureau/factures/{facture.pk}/",
         f"/bureau/devis/{devis.pk}/",

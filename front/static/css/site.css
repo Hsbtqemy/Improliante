@@ -2576,6 +2576,13 @@ a.tuile:hover {
   color: var(--couleur-muet);
   margin: 0.15rem 0 0.5rem;
 }
+/* Séance close : le déroulé se lit. Le texte prend la place du champ, sans
+   perdre les retours à la ligne saisis (d'où `pre-wrap` plutôt qu'un filtre). */
+.odj-point__lu,
+.cr-bloc__lu {
+  margin: 0.15rem 0 0;
+  white-space: pre-wrap;
+}
 .odj-point__label {
   display: block;
   font-size: 0.82rem;

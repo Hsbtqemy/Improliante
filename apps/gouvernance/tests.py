@@ -20,14 +20,20 @@ from apps.gouvernance.models import (
 )
 from apps.gouvernance.services import (
     ReponseConvocationImpossible,
+    ReunionClose,
+    ajouter_bloc_de_recit,
+    ajouter_sujet_a_l_ordre_du_jour,
     calcul_quorum,
     donner_pouvoir,
+    enregistrer_compte_rendu,
     enregistrer_presence_membre,
+    enregistrer_resolution,
     figer_les_regles,
     generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
     resultat_resolution,
+    saisir_presence,
 )
 
 
@@ -403,14 +409,262 @@ def test_le_gel_ne_se_rejoue_pas(params):
 def test_le_registre_d_une_reunion_close_ne_se_rouvre_pas(params, make_membre):
     """Rouvrir le registre après la clôture changerait l'électorat d'une
     assemblée déjà tenue, donc son quorum — et le gel des règles n'y pourrait
-    rien, puisqu'il ne porte que sur les seuils."""
+    rien, puisqu'il ne porte que sur les seuils.
+
+    Ce refus était un `ValueError` ; il parle maintenant la même langue que les
+    autres écritures refusées sur une séance close (`ReunionClose`), pour qu'un
+    appelant n'ait pas deux exceptions à distinguer pour une seule règle."""
     params.vote_reserve_aux_membres_a_jour = False
     params.save()
     reunion = _reunion_close()
     make_membre()  # un membre arrivé après la séance
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReunionClose):
         preremplir_droit_de_vote(reunion)
+
+
+# --- Le contenu d'une séance close (GOU-01, inventaire ARCH-01 n° 2 et 5) ----
+#
+# Le lot 4 avait figé les RÈGLES d'une réunion archivée — quorum, majorités,
+# plafond de pouvoirs — et la fiche s'était close là-dessus. Son CONTENU
+# restait ouvert : résolution, point d'ordre du jour et compte rendu s'y
+# écrivaient encore depuis le back-office, formulaires affichés, ce que
+# l'inventaire du lot 10 a reproduit par sonde. « Une réunion close garde son
+# résultat » n'était vrai que de ses seuils.
+
+
+def test_une_reunion_archivee_refuse_une_resolution(db):
+    """Le décompte des voix d'une assemblée tenue, c'est son résultat même."""
+    reunion = _reunion_close()
+
+    with pytest.raises(ReunionClose):
+        enregistrer_resolution(reunion, Resolution(intitule="Approbation", nombre_pour=99))
+
+    assert reunion.resolutions.count() == 0
+
+
+def test_une_reunion_archivee_refuse_un_point_d_ordre_du_jour(db):
+    reunion = _reunion_close()
+
+    with pytest.raises(ReunionClose):
+        ajouter_sujet_a_l_ordre_du_jour(reunion, Sujet(titre="Ajout tardif"))
+
+    assert reunion.sujets.count() == 0
+
+
+def test_une_reunion_archivee_refuse_un_bloc_de_recit(db):
+    reunion = _reunion_close()
+
+    with pytest.raises(ReunionClose):
+        ajouter_bloc_de_recit(reunion, texte="ajouté après coup")
+
+    assert reunion.blocs.count() == 0
+
+
+def test_une_reunion_archivee_refuse_une_reecriture_du_compte_rendu(db):
+    """Le plus lourd des trois : le PV part à toute l'association, et une
+    réécriture changerait ce dont les membres ont reçu compte."""
+    reunion = _reunion()
+    sujet = Sujet.objects.create(
+        titre="Point 1", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR
+    )
+    bloc = BlocCompteRendu.objects.create(reunion=reunion, texte="récit d'origine")
+    enregistrer_compte_rendu(reunion, synthese="ce qui s'est dit", notes={sujet.pk: "adopté"})
+    reunion.statut = Reunion.Statut.ARCHIVEE
+    reunion.save(update_fields=["statut"])
+
+    with pytest.raises(ReunionClose):
+        enregistrer_compte_rendu(
+            reunion,
+            synthese="autre version",
+            notes={sujet.pk: "rejeté"},
+            blocs={bloc.pk: {"titre": "", "texte": "récit réécrit"}},
+        )
+
+    reunion.refresh_from_db()
+    sujet.refresh_from_db()
+    bloc.refresh_from_db()
+    assert reunion.compte_rendu_texte == "ce qui s'est dit"
+    assert sujet.notes == "adopté"
+    assert bloc.texte == "récit d'origine"
+
+
+def test_une_reunion_archivee_refuse_une_presence_et_un_pouvoir(db, make_membre):
+    """Présences et pouvoirs FONT le quorum : les rouvrir après la clôture
+    déplace le résultat d'une assemblée tenue, ce que le gel des seuils ne peut
+    pas rattraper. Le pouvoir passe par le chemin du bureau, seul à pouvoir
+    écrire hors de la fenêtre de réponse."""
+    reunion = _reunion_close()
+    mandant, mandataire = make_membre(), make_membre()
+
+    with pytest.raises(ReunionClose):
+        saisir_presence(reunion, mandant, statut=Presence.Statut.PRESENT, peut_voter=True)
+    with pytest.raises(ReunionClose):
+        donner_pouvoir(reunion, mandant, mandataire, par_le_bureau=True)
+
+    assert reunion.presences.count() == 0
+    assert reunion.pouvoirs.count() == 0
+
+
+def test_le_sceau_se_lit_en_base_et_non_sur_l_objet_en_main(db):
+    """La séance peut être archivée entre l'affichage de l'écran et l'envoi du
+    formulaire : la vue tient alors un objet qui se croit encore ouvert. C'est
+    la relecture sous verrou qui décide, comme pour une pièce de facturation."""
+    reunion = _reunion()  # l'objet que la vue a en main : « préparation »
+    Reunion.objects.filter(pk=reunion.pk).update(statut=Reunion.Statut.ARCHIVEE)
+
+    with pytest.raises(ReunionClose):
+        ajouter_sujet_a_l_ordre_du_jour(reunion, Sujet(titre="Trop tard"))
+
+    assert reunion.statut == Reunion.Statut.PREPARATION  # l'objet en main n'en sait rien
+    assert Sujet.objects.count() == 0
+
+
+def test_une_reunion_rouverte_redevient_modifiable_sans_refiger_ses_regles(params, db):
+    """Rouvrir est permis : une clôture par erreur doit se défaire, sinon la
+    séance est en impasse. Mais ses règles restent celles de SA clôture — les
+    refiger remplacerait les seuils du jour par ceux d'aujourd'hui, ce que
+    `figer_les_regles` empêche en étant idempotent."""
+    params.quorum_ag_ordinaire = Decimal("0.500")
+    params.save()
+    reunion = _reunion_close()
+    figees = dict(reunion.regles_figees)
+
+    params.quorum_ag_ordinaire = Decimal("0.900")
+    params.save()
+    reunion.statut = Reunion.Statut.TENUE
+    reunion.save(update_fields=["statut"])
+
+    sujet = ajouter_sujet_a_l_ordre_du_jour(reunion, Sujet(titre="Correction"))
+
+    assert sujet.pk is not None
+    reunion.refresh_from_db()
+    assert reunion.regles_figees == figees
+    assert calcul_quorum(reunion).seuil == Decimal("0.500")
+
+
+def test_une_reunion_archivee_genere_encore_son_pv(db, monkeypatch):
+    """Le seul geste qui reste permis, et c'est voulu : le PV ne fait que RENDRE
+    un contenu scellé. Le refuser enfermerait une séance archivée sans son PV
+    dans une impasse — le contenu ne se corrige plus, le document ne se produit
+    pas."""
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF")
+    reunion = _reunion_close()
+    bureau = Utilisateur.objects.create(username="greffier")
+
+    doc = generer_compte_rendu(reunion, par=bureau)
+
+    reunion.refresh_from_db()
+    assert reunion.compte_rendu_id == doc.pk
+
+
+def _requete_admin(rf, nom="superadmin"):
+    """Une requête d'admin, signée par un superutilisateur."""
+    requete = rf.get("/admin/")
+    requete.user = Utilisateur.objects.create_superuser(username=nom, password="x")
+    return requete
+
+
+def test_admin_le_decompte_des_voix_d_une_seance_close_est_fige(db, rf):
+    """Chemin nommé par l'inventaire ARCH-01 : `ResolutionAdmin` ne figeait que
+    les dates, donc « pour » et « contre » d'une assemblée archivée s'y
+    modifiaient — et son résultat avec, puisqu'il en est calculé."""
+    from django.contrib import admin as django_admin
+
+    reunion = _reunion()
+    resolution = Resolution.objects.create(reunion=reunion, intitule="Comptes", nombre_pour=10)
+    modele = django_admin.site.get_model_admin(Resolution)
+    requete = _requete_admin(rf)
+
+    assert "nombre_pour" not in modele.get_readonly_fields(requete, resolution)
+    assert modele.has_delete_permission(requete, resolution) is True
+
+    reunion.statut = Reunion.Statut.ARCHIVEE
+    reunion.save(update_fields=["statut"])
+    # Relu et non rafraîchi : `refresh_from_db` garderait la réunion en cache.
+    resolution = Resolution.objects.get(pk=resolution.pk)
+
+    figes = modele.get_readonly_fields(requete, resolution)
+    assert "nombre_pour" in figes
+    assert "intitule" in figes
+    assert modele.has_delete_permission(requete, resolution) is False
+
+
+def test_admin_les_notes_d_un_point_passe_en_seance_close_sont_figees(db, rf):
+    """Les notes d'un point partent dans le PV : les réécrire ici réécrirait le
+    compte rendu d'une assemblée passée."""
+    from django.contrib import admin as django_admin
+
+    reunion = _reunion_close()
+    sujet = Sujet.objects.create(
+        titre="Point 1", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR, notes="Adopté"
+    )
+    modele = django_admin.site.get_model_admin(Sujet)
+    requete = _requete_admin(rf)
+
+    assert "notes" in modele.get_readonly_fields(requete, sujet)
+    assert modele.has_delete_permission(requete, sujet) is False
+    # Un sujet du carnet, sans réunion, reste un sujet ordinaire.
+    libre = Sujet.objects.create(titre="Idée")
+    assert "notes" not in modele.get_readonly_fields(requete, libre)
+
+
+def test_admin_les_inlines_d_une_reunion_archivee_sont_en_lecture_seule(db, rf):
+    """`ResolutionInline` est l'autre chemin que l'inventaire nomme : l'admin
+    écrit sans passer par aucun service. Présences et pouvoirs vont avec — ils
+    font le quorum."""
+    from django.contrib import admin as django_admin
+
+    close = _reunion_close()
+    ouverte = _reunion()
+    modele = django_admin.site.get_model_admin(Reunion)
+    requete = _requete_admin(rf)
+
+    inlines = modele.get_inline_instances(requete, close)
+    assert len(inlines) == 3  # résolutions, présences, pouvoirs
+    for inline in inlines:
+        assert inline.has_add_permission(requete, ouverte) is True
+        assert inline.has_add_permission(requete, close) is False
+        assert inline.has_change_permission(requete, close) is False
+        assert inline.has_delete_permission(requete, close) is False
+
+
+def test_admin_refuse_de_rattacher_un_point_ou_une_resolution_a_une_seance_close(db, rf):
+    """Le rattachement se choisit dans une liste déroulante : c'est le geste le
+    plus facile à faire sans y penser."""
+    from django.contrib import admin as django_admin
+
+    close = _reunion_close()
+    ouverte = _reunion()
+    requete = _requete_admin(rf)
+
+    for modele, donnees in (
+        (django_admin.site.get_model_admin(Resolution), {"intitule": "Tardive"}),
+        (django_admin.site.get_model_admin(Sujet), {"titre": "Tardif"}),
+    ):
+        Formulaire = modele.get_form(requete)
+        refuse = Formulaire({**donnees, "reunion": close.pk})
+        accepte = Formulaire({**donnees, "reunion": ouverte.pk})
+
+        assert "archivée" in " ".join(refuse.errors.get("reunion", []))
+        assert "reunion" not in accepte.errors
+
+
+def test_admin_une_reunion_archivee_ne_garde_que_son_statut(db, rf):
+    """Même règle que `ReunionForm` : le dossier de la séance est figé, le
+    statut reste mobile pour que la réouverture existe."""
+    from django.contrib import admin as django_admin
+
+    close = _reunion_close()
+    modele = django_admin.site.get_model_admin(Reunion)
+    requete = _requete_admin(rf)
+
+    figes = modele.get_readonly_fields(requete, close)
+
+    assert "statut" not in figes
+    for champ in ("titre", "date", "compte_rendu_texte", "documents"):
+        assert champ in figes
+    assert "titre" not in modele.get_readonly_fields(requete, _reunion())
 
 
 # --- Registre électoral (GOU-01) ---------------------------------------------

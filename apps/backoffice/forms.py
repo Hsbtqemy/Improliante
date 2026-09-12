@@ -24,7 +24,15 @@ from apps.coeur.models import (
 )
 from apps.common.fiches import ImagesFicheFormMixin
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
-from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
+from apps.gouvernance.models import (
+    BlocCompteRendu,
+    Pouvoir,
+    Presence,
+    Resolution,
+    Reunion,
+    Sujet,
+)
+from apps.gouvernance.services import contenu_scelle
 from apps.spectacles.models import LigneDistribution, Spectacle
 
 # Format des <input type="datetime-local"> (sans fuseau ni secondes).
@@ -310,6 +318,13 @@ ContactPublicFormSet = forms.inlineformset_factory(
 
 
 class ReunionForm(forms.ModelForm):
+    """En-tête d'une réunion, transitions de statut comprises.
+
+    Sur une réunion ARCHIVÉE, seul le statut reste saisissable : le titre, la
+    date et le lieu font partie du dossier de la séance. Le statut, lui, doit
+    pouvoir reculer — c'est le seul chemin pour rouvrir une réunion close par
+    erreur, et une clôture sans retour serait une impasse."""
+
     class Meta:
         model = Reunion
         fields = ["titre", "type_reunion", "statut", "date", "lieu_texte", "convocation_texte"]
@@ -321,6 +336,11 @@ class ReunionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date"].input_formats = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
+        if self.instance.pk and contenu_scelle(self.instance):
+            # `disabled` ignore la valeur envoyée et garde celle de la base :
+            # un envoi forgé ne réécrit pas l'en-tête d'une séance close.
+            for nom, champ in self.fields.items():
+                champ.disabled = nom != "statut"
 
 
 class SujetOrdreDuJourForm(forms.ModelForm):
@@ -384,6 +404,131 @@ class ResolutionForm(forms.ModelForm):
         if reunion is not None:
             self.fields["sujet"].queryset = reunion.sujets.all()
         self.fields["sujet"].required = False
+
+
+class BlocCompteRenduForm(forms.ModelForm):
+    """Ajout d'un bloc de récit au déroulé (la réunion est posée par le service).
+
+    `apres_sujet` n'offre que les points de CETTE réunion : la position d'un
+    bloc ne se choisit pas dans l'ordre du jour d'une autre séance. Cet écran
+    lisait `request.POST` en direct — d'où un bloc sans texte, qu'aucune
+    validation n'arrêtait."""
+
+    class Meta:
+        model = BlocCompteRendu
+        fields = ["apres_sujet", "titre", "texte"]
+        widgets = {"texte": forms.Textarea(attrs={"rows": 3})}
+        labels = {"apres_sujet": "Position", "titre": "Intertitre (optionnel)"}
+
+    def __init__(self, *args, reunion=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        champ = self.fields["apres_sujet"]
+        champ.required = False
+        champ.empty_label = "En préambule (avant le 1er point)"
+        if reunion is not None:
+            champ.queryset = reunion.sujets.order_by("ordre_du_jour", "id")
+
+
+class CompteRenduForm(forms.Form):
+    """Le compte rendu d'une séance : synthèse, notes par point, blocs de récit.
+
+    Un champ par point de l'ordre du jour, trois par bloc de récit, construits
+    depuis LA réunion — un envoi ne peut donc pas écrire les notes d'une autre
+    séance. Cet écran lisait `request.POST` en direct : ni validation, ni
+    longueur maximale, et surtout aucun endroit naturel pour poser la règle de
+    clôture. C'est ainsi qu'une réunion archivée est restée éditable sans que
+    personne ne le voie (inventaire ARCH-01, points 2 et 5)."""
+
+    synthese = forms.CharField(
+        label="Conclusion / synthèse",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4, "placeholder": "Clôture, remarques finales…"}),
+    )
+
+    def __init__(self, *args, reunion, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reunion = reunion
+        self._sujets = list(reunion.sujets.order_by("ordre_du_jour", "id"))
+        self._blocs = list(reunion.blocs.all())
+        self.fields["synthese"].initial = reunion.compte_rendu_texte
+        for sujet in self._sujets:
+            self.fields[f"notes_{sujet.pk}"] = forms.CharField(
+                label="Notes / décision",
+                required=False,
+                initial=sujet.notes,
+                widget=forms.Textarea(
+                    attrs={"rows": 3, "placeholder": "Ce qui a été dit ou décidé…"}
+                ),
+            )
+        for bloc in self._blocs:
+            self.fields[f"bloc_{bloc.pk}_titre"] = forms.CharField(
+                label="Intertitre du bloc de récit",
+                required=False,
+                max_length=BlocCompteRendu._meta.get_field("titre").max_length,
+                initial=bloc.titre,
+                widget=forms.TextInput(
+                    attrs={
+                        "placeholder": "Intertitre (optionnel)",
+                        "class": "cr-bloc__titre",
+                        # Pas d'étiquette visible dans un bloc de récit : deux
+                        # libellés par bloc feraient du bruit à l'œil, et le
+                        # champ doit rester annoncé à l'oreille.
+                        "aria-label": "Intertitre du bloc de récit",
+                    }
+                ),
+            )
+            self.fields[f"bloc_{bloc.pk}_texte"] = forms.CharField(
+                label="Texte du bloc de récit",
+                required=False,
+                initial=bloc.texte,
+                widget=forms.Textarea(attrs={"rows": 3, "aria-label": "Texte du bloc de récit"}),
+            )
+            self.fields[f"supprimer_bloc_{bloc.pk}"] = forms.BooleanField(
+                label="Supprimer ce bloc", required=False
+            )
+
+    def points(self):
+        """Chaque point de l'ordre du jour avec son champ de notes (gabarit)."""
+        for sujet in self._sujets:
+            yield sujet, self[f"notes_{sujet.pk}"]
+
+    def blocs(self):
+        """Chaque bloc de récit avec ses champs : titre, texte, suppression."""
+        for bloc in self._blocs:
+            yield (
+                bloc,
+                self[f"bloc_{bloc.pk}_titre"],
+                self[f"bloc_{bloc.pk}_texte"],
+                self[f"supprimer_bloc_{bloc.pk}"],
+            )
+
+    def donnees_du_compte_rendu(self) -> dict:
+        """Traduit les champs à plat en arguments d'`enregistrer_compte_rendu`.
+
+        Un champ ABSENT de l'envoi est laissé tel quel en base, et non vidé : la
+        page peut avoir été rendue avant qu'un point n'existe, et ce qu'elle n'a
+        pas montré ne s'écrase pas. `cleaned_data` ne distingue pas les deux —
+        un champ optionnel absent y vaut la chaîne vide."""
+        propres = self.cleaned_data
+        return {
+            "synthese": propres.get("synthese", ""),
+            "notes": {
+                sujet.pk: propres[f"notes_{sujet.pk}"]
+                for sujet in self._sujets
+                if f"notes_{sujet.pk}" in self.data
+            },
+            "blocs": {
+                bloc.pk: {
+                    "titre": propres[f"bloc_{bloc.pk}_titre"],
+                    "texte": propres[f"bloc_{bloc.pk}_texte"],
+                }
+                for bloc in self._blocs
+                if f"bloc_{bloc.pk}_texte" in self.data
+            },
+            "blocs_supprimes": {
+                bloc.pk for bloc in self._blocs if propres[f"supprimer_bloc_{bloc.pk}"]
+            },
+        }
 
 
 class MembreForm(forms.ModelForm):

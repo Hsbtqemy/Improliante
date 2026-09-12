@@ -24,6 +24,22 @@
 
   {% if reunion.convocation_texte %}<p class="reunion-convocation">{{ reunion.convocation_texte|linebreaksbr }}</p>{% endif %}
 
+  {% if scelle %}
+    <div class="encart">
+      <h2 class="encart__titre">Séance close</h2>
+      <p>
+        Cette réunion est <strong>archivée</strong> : son contenu est scellé. Ni résolution, ni
+        point d'ordre du jour, ni présence, ni compte rendu ne s'y écrivent plus. Le PV, lui, se
+        regénère : il ne fait que rendre ce qui est là.
+      </p>
+      <p>
+        S'il faut vraiment la corriger,
+        <a href="{% url 'backoffice:gouvernance_editer_reunion' pk=reunion.pk %}">rouvrez-la</a>
+        (statut « Tenue »). Les règles figées à sa clôture resteront celles de ce jour-là.
+      </p>
+    </div>
+  {% endif %}
+
   {# --- Résumé de séance --- #}
   <div class="reunion-resume" role="group" aria-label="Résumé de la séance">
     <span class="reunion-resume__item">
@@ -67,35 +83,31 @@
       <p class="champ__aide">Aucune présence enregistrée.</p>
     {% endif %}
 
-    <div class="ajout-groupe">
-      <details class="ajout">
-        <summary>+ Enregistrer une présence</summary>
-        <form method="post" action="{% url 'backoffice:gouvernance_saisir_presence' pk=reunion.pk %}" class="formulaire">
-          {% csrf_token %}
-          {% for field in presence_form %}
-            <p class="champ">
-              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
-            </p>
-          {% endfor %}
-          <button type="submit" class="lien-bouton">Enregistrer la présence</button>
-        </form>
-      </details>
+    {% if not scelle %}
+      <div class="ajout-groupe">
+        <details class="ajout">
+          <summary>+ Enregistrer une présence</summary>
+          <form method="post" action="{% url 'backoffice:gouvernance_saisir_presence' pk=reunion.pk %}" class="formulaire">
+            {% csrf_token %}
+            {% for field in presence_form %}{% include "_champ.html" %}{% endfor %}
+            <button type="submit" class="lien-bouton">Enregistrer la présence</button>
+          </form>
+        </details>
 
-      <details class="ajout">
-        <summary>Préremplir les droits de vote</summary>
-        <form method="post" action="{% url 'backoffice:gouvernance_preremplir_votes' pk=reunion.pk %}" class="formulaire-inline">
-          {% csrf_token %}
-          <label for="saison-vote">Saison de référence</label>
-          <select id="saison-vote" name="saison">
-            <option value="">—</option>
-            {% for s in saisons %}<option value="{{ s.pk }}">{{ s.nom }}</option>{% endfor %}
-          </select>
-          <button type="submit" class="lien-bouton">Préremplir</button>
-        </form>
-      </details>
-    </div>
+        <details class="ajout">
+          <summary>Préremplir les droits de vote</summary>
+          <form method="post" action="{% url 'backoffice:gouvernance_preremplir_votes' pk=reunion.pk %}" class="formulaire-inline">
+            {% csrf_token %}
+            <label for="saison-vote">Saison de référence</label>
+            <select id="saison-vote" name="saison">
+              <option value="">—</option>
+              {% for s in saisons %}<option value="{{ s.pk }}">{{ s.nom }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="lien-bouton">Préremplir</button>
+          </form>
+        </details>
+      </div>
+    {% endif %}
 
     <h3 class="reunion-sous-titre">Pouvoirs</h3>
     {% if mandataires_en_exces %}
@@ -110,81 +122,70 @@
     {% else %}
       <p class="champ__aide">Aucun pouvoir.</p>
     {% endif %}
-    <details class="ajout">
-      <summary>+ Ajouter un pouvoir</summary>
-      <form method="post" action="{% url 'backoffice:gouvernance_ajouter_pouvoir' pk=reunion.pk %}" class="formulaire">
-        {% csrf_token %}
-        {% for field in pouvoir_form %}
-          <p class="champ"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</p>
-        {% endfor %}
-        <button type="submit" class="lien-bouton">Ajouter le pouvoir</button>
-      </form>
-    </details>
+    {% if not scelle %}
+      <details class="ajout">
+        <summary>+ Ajouter un pouvoir</summary>
+        <form method="post" action="{% url 'backoffice:gouvernance_ajouter_pouvoir' pk=reunion.pk %}" class="formulaire">
+          {% csrf_token %}
+          {% for field in pouvoir_form %}{% include "_champ.html" %}{% endfor %}
+          <button type="submit" class="lien-bouton">Ajouter le pouvoir</button>
+        </form>
+      </details>
+    {% endif %}
   </section>
 
   {# --- Déroulé : ordre du jour + notes + blocs de récit intercalés --- #}
   <section aria-labelledby="t-odj">
     <h2 id="t-odj">Déroulé &amp; compte-rendu</h2>
-    <p class="champ__aide">
-      Les points numérotés portent la <strong>décision</strong> ; les blocs ambrés sont du
-      <strong>récit libre</strong> (préambule, échanges, transitions) intercalé où vous voulez.
-    </p>
-
-    <form method="post" action="{% url 'backoffice:gouvernance_notes' pk=reunion.pk %}" class="formulaire">
-      {% csrf_token %}
-      <div class="odj-liste">
-        {% for bloc in blocs_intro %}{% include "backoffice/_cr_bloc.html" %}{% endfor %}
-        {% for sujet in ordre_du_jour %}
-          <div class="odj-point">
-            <div class="odj-point__titre">{{ sujet.titre }}</div>
-            {% if sujet.description %}<p class="odj-point__desc">{{ sujet.description }}</p>{% endif %}
-            <label class="odj-point__label" for="notes-{{ sujet.pk }}">Notes / décision</label>
-            <textarea id="notes-{{ sujet.pk }}" name="notes_{{ sujet.pk }}" rows="3" placeholder="Ce qui a été dit ou décidé…">{{ sujet.notes }}</textarea>
-          </div>
-          {% for bloc in sujet.blocs_suivants %}{% include "backoffice/_cr_bloc.html" %}{% endfor %}
-        {% empty %}
-          {% if not blocs_intro %}<p class="champ__aide">Aucun point à l'ordre du jour pour l'instant.</p>{% endif %}
-        {% endfor %}
-      </div>
-
-      <p class="champ">
-        <label for="synthese">Conclusion / synthèse</label>
-        <textarea id="synthese" name="synthese" rows="4" placeholder="Clôture, remarques finales…">{{ reunion.compte_rendu_texte }}</textarea>
+    {% if not scelle %}
+      {% comment %}Conseil de saisie : il n'a rien à dire à qui ne peut plus écrire.{% endcomment %}
+      <p class="champ__aide">
+        Les points numérotés portent la <strong>décision</strong> ; les blocs ambrés sont du
+        <strong>récit libre</strong> (préambule, échanges, transitions) intercalé où vous voulez.
       </p>
-      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer le compte-rendu</button>
-    </form>
+    {% endif %}
 
-    <div class="ajout-groupe">
-      <details class="ajout">
-        <summary>+ Ajouter un point à l'ordre du jour</summary>
-        <form method="post" action="{% url 'backoffice:gouvernance_ajouter_sujet' pk=reunion.pk %}" class="formulaire">
-          {% csrf_token %}
-          {% for field in sujet_form %}
-            <p class="champ"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</p>
-          {% endfor %}
-          <button type="submit" class="lien-bouton">Ajouter le sujet</button>
-        </form>
-      </details>
+    {% comment %}
+      Le déroulé se saisit tant que la séance est ouverte, et se lit une fois
+      close. Même gabarit, le texte à la place du champ — masquer le formulaire
+      ne doit pas escamoter le contenu : c'est le compte rendu de la séance.
+    {% endcomment %}
+    {% if scelle %}
+      {% include "backoffice/_deroule.html" %}
+      {% if reunion.compte_rendu_texte %}
+        <h3 class="reunion-sous-titre">Conclusion / synthèse</h3>
+        <p class="odj-point__lu">{{ reunion.compte_rendu_texte }}</p>
+      {% endif %}
+    {% else %}
+      <form method="post" action="{% url 'backoffice:gouvernance_notes' pk=reunion.pk %}" class="formulaire">
+        {% csrf_token %}
+        {% include "backoffice/_deroule.html" %}
+        {% include "_champ.html" with field=compte_rendu_form.synthese %}
+        <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer le compte-rendu</button>
+      </form>
+    {% endif %}
 
-      <details class="ajout">
-        <summary>+ Ajouter un bloc de récit (contexte / transition)</summary>
-        <form method="post" action="{% url 'backoffice:gouvernance_ajouter_bloc' pk=reunion.pk %}" class="formulaire">
-          {% csrf_token %}
-          <p class="champ">
-            <label for="bloc-position">Position</label>
-            <select id="bloc-position" name="apres_sujet">
-              <option value="">En préambule (avant le 1er point)</option>
-              {% for sujet in ordre_du_jour %}
-                <option value="{{ sujet.pk }}">Après le point {{ forloop.counter }} — {{ sujet.titre }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p class="champ"><label for="bloc-titre">Intertitre (optionnel)</label><input type="text" id="bloc-titre" name="titre" /></p>
-          <p class="champ"><label for="bloc-texte">Texte</label><textarea id="bloc-texte" name="texte" rows="3"></textarea></p>
-          <button type="submit" class="lien-bouton">Ajouter le bloc</button>
-        </form>
-      </details>
-    </div>
+    {% if not scelle %}
+      <div class="ajout-groupe">
+        <details class="ajout">
+          <summary>+ Ajouter un point à l'ordre du jour</summary>
+          <form method="post" action="{% url 'backoffice:gouvernance_ajouter_sujet' pk=reunion.pk %}" class="formulaire">
+            {% csrf_token %}
+            {% for field in sujet_form %}{% include "_champ.html" %}{% endfor %}
+            <button type="submit" class="lien-bouton">Ajouter le sujet</button>
+          </form>
+        </details>
+
+        <details class="ajout">
+          <summary>+ Ajouter un bloc de récit (contexte / transition)</summary>
+          <form method="post" action="{% url 'backoffice:gouvernance_ajouter_bloc' pk=reunion.pk %}" class="formulaire">
+            {% csrf_token %}
+            {% for field in bloc_form %}{% include "_champ.html" %}{% endfor %}
+            <button type="submit" class="lien-bouton">Ajouter le bloc</button>
+          </form>
+        </details>
+      </div>
+    {% endif %}
   </section>
 
   {# --- Résolutions --- #}
@@ -216,20 +217,16 @@
     {% else %}
       <p class="champ__aide">Aucune résolution.</p>
     {% endif %}
-    <details class="ajout">
-      <summary>+ Enregistrer une résolution</summary>
-      <form method="post" action="{% url 'backoffice:gouvernance_ajouter_resolution' pk=reunion.pk %}" class="formulaire">
-        {% csrf_token %}
-        {% for field in resolution_form %}
-          <p class="champ">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
-          </p>
-        {% endfor %}
-        <button type="submit" class="lien-bouton">Enregistrer la résolution</button>
-      </form>
-    </details>
+    {% if not scelle %}
+      <details class="ajout">
+        <summary>+ Enregistrer une résolution</summary>
+        <form method="post" action="{% url 'backoffice:gouvernance_ajouter_resolution' pk=reunion.pk %}" class="formulaire">
+          {% csrf_token %}
+          {% for field in resolution_form %}{% include "_champ.html" %}{% endfor %}
+          <button type="submit" class="lien-bouton">Enregistrer la résolution</button>
+        </form>
+      </details>
+    {% endif %}
   </section>
 
   {# --- Compte-rendu (PV) --- #}

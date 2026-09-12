@@ -1,0 +1,13 @@
+{% comment %}
+Un champ du déroulé du compte-rendu. Attend `champ` (BoundField).
+
+`_champ.html` ne convient pas ici : sa balise `<p class="champ">` casserait la
+mise en page du déroulé (point numéroté, bloc de récit), et l'étiquette est
+posée par l'appelant — visible pour les notes d'un point, portée par
+`aria-label` dans un bloc de récit, où deux libellés visibles feraient du bruit.
+Ce qui ne change pas, c'est l'identifiant des messages d'erreur : Django le cite
+dans l'`aria-describedby` du champ, et une référence morte est ignorée sans
+erreur (cf. l'en-tête de `_champ.html`).
+{% endcomment %}
+{{ champ }}
+{% if champ.errors %}<span class="champ__erreurs" id="{{ champ.auto_id }}_error" role="alert">{% for erreur in champ.errors %}<span class="champ__erreur">{{ erreur }}</span>{% endfor %}</span>{% endif %}

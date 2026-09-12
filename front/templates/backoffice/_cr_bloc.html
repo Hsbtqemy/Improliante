@@ -1,13 +1,18 @@
 {% comment %}
-Un bloc de récit éditable, rendu à l'intérieur du formulaire du compte-rendu.
-Attend `bloc` (BlocCompteRendu). Titre optionnel + texte + case « supprimer »
-(traitée par la vue gouvernance_notes).
+Un bloc de récit du déroulé. Attend `bloc` (BlocCompteRendu) ; ses champs liés
+(`champ_titre`, `champ_texte`, `champ_supprimer`) sont posés dessus par la vue,
+depuis `CompteRenduForm`. Sur une séance close (`scelle`), le bloc se lit : le
+contenu d'une réunion archivée ne se réécrit plus (inventaire ARCH-01, n° 2).
 {% endcomment %}
 <div class="cr-bloc">
-  <input type="text" class="cr-bloc__titre" name="bloc_{{ bloc.pk }}_titre" value="{{ bloc.titre }}"
-         placeholder="Intertitre (optionnel)" aria-label="Intertitre du bloc de récit" />
-  <textarea name="bloc_{{ bloc.pk }}_texte" rows="3" aria-label="Texte du bloc de récit">{{ bloc.texte }}</textarea>
-  <label class="cr-bloc__suppr">
-    <input type="checkbox" name="supprimer_bloc" value="{{ bloc.pk }}" /> Supprimer ce bloc
-  </label>
+  {% if scelle %}
+    {% if bloc.titre %}<p class="cr-bloc__titre">{{ bloc.titre }}</p>{% endif %}
+    <p class="cr-bloc__lu">{{ bloc.texte }}</p>
+  {% else %}
+    {% include "backoffice/_cr_champ.html" with champ=bloc.champ_titre %}
+    {% include "backoffice/_cr_champ.html" with champ=bloc.champ_texte %}
+    <label class="cr-bloc__suppr" for="{{ bloc.champ_supprimer.id_for_label }}">
+      {{ bloc.champ_supprimer }} {{ bloc.champ_supprimer.label }}
+    </label>
+  {% endif %}
 </div>

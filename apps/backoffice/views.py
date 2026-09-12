@@ -77,17 +77,24 @@ from apps.facturation.services import (
     transformer_en_facture,
     valider_facture,
 )
-from apps.gouvernance.models import BlocCompteRendu, Presence, Reunion, Sujet
+from apps.gouvernance.models import Reunion
 from apps.gouvernance.services import (
     ReponseConvocationImpossible,
+    ReunionClose,
+    ajouter_bloc_de_recit,
+    ajouter_sujet_a_l_ordre_du_jour,
     calcul_quorum,
+    contenu_scelle,
     donner_pouvoir,
+    enregistrer_compte_rendu,
+    enregistrer_resolution,
     figer_les_regles,
     generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
     regles_applicables,
     resultat_resolution,
+    saisir_presence,
 )
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
@@ -95,8 +102,10 @@ from apps.vitrine.models import MessageContact
 
 from .forms import (
     AdhesionForm,
+    BlocCompteRenduForm,
     CategorieForm,
     ClientForm,
+    CompteRenduForm,
     ContactPublicFormSet,
     ContactPubliqueForm,
     DevisForm,
@@ -1848,11 +1857,22 @@ def gouvernance_reunion(request, pk):
     resolutions = [(r, resultat_resolution(r, regles=regles)) for r in reunion.resolutions.all()]
 
     # Déroulé du compte-rendu : blocs de récit en préambule (apres_sujet nul) +
-    # blocs rattachés à chaque point (affichés juste après lui).
-    sujets = list(reunion.sujets.order_by("ordre_du_jour", "id"))
+    # blocs rattachés à chaque point (affichés juste après lui). La structure
+    # vient du formulaire, qui liste déjà les points dans l'ordre et les blocs :
+    # chacun porte ainsi son propre champ, que le gabarit rend là où il place
+    # l'élément. Sans cela, le déroulé et les champs seraient deux listes à
+    # tenir d'accord.
+    compte_rendu_form = CompteRenduForm(reunion=reunion)
+    sujets = []
+    for sujet, champ_notes in compte_rendu_form.points():
+        sujet.champ_notes = champ_notes
+        sujets.append(sujet)
     blocs_par_sujet = defaultdict(list)
     blocs_intro = []
-    for bloc in reunion.blocs.all():
+    for bloc, champ_titre, champ_texte, champ_supprimer in compte_rendu_form.blocs():
+        bloc.champ_titre = champ_titre
+        bloc.champ_texte = champ_texte
+        bloc.champ_supprimer = champ_supprimer
         if bloc.apres_sujet_id:
             blocs_par_sujet[bloc.apres_sujet_id].append(bloc)
         else:
@@ -1860,11 +1880,16 @@ def gouvernance_reunion(request, pk):
     for sujet in sujets:
         sujet.blocs_suivants = blocs_par_sujet.get(sujet.pk, [])
 
+    # Une réunion archivée n'OFFRE plus ses formulaires : les services les
+    # refusent de toute façon, et faire remplir un écran pour le voir refuser à
+    # l'envoi est la moitié du travail. L'écran et la règle lisent la même ligne.
+    scelle = contenu_scelle(reunion)
     return render(
         request,
         "backoffice/gouvernance_reunion.html",
         {
             "reunion": reunion,
+            "scelle": scelle,
             "quorum": calcul_quorum(reunion),
             "ordre_du_jour": sujets,
             "blocs_intro": blocs_intro,
@@ -1873,10 +1898,12 @@ def gouvernance_reunion(request, pk):
             "resolutions": resolutions,
             "mandataires_en_exces": mandataires_en_exces(reunion),
             "saisons": Saison.objects.all(),
+            "compte_rendu_form": compte_rendu_form,
             "sujet_form": SujetOrdreDuJourForm(),
             "presence_form": PresenceForm(),
             "pouvoir_form": PouvoirForm(),
             "resolution_form": ResolutionForm(reunion=reunion),
+            "bloc_form": BlocCompteRenduForm(reunion=reunion, auto_id="id_bloc_%s"),
         },
     )
 
@@ -1894,6 +1921,9 @@ def gouvernance_editer_reunion(request, pk):
     Couvre notamment les **transitions de statut** (préparation → convoquée →
     tenue → archivée) sans passer par l'admin Django."""
     reunion = get_object_or_404(Reunion, pk=pk)
+    # Lu AVANT la validation : `is_valid()` recopie les données envoyées dans
+    # l'instance, statut compris.
+    etait_scellee = contenu_scelle(reunion)
     form = ReunionForm(request.POST or None, instance=reunion)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -1902,6 +1932,14 @@ def gouvernance_editer_reunion(request, pk):
         if figer_les_regles(reunion):
             messages.info(
                 request, "Réunion close : le quorum et les majorités de ce jour sont figés."
+            )
+        if etait_scellee and not contenu_scelle(reunion):
+            # Rouvrir est permis — une clôture par erreur doit se défaire — mais
+            # ce n'est pas un geste anodin, et il ne se fait pas en silence.
+            messages.warning(
+                request,
+                "Réunion rouverte : son contenu redevient modifiable. "
+                "Les règles figées à sa clôture, elles, restent celles de ce jour-là.",
             )
         messages.success(request, "Réunion mise à jour.")
         return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
@@ -1918,11 +1956,12 @@ def gouvernance_ajouter_sujet(request, pk):
     reunion = get_object_or_404(Reunion, pk=pk)
     form = SujetOrdreDuJourForm(request.POST)
     if form.is_valid():
-        sujet = form.save(commit=False)
-        sujet.reunion = reunion
-        sujet.statut = Sujet.Statut.ORDRE_DU_JOUR
-        sujet.save()
-        messages.success(request, "Sujet ajouté à l'ordre du jour.")
+        try:
+            ajouter_sujet_a_l_ordre_du_jour(reunion, form.save(commit=False))
+        except ReunionClose as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Sujet ajouté à l'ordre du jour.")
     else:
         messages.error(request, "Sujet invalide.")
     return _vers_reunion(reunion.pk, "#t-odj")
@@ -1934,17 +1973,19 @@ def gouvernance_saisir_presence(request, pk):
     reunion = get_object_or_404(Reunion, pk=pk)
     form = PresenceForm(request.POST)
     if form.is_valid():
-        # update_or_create : ré-enregistrer un membre met à jour sa présence
-        # (contrainte d'unicité reunion+membre).
-        Presence.objects.update_or_create(
-            reunion=reunion,
-            membre=form.cleaned_data["membre"],
-            defaults={
-                "statut": form.cleaned_data["statut"],
-                "peut_voter": form.cleaned_data["peut_voter"],
-            },
-        )
-        messages.success(request, "Présence enregistrée.")
+        try:
+            # Ré-enregistrer un membre met à jour sa présence : le service pose
+            # l'unicité (réunion, membre) — et le sceau de clôture.
+            saisir_presence(
+                reunion,
+                form.cleaned_data["membre"],
+                statut=form.cleaned_data["statut"],
+                peut_voter=form.cleaned_data["peut_voter"],
+            )
+        except ReunionClose as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Présence enregistrée.")
     else:
         messages.error(request, "Présence invalide.")
     return _vers_reunion(reunion.pk, "#t-participants")
@@ -1965,7 +2006,9 @@ def gouvernance_preremplir_votes(request, pk):
             f"Registre électoral à jour : {nb} présence(s) créée(s) ou modifiée(s). "
             "Les électeurs absents y figurent aussi — c'est l'électorat qui fait le quorum.",
         )
-    except ValueError as exc:
+    except (ReunionClose, ValueError) as exc:
+        # `ReunionClose` pour une séance close, `ValueError` pour une saison
+        # manquante quand le vote est réservé aux membres à jour.
         messages.error(request, str(exc))
     return _vers_reunion(reunion.pk, "#t-participants")
 
@@ -1985,7 +2028,7 @@ def gouvernance_ajouter_pouvoir(request, pk):
                 form.cleaned_data["mandataire"],
                 par_le_bureau=True,
             )
-        except ReponseConvocationImpossible as exc:
+        except (ReunionClose, ReponseConvocationImpossible) as exc:
             messages.error(request, str(exc))
         else:
             messages.success(request, "Pouvoir enregistré.")
@@ -2000,13 +2043,24 @@ def gouvernance_ajouter_resolution(request, pk):
     reunion = get_object_or_404(Reunion, pk=pk)
     form = ResolutionForm(request.POST, reunion=reunion)
     if form.is_valid():
-        resolution = form.save(commit=False)
-        resolution.reunion = reunion
-        resolution.save()
-        messages.success(request, "Résolution enregistrée.")
+        try:
+            enregistrer_resolution(reunion, form.save(commit=False))
+        except ReunionClose as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Résolution enregistrée.")
     else:
         messages.error(request, "Résolution invalide.")
     return _vers_reunion(reunion.pk, "#t-resolutions")
+
+
+def _messages_d_erreur(form) -> str:
+    """Les messages d'un formulaire en une phrase, pour un écran qui redirige.
+
+    Ces formulaires vivent dans la fiche de la réunion, qui se reconstruit
+    entièrement : on ne peut pas la réafficher avec ses erreurs en place, comme
+    le fait un écran dédié. On les dit donc dans le bandeau."""
+    return " ".join(message for messages_ in form.errors.values() for message in messages_)
 
 
 @bureau_requis
@@ -2015,27 +2069,16 @@ def gouvernance_notes(request, pk):
     """Enregistre le compte-rendu en une seule sauvegarde : synthèse, notes par
     point de l'ordre du jour, et le texte (+ suppression) des blocs de récit."""
     reunion = get_object_or_404(Reunion, pk=pk)
-    reunion.compte_rendu_texte = request.POST.get("synthese", "")
-    reunion.save(update_fields=["compte_rendu_texte"])
-
-    for sujet in reunion.sujets.all():
-        cle = f"notes_{sujet.pk}"
-        if cle in request.POST:
-            sujet.notes = request.POST.get(cle, "")
-            sujet.save(update_fields=["notes"])
-
-    a_supprimer = set(request.POST.getlist("supprimer_bloc"))
-    for bloc in reunion.blocs.all():
-        if str(bloc.pk) in a_supprimer:
-            bloc.delete()
-            continue
-        cle_texte = f"bloc_{bloc.pk}_texte"
-        if cle_texte in request.POST:
-            bloc.titre = request.POST.get(f"bloc_{bloc.pk}_titre", "")
-            bloc.texte = request.POST.get(cle_texte, "")
-            bloc.save(update_fields=["titre", "texte"])
-
-    messages.success(request, "Compte-rendu enregistré.")
+    form = CompteRenduForm(request.POST, reunion=reunion)
+    if form.is_valid():
+        try:
+            enregistrer_compte_rendu(reunion, **form.donnees_du_compte_rendu())
+        except ReunionClose as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Compte-rendu enregistré.")
+    else:
+        messages.error(request, f"Compte-rendu non enregistré. {_messages_d_erreur(form)}")
     return _vers_reunion(reunion.pk, "#t-odj")
 
 
@@ -2044,15 +2087,21 @@ def gouvernance_notes(request, pk):
 def gouvernance_ajouter_bloc(request, pk):
     """Ajoute un bloc de texte libre au déroulé (préambule ou après un point)."""
     reunion = get_object_or_404(Reunion, pk=pk)
-    apres_pk = request.POST.get("apres_sujet", "")
-    apres = reunion.sujets.filter(pk=apres_pk).first() if apres_pk and apres_pk.isdigit() else None
-    BlocCompteRendu.objects.create(
-        reunion=reunion,
-        apres_sujet=apres,
-        titre=request.POST.get("titre", ""),
-        texte=request.POST.get("texte", ""),
-    )
-    messages.success(request, "Bloc de texte ajouté au compte-rendu.")
+    form = BlocCompteRenduForm(request.POST, reunion=reunion, auto_id="id_bloc_%s")
+    if form.is_valid():
+        try:
+            ajouter_bloc_de_recit(
+                reunion,
+                titre=form.cleaned_data["titre"],
+                texte=form.cleaned_data["texte"],
+                apres_sujet=form.cleaned_data["apres_sujet"],
+            )
+        except ReunionClose as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Bloc de texte ajouté au compte-rendu.")
+    else:
+        messages.error(request, f"Bloc non ajouté. {_messages_d_erreur(form)}")
     return _vers_reunion(reunion.pk, "#t-odj")
 
 

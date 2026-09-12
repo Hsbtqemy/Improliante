@@ -1,0 +1,32 @@
+{% comment %}
+Le déroulé d'une séance : blocs de récit en préambule, puis chaque point de
+l'ordre du jour suivi des blocs qui s'y rattachent.
+
+Un seul fragment pour les deux états — inclus dans le formulaire du
+compte-rendu tant que la séance est ouverte, seul quand elle est close. Le
+formulaire s'arrête à la porte : masquer le déroulé avec lui escamoterait le
+compte rendu de la séance, qui est justement ce qu'on garde. Deux boucles
+séparées dériveraient l'une de l'autre, et l'écran ne montrerait plus ce que le
+PV assemble.
+
+Attendu dans le contexte : `blocs_intro`, `ordre_du_jour` (chaque point portant
+son `champ_notes`), et `scelle`.
+{% endcomment %}
+<div class="odj-liste">
+  {% for bloc in blocs_intro %}{% include "backoffice/_cr_bloc.html" %}{% endfor %}
+  {% for sujet in ordre_du_jour %}
+    <div class="odj-point">
+      <div class="odj-point__titre">{{ sujet.titre }}</div>
+      {% if sujet.description %}<p class="odj-point__desc">{{ sujet.description }}</p>{% endif %}
+      {% if scelle %}
+        {% if sujet.notes %}<p class="odj-point__lu">{{ sujet.notes }}</p>{% endif %}
+      {% else %}
+        <label class="odj-point__label" for="{{ sujet.champ_notes.id_for_label }}">{{ sujet.champ_notes.label }}</label>
+        {% include "backoffice/_cr_champ.html" with champ=sujet.champ_notes %}
+      {% endif %}
+    </div>
+    {% for bloc in sujet.blocs_suivants %}{% include "backoffice/_cr_bloc.html" %}{% endfor %}
+  {% empty %}
+    {% if not blocs_intro %}<p class="champ__aide">Aucun point à l'ordre du jour pour l'instant.</p>{% endif %}
+  {% endfor %}
+</div>

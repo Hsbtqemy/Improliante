@@ -2046,6 +2046,122 @@ def test_gouvernance_enregistre_les_notes(client, db):
     assert sujet.notes == "Adopté"
 
 
+def test_l_ecran_d_une_reunion_archivee_n_offre_plus_ses_formulaires(client, db):
+    """Refuser à l'envoi sans retirer le formulaire fait remplir un écran pour
+    rien. L'écran et la règle lisent la même ligne (`contenu_scelle`)."""
+    reunion = _reunion(statut=Reunion.Statut.ARCHIVEE)
+    Sujet.objects.create(
+        titre="Point 1",
+        reunion=reunion,
+        statut=Sujet.Statut.ORDRE_DU_JOUR,
+        notes="Adopté sans opposition",
+    )
+    BlocCompteRendu.objects.create(reunion=reunion, texte="Le récit de la séance")
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/").content.decode()
+
+    assert "Séance close" in corps
+    for geste in ("/sujet/", "/resolution/", "/bloc/", "/presence/", "/pouvoir/", "/notes/"):
+        assert geste not in corps
+    # Le contenu, lui, reste LISIBLE : c'est le compte rendu de la séance, et le
+    # masquer avec le formulaire l'aurait escamoté.
+    assert "Adopté sans opposition" in corps
+    assert "Le récit de la séance" in corps
+    # Le PV reste produisible : il ne fait que rendre ce qui est là.
+    assert f"/reunion/{reunion.pk}/pv/" in corps
+
+
+def test_le_back_office_refuse_d_ecrire_sur_une_reunion_archivee(client, db):
+    """Retirer le formulaire ne ferme pas l'adresse — c'est la leçon du lot 6,
+    et elle vaut ici : les cinq envois passent par les URL, comme un onglet
+    resté ouvert avant la clôture."""
+    reunion = _reunion(statut=Reunion.Statut.ARCHIVEE)
+    membre = _membre("scelle").membre
+    client.force_login(_staff())
+    base = f"/bureau/gouvernance/reunion/{reunion.pk}"
+
+    client.post(
+        f"{base}/sujet/",
+        {
+            "titre": "Ajout",
+            "description": "",
+            "priorite": Sujet.Priorite.NORMALE,
+            "ordre_du_jour": 1,
+        },
+    )
+    client.post(
+        f"{base}/resolution/",
+        {
+            "intitule": "Tardive",
+            "texte": "",
+            "type_majorite": Resolution.TypeMajorite.SIMPLE,
+            "sujet": "",
+            "nombre_pour": 99,
+            "nombre_contre": 0,
+            "nombre_abstention": 0,
+            "ordre": 0,
+        },
+    )
+    client.post(f"{base}/bloc/", {"apres_sujet": "", "titre": "", "texte": "Récit ajouté"})
+    client.post(f"{base}/notes/", {"synthese": "Réécrit après coup"})
+    client.post(
+        f"{base}/presence/",
+        {"membre": membre.pk, "statut": Presence.Statut.PRESENT, "peut_voter": "on"},
+    )
+
+    reunion.refresh_from_db()
+    assert reunion.sujets.count() == 0
+    assert reunion.resolutions.count() == 0
+    assert reunion.blocs.count() == 0
+    assert reunion.presences.count() == 0
+    assert reunion.compte_rendu_texte == ""
+
+
+def test_l_entete_d_une_reunion_archivee_ne_bouge_pas_sauf_son_statut(client, db):
+    """Le titre, le type et le lieu d'une séance close font partie de son
+    dossier. Le statut, lui, doit pouvoir reculer : une clôture par erreur se
+    défait, sinon la réunion est enfermée — et la réouverture ne se fait pas en
+    silence."""
+    reunion = _reunion(statut=Reunion.Statut.ARCHIVEE)
+    client.force_login(_staff())
+
+    reponse = client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/modifier/",
+        {
+            "titre": "Titre réécrit",
+            "type_reunion": Reunion.TypeReunion.BUREAU,
+            "statut": Reunion.Statut.TENUE,
+            "date": "",
+            "lieu_texte": "Ailleurs",
+            "convocation_texte": "Refonte",
+        },
+        follow=True,
+    )
+
+    reunion.refresh_from_db()
+    assert reunion.titre == "AG"
+    assert reunion.type_reunion == Reunion.TypeReunion.AG_ORDINAIRE
+    assert reunion.lieu_texte == ""
+    assert reunion.convocation_texte == ""
+    assert reunion.statut == Reunion.Statut.TENUE
+    assert "rouverte" in reponse.content.decode()
+
+
+def test_un_bloc_de_recit_sans_texte_est_refuse(client, db):
+    """Cet écran écrivait ce que `request.POST` lui donnait : un bloc vide
+    partait en base, et se retrouvait dans le PV."""
+    reunion = _reunion()
+    client.force_login(_staff())
+
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/bloc/",
+        {"apres_sujet": "", "titre": "Intertitre seul", "texte": ""},
+    )
+
+    assert reunion.blocs.count() == 0
+
+
 def test_gouvernance_genere_le_pv_depuis_l_ecran(client, db, monkeypatch):
     monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF")
     reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
@@ -2119,7 +2235,9 @@ def test_gouvernance_edite_et_supprime_un_bloc(client, db):
             f"bloc_{b1.pk}_titre": "Titre",
             f"bloc_{b1.pk}_texte": "nouveau",
             f"bloc_{b2.pk}_texte": "peu importe",
-            "supprimer_bloc": str(b2.pk),
+            # Une case par bloc depuis que l'écran passe par un formulaire : le
+            # nom répété `supprimer_bloc` ne se rend pas champ par champ.
+            f"supprimer_bloc_{b2.pk}": "on",
         },
     )
     b1.refresh_from_db()
