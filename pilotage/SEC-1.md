@@ -52,7 +52,7 @@ constats sur trente sont clos.
 - [ ] GOU-01, le contenu : une réunion **archivée** refuse une résolution, un sujet et une réécriture de compte rendu — aujourd'hui les trois passent depuis le back-office, formulaires affichés, et l'inventaire du lot 10 l'a reproduit
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
-- [ ] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée (`devis_origine`) et non sur un statut que l'admin peut remettre en arrière — point 3 de l'inventaire, le moins coûteux
+- [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée, et l'admin fige le statut d'un devis facturé. Un devis dont la facture a été supprimée redevient transformable au lieu de rester bloqué — les deux directions sont testées
 - [ ] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1
 - [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4
 - [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)

@@ -106,6 +106,12 @@ doit porter sur le fait, pas sur l'étiquette : `Facture.objects.filter(
 devis_origine=courant).exists()`. Un fait ne se remet pas à zéro depuis un
 formulaire d'admin.
 
+> **Corrigé le 12 septembre 2026** (`c1aac59`). Le garde-fou porte sur
+> l'existence de la facture, et `DevisAdmin` fige le statut d'un devis déjà
+> facturé. Effet de bord assumé et testé : un devis étiqueté « Facturé » dont la
+> facture n'existe plus redevient transformable — il restait sinon dans une
+> impasse.
+
 ## 4. Le plafond statutaire de pouvoirs est contourné par l'admin
 
 **Où** : `apps/gouvernance/admin.py::PouvoirInline` — quatre lignes, aucune
