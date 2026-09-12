@@ -52,7 +52,7 @@ constats sur trente sont clos.
 - [ ] GOU-01, le contenu : une réunion **archivée** refuse une résolution, un sujet et une réécriture de compte rendu — aujourd'hui les trois passent depuis le back-office, formulaires affichés, et l'inventaire du lot 10 l'a reproduit
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
-- [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée, et l'admin fige le statut d'un devis facturé. Un devis dont la facture a été supprimée redevient transformable au lieu de rester bloqué — les deux directions sont testées
+- [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée — une seule lecture (`devis_deja_facture`), partagée par le service, l'écran d'édition du bureau, son changement de statut et l'admin, qui fige en plus le statut. Un devis dont la facture a été supprimée redevient pilotable À L'ÉCRAN au lieu de rester dans une impasse — les deux directions sont testées
 - [ ] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1
 - [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4
 - [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)
@@ -122,6 +122,20 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 11 — le devis refacturable, et ce que la relecture a dû aller chercher.** Le
+garde-fou de `transformer_en_facture` portait sur l'étiquette « Facturé » du devis, que
+l'admin remet en arrière ; il porte maintenant sur l'existence de la facture liée. Un
+fait ne se remet pas à zéro depuis un formulaire d'admin, une étiquette si.
+
+Corriger le service ne suffisait pas, et c'est la relecture qui l'a montré. Les deux
+écrans du bureau gardaient leur lecture de l'étiquette : un devis marqué « Facturé »
+dont la facture avait été supprimée depuis restait présenté en lecture seule, annonçant
+une facture qu'il ne pouvait même plus lier, changement de statut refusé. Plus aucun
+geste n'était offert, alors que le service, lui, acceptait de nouveau — la sortie
+existait sans qu'aucun bouton n'y mène. Reproduit par sonde avant d'être corrigé. Les
+quatre chemins lisent désormais la même ligne, ce qui est le fond d'ARCH-01 : la règle
+à un seul endroit.
 
 **Le lot 10 — l'inventaire ARCH-01, et deux constats à rouvrir.** L'inventaire
 (`docs/regles-hors-services.md`) a trouvé trois choses qui pèsent plus que le constat

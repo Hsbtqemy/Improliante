@@ -106,11 +106,25 @@ doit porter sur le fait, pas sur l'étiquette : `Facture.objects.filter(
 devis_origine=courant).exists()`. Un fait ne se remet pas à zéro depuis un
 formulaire d'admin.
 
-> **Corrigé le 12 septembre 2026** (`c1aac59`). Le garde-fou porte sur
-> l'existence de la facture, et `DevisAdmin` fige le statut d'un devis déjà
-> facturé. Effet de bord assumé et testé : un devis étiqueté « Facturé » dont la
-> facture n'existe plus redevient transformable — il restait sinon dans une
-> impasse.
+> **Corrigé le 12 septembre 2026** (`c1aac59`, complété par la relecture). Le
+> garde-fou porte sur l'existence de la facture, et c'est une seule ligne —
+> `devis_deja_facture`, dans le service — que lisent les quatre chemins
+> concernés : la transformation, l'écran d'édition du bureau, son changement de
+> statut, et `DevisAdmin`, qui fige en plus le statut d'un devis déjà facturé.
+>
+> La relecture a trouvé que corriger le service ne suffisait pas. Les deux
+> écrans gardaient leur lecture de l'étiquette : un devis marqué « Facturé »
+> dont la facture avait été supprimée depuis restait présenté en lecture seule,
+> en annonçant une facture qu'il ne pouvait même plus lier, changement de statut
+> refusé — plus aucun geste offert, alors que le service acceptait de nouveau.
+> Reproduit par sonde, puis retenu par deux tests d'écran.
+>
+> **Résidu assumé** : sur une facture en brouillon, `devis_origine` reste
+> modifiable dans l'admin. L'effacer à la main détache la facture de son devis,
+> qui redevient transformable. Ce n'est pas le geste que cet inventaire traque —
+> trois clics dans une liste de statuts, qu'on fait sans y penser — et le bureau
+> a le droit de rattacher une pièce à son devis. Non verrouillé, donc, et dit
+> ici plutôt que passé sous silence.
 
 ## 4. Le plafond statutaire de pouvoirs est contourné par l'admin
 
