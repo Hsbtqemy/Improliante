@@ -24,7 +24,7 @@ constats sur trente sont clos.
 - [x] « Valider » ne porte plus que sur une version enregistrée : un écran de confirmation récapitule la pièce telle qu'elle est en base, et seul le POST émet
 - [x] Un double clic sur « Valider » ne s'annonce plus comme une erreur : la seconde requête constate en information que la pièce est déjà émise
 - [ ] Dans un navigateur : modifier un champ du brouillon révèle « Modifications non enregistrées » et le lien « Valider et numéroter… » cesse de mener au récapitulatif tant qu'on n'a pas enregistré — aucun test ne couvre ce geste, il demande un vrai navigateur
-- [ ] Le lien de validation neutralisé se distingue **à l'œil**, et pas seulement pour un lecteur d'écran : il porte `aria-disabled` sans style associé
+- [x] Le lien de validation neutralisé porte un style : fond neutre, curseur d'interdiction, et pas d'`opacity` qui l'effacerait à demi — un test retient la règle, la passe QA vérifie qu'elle se voit
 
 ### Concurrence éprouvée
 - [x] `TEST_POSTGRES=1 pytest` passe, test de double clic simultané compris — rejoué à chaque commit par la vérification distante, et non plus seulement par un hook local contournable
@@ -45,8 +45,9 @@ constats sur trente sont clos.
 - [ ] FRONT-03 est **écarté** (12 septembre) : le sélecteur de 18 palettes est offert au visiteur, pas oublié. Ce qu'il coûte est reporté sur FRONT-08 ci-dessous — le contraste se vérifie sur les 18
 - [x] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — y compris celui qui n'en a jamais défini, que le défaut de Django laissait sans réponse
 - [ ] Le parcours est éprouvé avec un VRAI serveur d'envoi : le courriel part, arrive, et son lien s'ouvre en `https` depuis une messagerie — le backend console prouve le parcours, pas la remise (DEP-1)
-- [ ] FRONT-08, sans navigateur d'abord : HTML sémantique, libellés de champs, `aria`, ordre de tabulation, focus après erreur, et le contraste AA calculé sur les **18** palettes — ce qui échoue est corrigé ou fiché
-- [ ] FRONT-08, passe QA ensuite : une passe rejouable dans `pilotage/qa/` couvre ce qui demande un vrai navigateur (375 px et bureau, zoom 200 %, clavier), et l'humain la coche
+- [x] FRONT-08, sans navigateur : l'aide de chaque champ s'annonce (une convention au lieu de deux), aucun identifiant n'est rendu deux fois, aucune référence `aria-*` ne pend dans le vide, et trois invariants de balayage les retiennent sur 64 pages
+- [ ] FRONT-08, passe QA : `pilotage/qa/accessibilite-front-08.md` est jouée et cochée par un humain — clavier réel, zoom 200 et 400 %, 375 px, et ce qu'un lecteur d'écran annonce sur un formulaire REFUSÉ, état qu'aucun balayage ne visite
+- [ ] Les 25 gabarits qui rendent un champ à la main donnent un identifiant à leurs messages d'erreur, ou passent par `_champ.html` : la référence `<id>_error` de Django y pend dès qu'un formulaire est refusé — à trancher avec l'inventaire ARCH-01, dont c'est un cas d'école
 - [x] GOU-01 : une réunion close garde son résultat, et l'électorat n'est plus réduit aux présences enregistrées
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [ ] ARCH-01 : l'inventaire des règles métier qui n'existent que dans les vues est écrit, chacune avec ce qu'un accès admin ou shell pourrait faire malgré elle — la remontée se décide ensuite, tout n'a pas besoin de bouger
@@ -116,6 +117,25 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 9 — FRONT-08, et une panne qui ne faisait aucun bruit.** Django ≥ 5 relie
+lui-même l'aide d'un champ à son widget par `aria-describedby`, vers `<id>_helptext`.
+Le dépôt portait en plus un mixin maison qui visait `<id>_aide`. Les formulaires
+passant par le mixin étaient corrects ; les autres pointaient vers un identifiant
+inexistant — et une référence `aria` morte est **ignorée sans erreur**. L'aide
+s'affichait à l'écran et ne s'annonçait jamais : inscription à un événement,
+création d'une adhésion, fiche d'un membre. Le mixin a disparu ; il dupliquait une
+fonction du cadre, et la duplication était la panne.
+
+Un cas dépassait l'accessibilité : l'aide du champ « rôle » d'une ligne de
+distribution n'était affichée **nulle part**, le gabarit de ligne rendant label et
+champ sans elle. Le conseil était perdu pour l'œil autant que pour l'oreille.
+
+Ce qui rend ces deux défauts intéressants, c'est qu'ils sont invisibles à la
+relecture ET muets à l'exécution. Seul un balayage les trouve — d'où trois
+invariants neufs, sur les 64 pages que le dépôt sait déjà rendre. Une sonde
+signalait un troisième défaut : faux positif, le bouton du panneau
+d'accessibilité porte un `aria-label` que mon filtre ne voyait pas.
 
 **Le lot 8 — OPS-01, et ce qu'écrire une liste apt a révélé.** La vérification
 distante existait déjà en intention dans le hook de pré-push, qui expliquait pourquoi
