@@ -2362,6 +2362,18 @@ def test_un_double_clic_sur_confirmer_n_annonce_pas_une_erreur(client, db):
     assert facture.numero == "F2026-0001"
 
 
+def test_la_confirmation_d_une_facture_sans_ligne_n_offre_pas_d_emettre(client, db):
+    """Le service refuserait de toute façon : l'écran le dit avant, plutôt que
+    d'offrir un bouton qui échoue."""
+    facture = Facture.objects.create(client=Client.objects.create(nom="Théâtre"))
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/factures/{facture.pk}/valider/").content.decode()
+
+    assert "Confirmer et numéroter" not in corps
+    assert "sans ligne ne peut pas être émise" in corps
+
+
 def test_la_duplication_est_reservee_au_bureau(client, db):
     c = Client.objects.create(nom="Théâtre")
     facture = Facture.objects.create(client=c)

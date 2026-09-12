@@ -6,6 +6,9 @@
   des modifications laissées à l'écran ne sont pas dans ce récapitulatif. C'est
   aussi ce qui protège le parcours sans JavaScript, où rien ne peut signaler un
   brouillon non enregistré.
+
+  L'en-tête reprend la forme de `facture_detail.html` — même pièce, même façon de
+  l'annoncer.
 {% endcomment %}
 
 {% block title %}Valider la facture (brouillon #{{ facture.pk }}) — Gestion{% endblock %}
@@ -14,7 +17,12 @@
   <header class="page-tete">
     <span class="page-tete__eyebrow">Gestion · Finances</span>
     <h1>Valider et numéroter</h1>
-    <p class="page-tete__sous">Vérifiez la facture enregistrée avant de l'émettre.</p>
+    <p class="page-tete__sous">
+      {{ facture.get_type_piece_display }} · {{ facture.client }}
+      {% if facture.objet %}· {{ facture.objet }}{% endif %}
+      {% if facture.date_echeance %}· échéance le {{ facture.date_echeance|date:"j F Y" }}{% endif %}
+      {% if facture.signataire %}· signée par {{ facture.signataire.nom }} ({{ facture.signataire.qualite }}){% endif %}
+    </p>
   </header>
 
   <p class="carte-projet__meta">
@@ -23,25 +31,6 @@
     se corrige par un avoir. Ce récapitulatif montre ce qui est <strong>enregistré</strong> —
     si vous veniez de modifier le formulaire sans l'enregistrer, revenez au brouillon.
   </p>
-
-  <dl class="fiche-resume">
-    <dt>Client</dt>
-    <dd>{{ facture.client }}</dd>
-    {% if facture.objet %}
-      <dt>Objet</dt>
-      <dd>{{ facture.objet }}</dd>
-    {% endif %}
-    <dt>Type de pièce</dt>
-    <dd>{{ facture.get_type_piece_display }}</dd>
-    {% if facture.date_echeance %}
-      <dt>Échéance</dt>
-      <dd>{{ facture.date_echeance|date:"j F Y" }}</dd>
-    {% endif %}
-    {% if facture.signataire %}
-      <dt>Signataire</dt>
-      <dd>{{ facture.signataire.nom }} — {{ facture.signataire.qualite }}</dd>
-    {% endif %}
-  </dl>
 
   <div class="tableau-wrap">
     <table class="tableau">
@@ -76,16 +65,18 @@
     </table>
   </div>
 
+  {% if not facture.lignes.all %}
+    <p class="champ__erreur" role="alert">
+      Une facture sans ligne ne peut pas être émise : ajoutez au moins une ligne au brouillon.
+    </p>
+  {% endif %}
+
   <div class="formulaire__actions">
     {% if facture.lignes.all %}
       <form method="post" action="{% url 'backoffice:valider_facture' pk=facture.pk %}">
         {% csrf_token %}
         <button type="submit" class="lien-bouton lien-bouton--primaire">Confirmer et numéroter</button>
       </form>
-    {% else %}
-      <p class="champ__erreur" role="alert">
-        Une facture sans ligne ne peut pas être émise : ajoutez au moins une ligne au brouillon.
-      </p>
     {% endif %}
     <a class="lien-bouton" href="{% url 'backoffice:editer_facture' pk=facture.pk %}">Revenir au brouillon</a>
     <a class="lien-bouton" href="{% url 'backoffice:apercu_facture' pk=facture.pk %}" target="_blank">Aperçu PDF</a>
