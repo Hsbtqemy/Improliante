@@ -78,6 +78,33 @@ geste juste est celui déjà employé pour les factures : une transition relue s
 verrou dans un service, qui refuse d'écrire sur une réunion archivée, et un écran
 qui n'offre plus le formulaire.
 
+> **Corrigé le 12 septembre 2026** (lot 12, avec le n° 5). Le sceau vit dans le
+> service et se relit sous verrou : `contenu_scelle` dit la règle, un
+> gestionnaire de contexte privé la fait respecter, et cinq services nommés la
+> portent — point d'ordre du jour, résolution, présence, bloc de récit, compte
+> rendu. Le pouvoir du bureau passait déjà par `donner_pouvoir`, qui relit sous
+> verrou : le sceau s'y est posé sans rien ajouter.
+>
+> L'écran lit la MÊME ligne et n'offre plus les formulaires. Les deux moitiés
+> comptent : refuser à l'envoi sans retirer le formulaire fait remplir un écran
+> pour rien, et retirer le formulaire sans refuser laisse l'adresse ouverte —
+> c'est la leçon du lot 6, éprouvée ici par cinq envois directs aux URL. Le
+> déroulé, lui, reste lisible : masquer le formulaire ne doit pas escamoter le
+> compte rendu de la séance, qui est justement ce qu'on garde.
+>
+> Côté admin : les trois inlines de la réunion passent en lecture seule, le
+> décompte des voix et les notes d'un point sont figés, et un formulaire refuse
+> de rattacher une résolution ou un point à une séance close — c'est le
+> `ResolutionInline` que ce point nomme, et le rattachement par liste déroulante
+> est le geste le plus facile à faire sans y penser.
+>
+> **Deux gestes restent permis, et c'est voulu.** Le PV se régénère : il ne fait
+> que RENDRE un contenu scellé, et le refuser enfermerait une séance archivée
+> sans son PV dans une impasse. Et la réunion se rouvre par son statut — une
+> clôture par erreur doit se défaire — mais son en-tête est figé, la réouverture
+> s'annonce dans un bandeau, et les règles figées à la clôture ne se refigent
+> pas.
+
 ## 3. Un devis facturé peut redevenir « accepté », puis être refacturé — **éprouvé par lecture croisée**
 
 **Où** : la règle vit dans `apps/backoffice/views.py::changer_statut_devis` :
@@ -163,6 +190,22 @@ sans formulaire, il n'y a pas d'endroit naturel pour poser la règle.
 **Recommandation : à faire quand on corrigera le point 2**, pas avant. Seul, le
 gain est de la propreté ; avec le point 2, c'est l'endroit où la règle se pose.
 
+> **Corrigé le 12 septembre 2026** (lot 12, avec le n° 2 — dans cet ordre, comme
+> prévu). `CompteRenduForm` porte un champ par point de l'ordre du jour et trois
+> par bloc de récit, construits depuis LA réunion : une clé qui désigne le point
+> d'une autre séance n'écrit plus rien. Un champ absent de l'envoi est laissé
+> tel quel plutôt que vidé — la page peut avoir été rendue avant qu'un point
+> n'existe, et ce qu'elle n'a pas montré ne s'écrase pas.
+>
+> `BlocCompteRenduForm` refuse un bloc sans texte, que l'écran écrivait sans
+> broncher, et un intertitre trop long est refusé au lieu de partir en base —
+> PostgreSQL l'y rejetterait, donc en erreur 500. Effet de bord utile : ces
+> champs passent par la couche de rendu commune, donc leurs messages d'erreur
+> portent l'identifiant que Django cite dans leur `aria-describedby`. Et la
+> fiche d'une réunion entre dans le balayage d'accessibilité, où elle n'était
+> pas — c'est l'écran le plus dense du bureau, et l'aide de son champ « droit de
+> vote » ne s'annonçait pas.
+
 ## 6. Suppression d'une adhésion qui porte un reçu fiscal émis
 
 **Où** : nulle part — aucune règle, ni en vue ni en service.
@@ -209,13 +252,16 @@ légitime.
 
 ## Ce que je ferais, dans cet ordre
 
-1. **Le point 3** — le moins coûteux, et il évite une double facturation d'un même
-   devis. Une ligne de garde, un test.
-2. **Le point 2 avec le point 5** — c'est le plus lourd, et c'est GOU-01 qui
+1. ✅ **Le point 3** — le moins coûteux, et il évite une double facturation d'un
+   même devis. Une ligne de garde, un test. *Fait le 12 septembre (lot 11).*
+2. ✅ **Le point 2 avec le point 5** — c'est le plus lourd, et c'est GOU-01 qui
    n'était pas clos. Il demande un service de transition et trois écrans à
-   ajuster.
+   ajuster. *Fait le 12 septembre (lot 12) : le sceau, cinq services, deux
+   formulaires, l'admin et le balayage.*
 3. **Le point 1** — même famille que FIN-02, remède déjà présent dans le dépôt.
-4. **Le point 4** — trois lignes.
+4. **Le point 4** — trois lignes. C'est ce qui reste de GOU-01 : le plafond
+   statutaire de pouvoirs se contourne encore sur une réunion OUVERTE, le sceau
+   du lot 12 ne fermant que les séances closes.
 5. **Le point 6** — quand la question sera posée par l'usage.
 
 Les points 5 (seul) et 7 ne valent pas d'être remontés.

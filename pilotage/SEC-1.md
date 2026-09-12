@@ -49,12 +49,12 @@ constats sur trente sont clos.
 - [ ] FRONT-08, passe QA : `pilotage/qa/accessibilite-front-08.md` est jouée et cochée par un humain — clavier réel, zoom 200 et 400 %, 375 px, et ce qu'un lecteur d'écran annonce sur un formulaire REFUSÉ, état qu'aucun balayage ne visite
 - [ ] Les 25 gabarits qui rendent un champ à la main donnent un identifiant à leurs messages d'erreur, ou passent par `_champ.html` : la référence `<id>_error` de Django y pend dès qu'un formulaire est refusé — à trancher avec l'inventaire ARCH-01, dont c'est un cas d'école
 - [x] GOU-01, les règles : une réunion close garde ses règles, et l'électorat n'est plus réduit aux présences enregistrées (lot 4)
-- [ ] GOU-01, le contenu : une réunion **archivée** refuse une résolution, un sujet et une réécriture de compte rendu — aujourd'hui les trois passent depuis le back-office, formulaires affichés, et l'inventaire du lot 10 l'a reproduit
+- [x] GOU-01, le contenu : une réunion **archivée** refuse une résolution, un point d'ordre du jour, une présence, un pouvoir et une réécriture de compte rendu — une seule ligne (`contenu_scelle`), relue sous verrou par cinq services, lue par les écrans qui n'offrent plus les formulaires, et par l'admin (inlines en lecture seule, voix et notes figées). Le PV se régénère encore et la réunion se rouvre par son statut : exprès, et la réouverture s'annonce
 - [ ] OPS-04 : les dépendances TRANSITIVES sont figées elles aussi — verrou produit sur Linux, avec la barrière d'intégration ; les directes le sont depuis le lot 5, et la documentation est à jour
 - [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
 - [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée — une seule lecture (`devis_deja_facture`), partagée par le service, l'écran d'édition du bureau, son changement de statut et l'admin, qui fige en plus le statut. Un devis dont la facture a été supprimée redevient pilotable À L'ÉCRAN au lieu de rester dans une impasse — les deux directions sont testées
 - [ ] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1
-- [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4
+- [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4 de l'inventaire, et c'est tout ce qui reste de GOU-01 ; le sceau du lot 12 ne ferme que les séances CLOSES, ce contournement vaut sur une réunion ouverte
 - [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
 - [ ] PERF-01 : la galerie et les listes d'affiches ne dégradent plus avec le contenu — N+1 mesuré supprimé, pagination posée, images servies à la taille affichée et non en pleine résolution
@@ -122,6 +122,39 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 12 — GOU-01, le contenu d'une séance close.** Le lot 4 avait figé les
+RÈGLES d'une réunion archivée et la fiche s'était close là-dessus. Son CONTENU restait
+ouvert : résolution, point d'ordre du jour, présence, pouvoir et compte rendu s'y
+écrivaient encore, depuis le back-office et formulaires affichés. « Une réunion close
+garde son résultat » n'était vrai que de ses seuils.
+
+Le sceau est une ligne, dans le service, relue sous verrou — la séance peut être
+archivée entre l'affichage de l'écran et l'envoi du formulaire. Cinq services nommés la
+portent ; les deux vues qui lisaient `request.POST` en direct passent par un formulaire,
+ce qui était le point 5 de l'inventaire et n'est pas un hasard : sans formulaire, il n'y
+avait aucun endroit naturel pour poser la règle, et c'est ce qui a permis au défaut de
+passer inaperçu.
+
+Les deux moitiés du geste comptent, et c'est la leçon du lot 6 rejouée : refuser à
+l'envoi sans retirer le formulaire fait remplir un écran pour rien ; retirer le
+formulaire sans refuser laisse l'adresse ouverte. L'écran et la règle lisent donc la même
+ligne, et cinq envois directs aux URL l'éprouvent. Le déroulé reste lisible sur une
+séance close — masquer le formulaire ne doit pas escamoter le compte rendu, qui est
+justement ce qu'on garde ; un seul fragment sert les deux états, pour que l'écran ne
+montre jamais autre chose que ce que le PV assemble.
+
+Deux gestes restent permis, assumés : le PV se régénère, parce qu'il ne fait que RENDRE
+un contenu scellé et que le refuser enfermerait une séance sans son PV dans une impasse ;
+et la réunion se rouvre par son statut, parce qu'une clôture par erreur doit se défaire.
+Son en-tête, lui, est figé, et la réouverture s'annonce à l'écran.
+
+Trouvaille de chemin : la fiche d'une réunion n'était dans aucun balayage
+d'accessibilité, alors que c'est l'écran le plus dense du bureau. L'aide de son champ
+« droit de vote » ne s'annonçait pas — le gabarit rendait le champ à la main, sans le
+`<span>` que Django cite dans son `aria-describedby`. Le lot 9 avait corrigé la
+convention, pas les gabarits qui ne l'empruntent pas. Cette page est maintenant balayée,
+avec un point d'ordre du jour et un bloc de récit pour que ses champs existent.
 
 **Le lot 11 — le devis refacturable, et ce que la relecture a dû aller chercher.** Le
 garde-fou de `transformer_en_facture` portait sur l'étiquette « Facturé » du devis, que

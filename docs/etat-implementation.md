@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~605 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~640 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---
@@ -119,6 +119,13 @@ orchestrent et rendent le retour utilisateur). Points d'entrée notables :
   `ouvrir_compte` (crée l'`Utilisateur` + lien d'activation), `synchroniser_compte`
   (recopie l'identité vers le compte sans toucher l'identifiant), `creer_compte_membre`
   (raccourci fiche + accès).
+- `apps/gouvernance/services.py` : `figer_les_regles` (seuils du jour, à la
+  clôture) et `contenu_scelle` (le contenu d'une séance close ne se réécrit plus,
+  cf. « Résultat d'une réunion ») ; `ajouter_sujet_a_l_ordre_du_jour`,
+  `enregistrer_resolution`, `saisir_presence`, `ajouter_bloc_de_recit`,
+  `enregistrer_compte_rendu`, `donner_pouvoir`, `preremplir_droit_de_vote`,
+  `generer_compte_rendu` (PV PDF). Tout ce qui écrit le contenu d'une réunion
+  passe par l'un d'eux.
 - `apps/documents/services.py` : `remplacer_document` (versionnement) ;
   `creer_dossier_membre`, `televerser_fichier_membre`, `modifier_dossier_membre`,
   `supprimer_dossier_membre`, `supprimer_document_membre` (espace « Mes fichiers »).
@@ -220,6 +227,21 @@ quorum ou majorités dans les paramètres ne réécrit aucune assemblée passée
 la clôture, les paramètres courants s'appliquent, pour qu'un seuil mal saisi reste
 corrigeable. Les pouvoirs passent par un seul service — plafond statutaire
 compris — que la saisie vienne du membre ou du bureau.
+
+Le **contenu** est scellé par la même clôture, et c'est une règle distincte :
+`contenu_scelle` refuse résolution, point d'ordre du jour, présence, pouvoir et
+réécriture du compte rendu sur une réunion archivée. Elle est relue **sous
+verrou** dans le service (la séance peut être archivée entre l'affichage de
+l'écran et l'envoi du formulaire), et l'écran lit la même ligne pour ne plus
+offrir les formulaires — sans quoi on remplit un écran pour se voir refuser à
+l'envoi. L'admin l'applique aussi : inlines en lecture seule, décompte des voix
+et notes d'un point figés, rattachement à une séance close refusé.
+
+Deux exceptions, voulues : le **PV se régénère** (il ne fait que rendre un
+contenu scellé ; le refuser enfermerait une séance sans son PV), et la réunion
+**se rouvre par son statut** (une clôture par erreur doit se défaire). Son
+en-tête reste figé, la réouverture s'annonce à l'écran, et les règles figées à la
+clôture ne se refigent pas.
 
 ### Invariants d'une pièce émise
 `valider_facture` refuse : une pièce déjà émise, une pièce sans ligne, un avoir
