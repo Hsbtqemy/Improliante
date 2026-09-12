@@ -6,10 +6,10 @@ audit: docs/audit-externe-2026-09-11-constats.md
 
 # SEC-1 — consolidation après l'audit externe
 
-**Arrêté sur** — lot 6 : les trois corrections décidées le 12 septembre — l'avoir ne se
-duplique plus, la fin d'adhésion ferme l'écriture sans fermer la lecture, et le niveau
-« Public » dit enfin ce qu'il fait. Commit `1dde96e`, 12 septembre. Douze décisions ont
-été prises le même jour ; quatre constats se ferment sans code.
+**Arrêté sur** — lot 7 : FRONT-07, le parcours « mot de passe oublié », commit `6b86e3c`,
+12 septembre. Avant lui, le lot 6 et sa relecture ont fermé l'impasse de l'avoir dupliqué,
+posé la lecture seule après la fin d'adhésion et corrigé le niveau « Public ». Seize
+constats sur trente sont clos.
 
 ## Reste
 
@@ -42,7 +42,8 @@ duplique plus, la fin d'adhésion ferme l'écriture sans fermer la lecture, et l
 - [ ] PUB-01 : une limitation de débit protège contact et réservations — des envois répétés depuis la même origine sont ralentis ou refusés, et une jauge ne peut plus être saturée par des réservations successives
 - [ ] PUB-02 est **différé** (12 septembre) : la page de confidentialité reste un modèle à compléter, et reste servie publiquement en l'état
 - [ ] FRONT-03 est **écarté** (12 septembre) : le sélecteur de 18 palettes est offert au visiteur, pas oublié. Ce qu'il coûte est reporté sur FRONT-08 ci-dessous — le contraste se vérifie sur les 18
-- [ ] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — écrit et éprouvé avec le backend console, le SMTP venant au déploiement
+- [x] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — y compris celui qui n'en a jamais défini, que le défaut de Django laissait sans réponse
+- [ ] Le parcours est éprouvé avec un VRAI serveur d'envoi : le courriel part, arrive, et son lien s'ouvre en `https` depuis une messagerie — le backend console prouve le parcours, pas la remise (DEP-1)
 - [ ] FRONT-08, sans navigateur d'abord : HTML sémantique, libellés de champs, `aria`, ordre de tabulation, focus après erreur, et le contraste AA calculé sur les **18** palettes — ce qui échoue est corrigé ou fiché
 - [ ] FRONT-08, passe QA ensuite : une passe rejouable dans `pilotage/qa/` couvre ce qui demande un vrai navigateur (375 px et bureau, zoom 200 %, clavier), et l'humain la coche
 - [x] GOU-01 : une réunion close garde son résultat, et l'électorat n'est plus réduit aux présences enregistrées
@@ -107,6 +108,20 @@ classés.
 Un détail du décorateur mérite d'être retenu : il n'intercepte **que** la fin
 d'adhésion. Le compte sans fiche membre garde le 404 anti-énumération gagné en SEC-01,
 qu'une redirection bavarde aurait affaibli — deux tests l'ont dit avant moi.
+
+La relecture du lot 6 a trouvé le reste : masquer un lien ne ferme pas l'adresse. Six
+écrans rendaient encore un formulaire complet à un ancien membre, qui l'aurait rempli
+pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes — un écran
+qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
+régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
+requêtes de groupes par page servie.
+
+**Le lot 7 — FRONT-07.** L'essentiel n'est pas le branchement des quatre vues de Django
+mais ce qu'il fallait lui retirer : son formulaire écarte les comptes au mot de passe
+inutilisable, or c'est exactement ce que `ouvrir_compte` pose. Le membre invité il y a six
+mois, lien d'activation perdu, recevait le silence sur une page lui affirmant qu'un
+courriel était parti. C'est le cas le plus probable du parcours, et c'était le seul
+non couvert.
 
 Hors périmètre tant que ce n'est pas demandé, et donc volontairement absent du `Reste`
 ci-dessus : corbeille et journal des suppressions, quotas par membre, antivirus, MFA,
