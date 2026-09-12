@@ -190,6 +190,48 @@ def test_deux_premiers_telechargements_du_recu_ne_rendent_qu_une_fois(db, monkey
     assert requete_b.fichier.name == requete_a.fichier.name
 
 
+def test_le_cerfa_fige_et_le_cerfa_vivant_coincident_a_l_emission(db, monkeypatch):
+    """Même garde-fou que pour la facture : à l'émission, l'instantané doit dire
+    exactement ce que disent les données vivantes. Ce que le Cerfa affiche et que
+    l'instantané ignore serait perdu à la reconstruction."""
+    from django.template.loader import render_to_string
+
+    from apps.coeur.models import ParametresAssociation
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    params = ParametresAssociation.load()
+    for champ, valeur in {
+        "nom": "Association Improliante",
+        "objet": "théâtre d'improvisation",
+        "adresse": "3 rue des Arts",
+        "code_postal": "75011",
+        "ville": "Paris",
+        "numero_rna": "W123456789",
+        "numero_siret": "12345678900011",
+        "article_cgi": "200",
+    }.items():
+        setattr(params, champ, valeur)
+    params.save()
+    signataire = Signataire.objects.create(nom="Alice Martin", qualite="Présidente")
+    recu = _emettre(
+        signataire=signataire,
+        donateur_adresse="1 place du Théâtre",
+        donateur_code_postal="69001",
+        donateur_ville="Lyon",
+    )
+    recu.refresh_from_db()
+
+    fige = pdf_de_recu(recu).decode()
+    vivant = render_to_string(
+        "recu/cerfa.html",
+        {"recu": recu, "asso": ParametresAssociation.load(), "apercu": False},
+    )
+
+    assert fige == vivant
+
+
 def test_l_emission_fige_le_beneficiaire_du_recu(db):
     """Le donateur est déjà recopié dans les colonnes ; le bénéficiaire, lui,
     vivait dans les paramètres de l'association."""

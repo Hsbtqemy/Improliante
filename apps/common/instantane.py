@@ -17,9 +17,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-# Tout ce que les gabarits PDF lisent des paramètres de l'association.
+# Tout ce que les gabarits PDF lisent des paramètres de l'association. La liste
+# se vérifie d'un `grep -oh "asso\.[a-z_]*" front/templates/{facture,recu,devis}/`
+# — et deux tests d'égalité (« figé == vivant à l'émission ») la tiennent à jour :
+# `objet`, que seul le Cerfa affiche, manquait ici sans que rien ne le dise.
 CHAMPS_EMETTEUR = (
     "nom",
+    "objet",
     "adresse",
     "code_postal",
     "ville",

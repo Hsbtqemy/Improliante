@@ -579,6 +579,86 @@ def test_un_pdf_perdu_se_regenere_a_l_identique(
     assert "Autre client" not in contenu
 
 
+def test_le_rendu_fige_et_le_rendu_vivant_coincident_a_l_emission(client_facture, monkeypatch):
+    """Garde-fou du dispositif : à l'instant de l'émission, l'instantané et les
+    données vivantes disent forcément la même chose. Si un champ manque à
+    l'instantané, la pièce reconstruite le perdra — et ce test le voit tout de
+    suite, au lieu du jour où un PDF doit être régénéré."""
+    from django.template.loader import render_to_string
+
+    from apps.coeur.models import ParametresAssociation, Signataire
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    params = ParametresAssociation.load()
+    for champ, valeur in {
+        "nom": "Association Improliante",
+        "objet": "théâtre d'improvisation",
+        "adresse": "3 rue des Arts",
+        "code_postal": "75011",
+        "ville": "Paris",
+        "numero_rna": "W123456789",
+        "numero_siret": "12345678900011",
+        "iban": "FR7612345678901234567890123",
+        "bic": "ABCDEFGH",
+        "mention_tva": "TVA non applicable, art. 293 B du CGI",
+    }.items():
+        setattr(params, champ, valeur)
+    params.save()
+    signataire = Signataire.objects.create(
+        nom="Alice Martin", qualite="Présidente", mention_delegation="délégation du bureau"
+    )
+    client_facture.adresse = "1 place du Théâtre"
+    client_facture.code_postal = "69001"
+    client_facture.ville = "Lyon"
+    client_facture.siret = "98765432100017"
+    client_facture.save()
+    facture = _brouillon(
+        client_facture,
+        objet="Représentation",
+        date_echeance=date(2026, 4, 30),
+        mentions_legales="Pénalités de retard : trois fois le taux légal.",
+        signataire=signataire,
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    facture.refresh_from_db()
+
+    fige = pdf_de_facture(facture).decode()
+    vivant = render_to_string(
+        "facture/facture.html",
+        {"facture": facture, "asso": ParametresAssociation.load(), "apercu": False},
+    )
+
+    assert fige == vivant
+
+
+def test_le_rendu_fige_d_un_avoir_coincide_aussi(client_facture, monkeypatch):
+    """L'avoir a une ligne de plus à figer : la facture qu'il annule. Sans ce
+    test, un `avoir_de` oublié dans l'instantané passait inaperçu — la pièce
+    d'essai du test précédent n'en a pas."""
+    from django.template.loader import render_to_string
+
+    from apps.coeur.models import ParametresAssociation
+
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: html.encode()
+    )
+    facture = _facture_validee(client_facture)
+    avoir = creer_avoir(facture)
+    valider_facture(avoir, date_emission=date(2026, 3, 1))
+    avoir.refresh_from_db()
+
+    fige = pdf_de_facture(avoir).decode()
+    vivant = render_to_string(
+        "facture/facture.html",
+        {"facture": avoir, "asso": ParametresAssociation.load(), "apercu": False},
+    )
+
+    assert fige == vivant
+    assert f"Avoir sur facture {facture.numero}" in fige
+
+
 def test_l_apercu_d_un_brouillon_montre_les_donnees_du_jour(client_facture, monkeypatch):
     """Avant l'émission il n'y a rien à figer : l'aperçu doit refléter ce qui est
     saisi, sinon il ne sert à rien."""
