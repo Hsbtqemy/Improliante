@@ -14,7 +14,7 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 
 ### Serveur
 - [ ] PostgreSQL répond sur le VPS, avec la base et le rôle de l'application créés — `psql -c 'select version()'` sort une version, pas une erreur de socket
-- [ ] Les libs natives de WeasyPrint sont installées (libpango, libcairo, libgdk-pixbuf, libffi) — `python -c "import weasyprint"` passe sans trace d'appel manquant
+- [ ] Les libs natives de WeasyPrint sont installées — `libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 libfontconfig1`, liste éprouvée sur Debian par `.github/workflows/verification.yml` et non plus devinée : la v69 n'ouvre NI cairo NI gdk-pixbuf, que cette case nommait, et exige glib, harfbuzz et fontconfig, qu'elle oubliait. Vérifié par un rendu réel, pas par un `import`
 - [ ] L'utilisateur `deploy` existe et possède `/srv/asso/{app,venv,run,logs}`, groupe `www-data` — l'arborescence attendue par `asso.service`
 - [ ] La règle sudoers est installée et vérifiée : `sudo -n /bin/systemctl restart asso` passe depuis `deploy`, `… restart nginx` est refusé — fichier `deploiement/sudoers-asso-deploy`
 

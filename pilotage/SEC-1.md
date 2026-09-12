@@ -27,11 +27,11 @@ constats sur trente sont clos.
 - [ ] Le lien de validation neutralisé se distingue **à l'œil**, et pas seulement pour un lecteur d'écran : il porte `aria-disabled` sans style associé
 
 ### Concurrence éprouvée
-- [ ] `TEST_POSTGRES=1 pytest` passe, test de double clic simultané compris — sous SQLite il se déclare « skipped » et ne prouve rien du verrou
-- [ ] Le PDF rendu à l'émission est éprouvé avec le vrai WeasyPrint : le fichier archivé s'ouvre et porte le bon numéro
+- [x] `TEST_POSTGRES=1 pytest` passe, test de double clic simultané compris — rejoué à chaque commit par la vérification distante, et non plus seulement par un hook local contournable
+- [ ] Le PDF rendu à l'émission est éprouvé avec le vrai WeasyPrint : le fichier archivé s'ouvre et porte le bon numéro. La vérification distante prouve désormais que le moteur CHARGE et rend sur Debian ; qu'une facture soit juste reste à voir à l'œil
 
 ### Livraison
-- [ ] OPS-01, la vérification : un workflow distant rejoue `TEST_POSTGRES=1 pytest`, `ruff` et `check --deploy` sur PostgreSQL à chaque commit — les trois tests de concurrence, « skipped » sous SQLite, tourneraient enfin
+- [x] OPS-01, la vérification : un workflow distant rejoue la suite sur PostgreSQL, le lint, les migrations et `check --deploy --fail-level WARNING` à chaque commit, et refuse un run où un test s'ignore — un « skipped » y signifie que la bascule n'a pas pris
 - [ ] OPS-01, le branchement : le webhook écoute le succès de cette vérification et non le push — un commit non validé ne part pas en déploiement. Demande la machine, donc DEP-1
 
 ### Fin d'adhésion et audiences
@@ -115,6 +115,22 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 8 — OPS-01, et ce qu'écrire une liste apt a révélé.** La vérification
+distante existait déjà en intention dans le hook de pré-push, qui expliquait pourquoi
+elle ne suffirait pas : le webhook se déclenche sur le push, donc une CI arrive après la
+mise en ligne. C'est toujours vrai — le workflow constate, il ne retient rien, et la
+barrière se ferme à DEP-1. Ce qu'il apporte tout de suite, c'est que les quatre tests de
+concurrence tournent enfin ailleurs que sur une machine où l'on peut les contourner.
+
+La trouvaille est ailleurs. En écrivant la liste des bibliothèques natives de WeasyPrint,
+je l'ai lue dans `weasyprint/text/ffi.py` au lieu de la recopier : la v69 en ouvre six, et
+NI cairo NI gdk-pixbuf n'en font partie. La liste qui vivait dans `requirements.txt` et
+dans une case de DEP-1 — celle que quelqu'un aurait suivie sur le VPS — nommait deux
+paquets inutiles et en oubliait trois nécessaires. Une étape du workflow la rend
+exécutable : elle charge le moteur et produit un vrai PDF, ce qu'aucune machine du projet
+n'avait jamais fait, la suite remplaçant `html_vers_pdf` partout et passant donc sur un
+poste Windows sans GTK.
 
 **Le lot 7 — FRONT-07.** L'essentiel n'est pas le branchement des quatre vues de Django
 mais ce qu'il fallait lui retirer : son formulaire écarte les comptes au mot de passe
