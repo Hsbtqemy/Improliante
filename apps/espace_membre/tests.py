@@ -1398,6 +1398,32 @@ def test_staff_voit_une_reunion_de_bureau(client, db):
     assert client.get(f"/espace/convocations/{bureau.pk}/").status_code == 200
 
 
+def test_la_convocation_offre_le_pv_corrige_et_non_celui_d_avant(client, db, monkeypatch):
+    """Même point que côté bureau, et c'est ici qu'il compte : le PV part en
+    confidentialité « Membres », donc à toute l'association. Un membre suivait
+    le lien d'une version que la GED avait remplacée."""
+    from django.core.files.base import ContentFile
+
+    from apps.documents.services import remplacer_document
+    from apps.gouvernance.services import generer_compte_rendu
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF v1")
+    membre = _membre("convoque")
+    reunion = Reunion.objects.create(
+        titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE, statut=Reunion.Statut.TENUE
+    )
+    v1 = generer_compte_rendu(reunion, par=membre.user)
+    v2 = remplacer_document(
+        v1, fichier=ContentFile(b"%PDF corrige", name="pv.pdf"), par=membre.user
+    )
+    client.force_login(membre.user)
+
+    corps = client.get(f"/espace/convocations/{reunion.pk}/").content.decode()
+
+    assert f"/espace/documents/{v2.pk}/telecharger/" in corps
+    assert f"/espace/documents/{v1.pk}/telecharger/" not in corps
+
+
 def test_detail_convocation_montre_l_ordre_du_jour(client, db):
     membre = _membre("alice")
     ag = _ag()

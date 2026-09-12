@@ -31,7 +31,7 @@ from apps.budget.models import Adhesion
 from apps.coeur.models import Membre, ParametresAssociation
 from apps.common import pdf
 from apps.documents.models import Document
-from apps.documents.services import televerser_fichier
+from apps.documents.services import remplacer_document, televerser_fichier, version_courante
 
 from .models import (
     BlocCompteRendu,
@@ -471,6 +471,21 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
     return touchees
 
 
+def compte_rendu_courant(reunion: Reunion) -> Document | None:
+    """Le PV de cette réunion, dans sa version courante — None s'il n'y en a pas.
+
+    `reunion.compte_rendu` pointe une version PRÉCISE. Le bureau peut remplacer
+    ce document depuis la GED — `nouvelle_version_association` couvre les pièces
+    non classées, donc les PV —, et le pointeur désigne alors une version
+    périmée : la fiche de la réunion et la convocation du membre servaient le PV
+    d'avant la correction, pendant que la GED montrait le bon."""
+    if reunion.compte_rendu_id is None:
+        return None
+    # Relu en base plutôt que pris sur la réunion : l'objet qu'elle porte en
+    # cache peut dater d'avant un remplacement, et se croire encore courant.
+    return version_courante(Document.objects.get(pk=reunion.compte_rendu_id))
+
+
 def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     """Génère le PV (PDF) d'une réunion et le range dans la GED.
 
@@ -485,7 +500,13 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     au bureau ; son PV, non. Ce n'est pas une fuite, et un test le fixe
     (`espace_membre/tests.py`).
 
-    Régénérer **remplace** le fichier du compte-rendu existant (pas de doublon).
+    Régénérer crée une **nouvelle version** du compte-rendu : l'ancienne est
+    conservée (`courant=False`), comme pour toute pièce de la GED. Le fichier
+    était jusqu'ici écrasé sur le disque — le PV que les membres avaient
+    téléchargé cessait d'exister, sans trace du changement, alors qu'il part en
+    confidentialité « Membres », donc à toute l'association. C'est l'invariant
+    de FIN-02 sur les factures : une pièce distribuée ne se réécrit pas en
+    place. Les écrans ne montrent que la version courante, ici comme ailleurs.
 
     Seul geste qui reste permis sur une réunion ARCHIVÉE, et c'est voulu : le PV
     ne fait que RENDRE un contenu scellé, il n'en écrit pas. Le refuser
@@ -527,9 +548,14 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     nom = f"pv-reunion-{reunion.pk}.pdf"
 
     if reunion.compte_rendu_id:
-        doc = reunion.compte_rendu
-        doc.fichier.delete(save=False)
-        doc.fichier.save(nom, ContentFile(octets), save=True)
+        # Sur la version COURANTE, pas sur celle que la réunion pointe : le PV a
+        # pu être remplacé depuis la GED entre-temps, et repartir de la version
+        # périmée ferait deux documents qui divergent.
+        doc = remplacer_document(
+            compte_rendu_courant(reunion), fichier=ContentFile(octets, name=nom), par=par
+        )
+        reunion.compte_rendu = doc
+        reunion.save(update_fields=["compte_rendu"])
     else:
         doc = televerser_fichier(
             None,

@@ -144,6 +144,26 @@ def supprimer_document_membre(document) -> None:
     document.delete()
 
 
+def version_courante(document: Document) -> Document:
+    """Suit la chaîne des remplacements jusqu'à la version courante.
+
+    Un objet qui pointe une version PRÉCISE — le PV d'une réunion, par exemple —
+    garde ce pointeur quand le document est remplacé depuis la GED : il désigne
+    alors une version périmée, et sert un fichier que la GED ne montre plus.
+    Retourne le document lui-même s'il est déjà courant."""
+    vus = {document.pk}
+    while not document.courant:
+        suivante = document.versions_suivantes.first()
+        # Pas de suite, ou un cycle : la chaîne a été bricolée à la main (l'admin
+        # laisse écrire `remplace`). On rend la dernière version atteinte plutôt
+        # que de tourner sans fin.
+        if suivante is None or suivante.pk in vus:
+            break
+        vus.add(suivante.pk)
+        document = suivante
+    return document
+
+
 @transaction.atomic
 def remplacer_document(ancien: Document, *, fichier, par=None) -> Document:
     """Crée une nouvelle version d'un document.

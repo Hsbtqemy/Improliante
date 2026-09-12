@@ -5,10 +5,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from django.core.files.base import ContentFile
 
 from apps.budget.models import Adhesion, Saison
 from apps.coeur.models import Membre, Utilisateur
 from apps.documents.models import Document
+from apps.documents.services import remplacer_document
 from apps.gouvernance.models import (
     BlocCompteRendu,
     ParametresGouvernance,
@@ -24,6 +26,7 @@ from apps.gouvernance.services import (
     ajouter_bloc_de_recit,
     ajouter_sujet_a_l_ordre_du_jour,
     calcul_quorum,
+    compte_rendu_courant,
     donner_pouvoir,
     enregistrer_compte_rendu,
     enregistrer_presence_membre,
@@ -831,14 +834,54 @@ def test_generer_compte_rendu_depose_un_document_membres(db, monkeypatch):
     assert "Adopté sans opposition" in contenu  # notes du point d'ordre du jour
 
 
-def test_regenerer_pv_remplace_sans_creer_de_doublon(db, monkeypatch):
-    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4")
+def test_regenerer_un_pv_garde_la_version_precedente(db, monkeypatch):
+    """Le fichier était écrasé sur le disque : le PV que les membres avaient
+    téléchargé cessait d'exister, sans trace. Il part en confidentialité
+    « Membres », donc à toute l'association — c'est l'invariant de FIN-02 sur les
+    factures, qu'un test fixait ici à l'envers (« même Document, fichier
+    remplacé »). Ce qu'il protégeait de juste reste vrai : un seul document
+    COURANT, donc pas de doublon dans les listes."""
+    rendus = iter([b"%PDF version 1", b"%PDF version 2"])
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: next(rendus)
+    )
     bureau = Utilisateur.objects.create(username="bureau")
     reunion = _reunion()
+
     doc1 = generer_compte_rendu(reunion, par=bureau)
     doc2 = generer_compte_rendu(reunion, par=bureau)
-    assert doc1.pk == doc2.pk  # même Document, fichier remplacé
-    assert Document.objects.count() == 1
+
+    doc1.refresh_from_db()
+    reunion.refresh_from_db()
+    assert doc2.pk != doc1.pk
+    assert doc2.version == 2 and doc2.remplace_id == doc1.pk
+    assert doc1.courant is False and doc2.courant is True
+    assert Document.objects.filter(courant=True).count() == 1
+    assert reunion.compte_rendu_id == doc2.pk
+    # L'ancienne version est encore LÀ, avec son contenu : c'est tout l'objet.
+    assert doc1.fichier.open("rb").read() == b"%PDF version 1"
+    assert doc2.fichier.open("rb").read() == b"%PDF version 2"
+
+
+def test_un_pv_corrige_depuis_la_ged_est_celui_que_la_reunion_sert(db, monkeypatch):
+    """`reunion.compte_rendu` pointe une version précise. Le bureau peut
+    remplacer ce document depuis la GED — l'écran des pièces de l'association
+    couvre les documents non classés, donc les PV. La réunion continuait alors
+    de servir le PV d'avant la correction, et une régénération repartait de
+    cette version périmée : deux documents qui divergent."""
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF")
+    bureau = Utilisateur.objects.create(username="bureau")
+    reunion = _reunion()
+    v1 = generer_compte_rendu(reunion, par=bureau)
+    v2 = remplacer_document(v1, fichier=ContentFile(b"%PDF corrige", name="pv.pdf"), par=bureau)
+
+    assert compte_rendu_courant(reunion).pk == v2.pk  # la réunion suit
+
+    v3 = generer_compte_rendu(reunion, par=bureau)
+
+    assert v3.remplace_id == v2.pk  # et régénère À PARTIR de la correction
+    assert v3.version == 3
+    assert Document.objects.filter(courant=True).count() == 1
 
 
 def test_pv_intercale_les_blocs_de_recit_dans_le_deroule(db, monkeypatch):

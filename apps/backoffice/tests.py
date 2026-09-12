@@ -2195,6 +2195,28 @@ def test_gouvernance_genere_le_pv_depuis_l_ecran(client, db, monkeypatch):
     assert reunion.compte_rendu_id is not None
 
 
+def test_le_bureau_telecharge_le_pv_corrige_et_non_celui_d_avant(client, db, monkeypatch):
+    """La fiche de la réunion pointe une version PRÉCISE du PV. Le bureau peut
+    en déposer une correction depuis les pièces de l'association — l'écran
+    couvre les documents non classés, donc les PV. La fiche servait alors le
+    fichier d'avant la correction, pendant que la GED montrait le bon."""
+    from django.core.files.base import ContentFile
+
+    from apps.documents.services import remplacer_document
+    from apps.gouvernance.services import generer_compte_rendu
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF v1")
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    staff = _staff()
+    v1 = generer_compte_rendu(reunion, par=staff)
+    remplacer_document(v1, fichier=ContentFile(b"%PDF corrige", name="pv.pdf"), par=staff)
+    client.force_login(staff)
+
+    reponse = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/pv/telecharger/")
+
+    assert b"".join(reponse.streaming_content) == b"%PDF corrige"
+
+
 def test_gouvernance_edite_une_reunion(client, db):
     reunion = Reunion.objects.create(
         titre="AG",

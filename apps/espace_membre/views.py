@@ -1338,7 +1338,9 @@ def detail_convocation(request, pk):
     # On ne présente que les documents que l'utilisateur a le droit d'ouvrir
     # (pas de lien mort/interdit) — le téléchargement re-contrôle les droits.
     documents = [d for d in reunion.documents.all() if _peut_acceder_document(request.user, d)]
-    compte_rendu = reunion.compte_rendu
+    # La version courante, et non celle que la réunion pointe : un PV corrigé
+    # depuis la GED laissait le membre sur celui d'avant.
+    compte_rendu = gouvernance_services.compte_rendu_courant(reunion)
     if compte_rendu is not None and not _peut_acceder_document(request.user, compte_rendu):
         compte_rendu = None
 

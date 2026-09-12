@@ -84,6 +84,7 @@ from apps.gouvernance.services import (
     ajouter_bloc_de_recit,
     ajouter_sujet_a_l_ordre_du_jour,
     calcul_quorum,
+    compte_rendu_courant,
     contenu_scelle,
     donner_pouvoir,
     enregistrer_compte_rendu,
@@ -2129,13 +2130,12 @@ def gouvernance_generer_pv(request, pk):
 
 @bureau_requis
 def gouvernance_telecharger_pv(request, pk):
-    """Télécharge le PV généré d'une réunion (fichier privé)."""
+    """Télécharge le PV d'une réunion, dans sa version courante (fichier privé)."""
     reunion = get_object_or_404(Reunion, pk=pk)
-    if not reunion.compte_rendu_id:
+    document = compte_rendu_courant(reunion)
+    if document is None:
         raise Http404("Aucun compte-rendu généré pour cette réunion.")
-    return reponse_fichier_prive(
-        reunion.compte_rendu.fichier, nom_telechargement=f"pv-{reunion.pk}.pdf"
-    )
+    return reponse_fichier_prive(document.fichier, nom_telechargement=f"pv-{reunion.pk}.pdf")
 
 
 @bureau_requis
