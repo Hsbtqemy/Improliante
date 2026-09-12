@@ -41,4 +41,4 @@ qu'elle ne dit pas la même chose que ce qui reste à faire aujourd'hui.
 | OPS-01 | 🟠 | P1 — le déploiement n'attend pas une validation distante du commit | Ouvert — case « Livraison » de SEC-1 |
 | OPS-02 | 🟠 | P1 — déploiement en place et dernier push potentiellement perdu | Ouvert — DEP-1 |
 | OPS-03 | ✅ | P1 — la sauvegarde peut réussir sans copie distante | Corrigé, lot 1 (`c71bf05`) : sortie en code 1. Éprouver la restauration reste une case de DEP-1 |
-| OPS-04 | 🟠 | P1/P2 — dépendances non verrouillées et documentation vieillissante | Ouvert : pas de lockfile ; le README annonce Python 3.11+ et ~168 tests |
+| OPS-04 | 🟠 | P1/P2 — dépendances non verrouillées et documentation vieillissante | **Partiel**, lot 5 : versions directes épinglées à ce qui est éprouvé, outils de développement sortis de l'exécution, README et carte des modules corrigés (Python 3.12+, ~590 tests). Reste le verrou des dépendances transitives, à produire sur Linux avec la barrière d'intégration |
