@@ -6,17 +6,18 @@ audit: docs/audit-externe-2026-09-11-constats.md
 
 # SEC-1 — consolidation après l'audit externe
 
-**Arrêté sur** — lot 2 : reçu fiscal figé à l'émission et registre verrouillé (un
-versement = un seul reçu, admin en lecture seule), puis validation d'une facture en deux
-temps — un récapitulatif de ce qui est ENREGISTRÉ avant d'émettre, relu et corrigé (classe
-CSS inventée, cas « sans ligne » sans test), commit `98abd08`, 12 septembre.
+**Arrêté sur** — lot 3 : instantané d'émission (FIN-02) — émetteur, client, signataire et
+lignes figés, d'où le PDF d'une pièce perdue se reconstruit à l'identique — puis les
+invariants de montants (FIN-04) : signe de la pièce, avoir détaché non émissible, taux de
+TVA borné en base, commit `93a9fe3`, 12 septembre.
 
 ## Reste
 
 ### Pièces émises
 - [x] Le reçu fiscal suit les mêmes règles que la facture : rien d'éditable ni de supprimable dans l'admin une fois émis, PDF rendu dès l'émission
-- [ ] FIN-02 : une facture dont le PDF archivé a disparu se régénère à l'identique, et non depuis les données du jour : sans instantané des mentions et des identités, la pièce reconstruite n'est plus la pièce émise
-- [ ] FIN-04 : un avoir dupliqué ne peut plus annuler plus que sa facture — `dupliquer_facture` retire volontairement `avoir_de`, ce qui sort la copie du contrôle « jamais plus que le reste à annuler »
+- [x] FIN-02 : une facture dont le PDF archivé a disparu se régénère à l'identique — instantané d'émission, dont le rendu part désormais
+- [x] FIN-04 : un avoir dupliqué ne peut plus annuler plus que sa facture — détaché de son origine, il ne s'émet plus du tout
+- [ ] L'avoir dupliqué a une issue : soit un écran pour le rattacher à une facture, soit la duplication d'un avoir disparaît — aujourd'hui il se prépare et reste bloqué là
 - [ ] Télécharger ou prévisualiser une facture sans moteur PDF affiche un message, pas une erreur 500 — la vue du PV le fait déjà, les vues de facture non
 
 ### Saisie et parcours
