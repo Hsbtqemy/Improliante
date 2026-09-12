@@ -975,6 +975,46 @@ def test_transformer_devis_cree_une_facture(client, db):
     assert f"/bureau/factures/{facture.pk}/" in reponse.url
 
 
+def test_un_devis_facture_est_en_lecture_seule_et_son_statut_fige(client, db):
+    """L'écran du bureau lit le fait, pas l'étiquette — ici les deux concordent."""
+    client_facture = Client.objects.create(nom="Théâtre")
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    client.force_login(_staff())
+    client.post(f"/bureau/devis/{devis.pk}/transformer/")
+
+    corps = client.get(f"/bureau/devis/{devis.pk}/").content.decode()
+    assert "n'est plus modifiable" in corps
+    assert "Enregistrer le devis" not in corps
+
+    client.post(f"/bureau/devis/{devis.pk}/statut/", {"action": "accepter"})
+    devis.refresh_from_db()
+    assert devis.statut == Devis.Statut.FACTURE
+
+
+def test_un_devis_etiquete_facture_sans_facture_redevient_pilotable(client, db):
+    """L'impasse de l'inventaire ARCH-01, vue de l'écran.
+
+    L'admin autorise la suppression d'une facture en brouillon, y compris celle
+    issue d'un devis. Le statut du devis, lui, restait « Facturé » : l'écran le
+    présentait en lecture seule en annonçant une facture qu'il ne pouvait même
+    plus lier, et le changement de statut était refusé. Plus aucun geste n'était
+    offert. Corriger le service ne suffisait pas — aucun bouton n'y menait."""
+    client_facture = Client.objects.create(nom="Théâtre")
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    client.force_login(_staff())
+    client.post(f"/bureau/devis/{devis.pk}/transformer/")
+    Facture.objects.get().delete()
+    devis.refresh_from_db()
+    assert devis.statut == Devis.Statut.FACTURE  # l'étiquette ment désormais
+
+    corps = client.get(f"/bureau/devis/{devis.pk}/").content.decode()
+    assert "Enregistrer le devis" in corps
+
+    client.post(f"/bureau/devis/{devis.pk}/statut/", {"action": "accepter"})
+    devis.refresh_from_db()
+    assert devis.statut == Devis.Statut.ACCEPTE
+
+
 def test_telecharger_devis_pdf(client, db, monkeypatch):
     monkeypatch.setattr(
         "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 d"

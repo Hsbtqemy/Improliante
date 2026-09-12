@@ -68,6 +68,7 @@ from apps.facturation.services import (
     ValidationRefusee,
     assurer_pdf_facture,
     creer_avoir,
+    devis_deja_facture,
     dupliquer_facture,
     numeroter_devis,
     pdf_de_devis,
@@ -1396,9 +1397,14 @@ def creer_devis(request):
 
 @bureau_requis
 def editer_devis(request, pk):
-    """Édite un devis tant qu'il n'est pas transformé en facture."""
+    """Édite un devis tant qu'il n'est pas transformé en facture.
+
+    Le verrou porte sur l'existence de la facture, pas sur le statut : un devis
+    étiqueté « Facturé » dont la facture a été supprimée depuis restait sinon
+    sur cet écran en lecture seule, annonçant une facture qu'il ne pouvait même
+    plus lier, sans aucun geste offert."""
     devis = get_object_or_404(Devis, pk=pk)
-    if devis.statut == Devis.Statut.FACTURE:
+    if devis_deja_facture(devis):
         return render(request, "backoffice/devis_detail.html", {"devis": devis})
     return _editer_devis(request, devis=devis)
 
@@ -1443,7 +1449,8 @@ def changer_statut_devis(request, pk):
     """Fait évoluer le statut d'un devis (envoyé / accepté / refusé)."""
     devis = get_object_or_404(Devis, pk=pk)
     nouveau = _ACTIONS_STATUT_DEVIS.get(request.POST.get("action"))
-    if nouveau is None or devis.statut == Devis.Statut.FACTURE:
+    # Même lecture que l'écran d'édition : la facture émise, pas l'étiquette.
+    if nouveau is None or devis_deja_facture(devis):
         messages.error(request, "Changement de statut impossible.")
     else:
         devis.statut = nouveau

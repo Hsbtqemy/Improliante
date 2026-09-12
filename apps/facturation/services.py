@@ -405,6 +405,16 @@ def pdf_de_devis(devis: Devis) -> bytes:
     return pdf.html_vers_pdf(html)
 
 
+def devis_deja_facture(devis: Devis) -> bool:
+    """Vrai si une facture est née de ce devis.
+
+    Le fait, pas l'étiquette : `Devis.Statut.FACTURE` se remet en arrière depuis
+    un formulaire d'admin, la facture liée non. Les trois chemins qui refusent
+    d'écrire sur un devis facturé lisent donc tous cette ligne — ce service,
+    l'écran d'édition du bureau et son changement de statut."""
+    return Facture.objects.filter(devis_origine=devis).exists()
+
+
 @transaction.atomic
 def transformer_en_facture(devis: Devis) -> Facture:
     """Crée une facture brouillon à partir d'un devis (client + lignes copiés).
@@ -421,11 +431,11 @@ def transformer_en_facture(devis: Devis) -> Facture:
 
     Revers assumé : un devis étiqueté « Facturé » dont la facture n'existe plus
     (brouillon supprimé depuis) redevient transformable. C'est voulu — il
-    restait sinon dans une impasse, la vue refusant de faire reculer un statut
-    « Facturé ». Seul ce service écrit ce statut, donc il ne signifie rien
-    d'autre que « une facture en est issue »."""
+    restait sinon dans une impasse, l'écran du bureau refusant à la fois de
+    l'éditer et de faire reculer son statut. Seul ce service écrit ce statut,
+    donc il ne signifie rien d'autre que « une facture en est issue »."""
     courant = Devis.objects.select_for_update().get(pk=devis.pk)
-    if Facture.objects.filter(devis_origine=courant).exists():
+    if devis_deja_facture(courant):
         raise DevisDejaFacture(
             f"Le devis {courant.numero or courant.pk} a déjà été transformé en facture."
         )

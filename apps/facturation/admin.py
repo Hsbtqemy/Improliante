@@ -10,7 +10,7 @@ from __future__ import annotations
 from django.contrib import admin, messages
 
 from .models import Client, CompteurFacture, Devis, Facture, LigneDevis, LigneFacture
-from .services import ValidationRefusee, valider_facture
+from .services import ValidationRefusee, devis_deja_facture, valider_facture
 
 
 def _modifiable(facture) -> bool:
@@ -65,7 +65,7 @@ class DevisAdmin(admin.ModelAdmin):
         qu'une facture en est née désinforme le trésorier sur son écran
         comptable, et c'est ce chemin que l'inventaire ARCH-01 a relevé."""
         figes = super().get_readonly_fields(request, obj)
-        if obj is not None and Facture.objects.filter(devis_origine=obj).exists():
+        if obj is not None and devis_deja_facture(obj):
             return (*figes, "statut")
         return figes
 
