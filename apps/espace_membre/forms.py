@@ -9,7 +9,6 @@ from django.forms import inlineformset_factory
 from apps.agenda.models import Evenement
 from apps.coeur.models import LienReseau, Membre, Utilisateur
 from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
-from apps.common.forms import AideAccessibleMixin
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
 from apps.gouvernance.models import Presence
@@ -19,7 +18,7 @@ from apps.spectacles.models import Spectacle
 _FORMATS_DATETIME_LOCAL = ["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
 
 
-class ProjetMembreForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
+class ProjetMembreForm(ImagesFicheFormMixin, forms.ModelForm):
     """Édition par un membre de la fiche de SON projet (perso ou collectif).
 
     Champs descriptifs + gestion des images (affiche et galerie, via le mixin).
@@ -60,7 +59,7 @@ class ProjetMembreForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelFor
         self.fields["type_portage"].initial = Spectacle.TypePortage.PERSONNEL
 
 
-class EvenementMembreForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
+class EvenementMembreForm(ImagesFicheFormMixin, forms.ModelForm):
     """Proposition / édition par un membre d'un événement d'agenda.
 
     Champs descriptifs + gestion des images (affiche et galerie, via le mixin).
@@ -102,7 +101,7 @@ class EvenementMembreForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.Model
         self.fields["spectacle"].required = False
 
 
-class ProfilMembreForm(AideAccessibleMixin, forms.ModelForm):
+class ProfilMembreForm(forms.ModelForm):
     """Édition par un membre de SA propre fiche (bio, rôle public, coordonnées,
     site web, photo). Les réseaux sociaux sont gérés à part via un formset
     (`LienReseauFormSet`). La photo crée un `Media` (alt obligatoire) traité par
@@ -150,10 +149,14 @@ class LienReseauForm(forms.ModelForm):
     """Une ligne de la liste « réseaux sociaux ».
 
     « Adresse » se lisait comme une adresse postale ou un courriel : on nomme et
-    on illustre ce qui est attendu, l'URL publique du profil. L'aide est reliée
-    au champ par `aria-describedby` — mais pas avec l'id du mixin commun
-    (`id_<champ>_aide`), qui se répéterait à chaque ligne du formset. On le
-    dérive donc de l'identifiant préfixé du widget, unique par ligne."""
+    on illustre ce qui est attendu, l'URL publique du profil.
+
+    L'aide se relie au champ toute seule : Django pose `aria-describedby` vers
+    `<auto_id>_helptext`, et `auto_id` porte déjà le préfixe de la ligne
+    (`id_liens-0-url`), donc la référence est unique par ligne sans rien écrire
+    ici. Un `aria-describedby` posé à la main désactiverait justement ce calcul
+    (`BoundField.aria_describedby` s'efface devant un attribut de widget) et
+    perdrait au passage le rattachement du message d'erreur."""
 
     class Meta:
         model = LienReseau
@@ -161,12 +164,7 @@ class LienReseauForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["url"].widget.attrs.update(
-            {
-                "placeholder": "https://www.instagram.com/mon-compte/",
-                "aria-describedby": f"{self['url'].auto_id}_aide",
-            }
-        )
+        self.fields["url"].widget.attrs["placeholder"] = "https://www.instagram.com/mon-compte/"
 
 
 # Réseaux sociaux : liste flexible éditable en une fois (ajout / suppression).

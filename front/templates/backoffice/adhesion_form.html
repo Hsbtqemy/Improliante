@@ -17,7 +17,7 @@
       <p class="champ">
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field }}
-        {% if field.help_text %}<span class="champ__aide">{{ field.help_text }}</span>{% endif %}
+        {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
         {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
       </p>
 
@@ -32,6 +32,7 @@
             <p class="champ">
               <label for="{{ pf.id_for_label }}">{{ pf.label }}</label>
               {{ pf }}
+              {% if pf.help_text %}<span class="champ__aide" id="{{ pf.auto_id }}_helptext">{{ pf.help_text }}</span>{% endif %}
               {% for erreur in pf.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
             </p>
           {% endfor %}

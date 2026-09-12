@@ -601,3 +601,79 @@ def test_chaque_champ_de_formulaire_a_un_nom_accessible(client, db):
             fautives.append(f"{url} → {', '.join(nus[:4])}")
 
     assert not fautives, "champ sans nom accessible :\n  " + "\n  ".join(fautives)
+
+
+def test_aucune_reference_aria_ne_pointe_dans_le_vide(client, db):
+    """Un `aria-describedby` vers un id absent est ignoré SANS BRUIT : l'aide
+    s'affiche à l'écran et ne s'annonce jamais. Rien ne casse, rien ne prévient.
+
+    Le dépôt portait deux conventions concurrentes. Django ≥ 5 pose lui-même
+    l'attribut vers `<id>_helptext`, et vers `<id>_error` dès qu'un champ est en
+    erreur ; un mixin maison le posait vers `<id>_aide`. Les formulaires qui
+    passaient par le mixin étaient corrects, les autres pointaient dans le vide —
+    dont l'inscription à un événement, publique, et la création d'une adhésion.
+    Et personne ne rendait d'id sur les messages d'erreur, donc l'association
+    manquait précisément là où elle sert : après un refus de validation.
+    """
+    import re
+
+    pendantes = []
+    for url, html in _pages_sans_parametre(client):
+        presents = set(re.findall(r'\bid="([^"]+)"', html))
+        for attribut in ("aria-describedby", "aria-labelledby", "aria-controls"):
+            for valeur in re.findall(rf'{attribut}="([^"]+)"', html):
+                for cible in valeur.split():
+                    if cible not in presents:
+                        pendantes.append(f"{url} → {attribut}={cible}")
+
+    assert not pendantes, "référence aria dans le vide :\n  " + "\n  ".join(
+        sorted(set(pendantes))[:15]
+    )
+
+
+def test_aucune_page_ne_porte_deux_fois_le_meme_identifiant(client, db):
+    """Un id dupliqué casse `label for` — le clic met le focus dans le premier
+    champ portant l'id, pas celui qu'on visait — et rend toute référence aria
+    ambiguë.
+
+    La page « Fichiers » était dans ce cas : elle inclut le même formulaire de
+    création de dossier une fois par branche, et chaque copie rendait les mêmes
+    `id_nom` et `id_description`.
+    """
+    import re
+    from collections import Counter
+
+    fautives = []
+    for url, html in _pages_sans_parametre(client):
+        # Les gabarits de formset portent `__prefix__` : ce sont des modèles
+        # inertes clonés par le JS, qui réécrit l'indice. Deux occurrences y
+        # sont attendues, pas un défaut.
+        sans_modele = re.sub(r"<[^>]*__prefix__[^>]*>", "", html)
+        doubles = [
+            i for i, n in Counter(re.findall(r'\bid="([^"]+)"', sans_modele)).items() if n > 1
+        ]
+        if doubles:
+            fautives.append(f"{url} → {', '.join(sorted(doubles)[:4])}")
+
+    assert not fautives, "identifiant rendu deux fois :\n  " + "\n  ".join(fautives)
+
+
+def test_chaque_bouton_et_lien_a_un_nom_accessible(client, db):
+    """Un contrôle réduit à une icône s'annonce « bouton » : un lecteur d'écran
+    ne lit pas un pictogramme. Le nom peut venir du texte, d'un `aria-label` ou
+    d'un `title` — l'`<svg aria-hidden>` du dépôt, lui, est muet par construction.
+    """
+    import re
+
+    muets = []
+    for url, html in _pages_sans_parametre(client):
+        corps = html.split('<main id="contenu"', 1)[-1].split("</main>", 1)[0]
+        for balise, contenu in re.findall(
+            r"<(?:button|a)\b([^>]*)>(.*?)</(?:button|a)>", corps, re.S
+        ):
+            texte = re.sub(r"<[^>]+>", "", contenu).strip()
+            if texte or re.search(r'aria-label(?:ledby)?="[^"]+"|title="[^"]+"', balise):
+                continue
+            muets.append(f"{url} → {balise.strip()[:60]}")
+
+    assert not muets, "contrôle sans nom accessible :\n  " + "\n  ".join(sorted(set(muets))[:10])

@@ -23,7 +23,6 @@ from apps.coeur.models import (
     Utilisateur,
 )
 from apps.common.fiches import ImagesFicheFormMixin
-from apps.common.forms import AideAccessibleMixin
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
 from apps.gouvernance.models import Pouvoir, Presence, Resolution, Reunion, Sujet
 from apps.spectacles.models import LigneDistribution, Spectacle
@@ -233,7 +232,7 @@ class CategorieForm(forms.ModelForm):
 # pour qu'un écran ne recopie jamais par-dessus ce qu'un autre vient de changer.
 
 
-class IdentiteAssociationForm(AideAccessibleMixin, forms.ModelForm):
+class IdentiteAssociationForm(forms.ModelForm):
     """Identité légale : ce qui s'imprime en tête des documents officiels."""
 
     class Meta:
@@ -254,7 +253,7 @@ class IdentiteAssociationForm(AideAccessibleMixin, forms.ModelForm):
         widgets = {"objet": forms.Textarea(attrs={"rows": 2})}
 
 
-class TextesSiteForm(AideAccessibleMixin, forms.ModelForm):
+class TextesSiteForm(forms.ModelForm):
     """Les deux textes qui portent la page d'accueil et la page « L'association »."""
 
     class Meta:
@@ -263,7 +262,7 @@ class TextesSiteForm(AideAccessibleMixin, forms.ModelForm):
         widgets = {"presentation": forms.Textarea(attrs={"rows": 3})}
 
 
-class SignataireForm(AideAccessibleMixin, forms.ModelForm):
+class SignataireForm(forms.ModelForm):
     """Création / édition d'un signataire depuis le bureau.
 
     L'image de signature part en stockage privé (règle 5) : elle n'est jamais
@@ -274,7 +273,7 @@ class SignataireForm(AideAccessibleMixin, forms.ModelForm):
         fields = ["nom", "qualite", "mention_delegation", "signature_image", "membre", "actif"]
 
 
-class SignataireParDefautForm(AideAccessibleMixin, forms.ModelForm):
+class SignataireParDefautForm(forms.ModelForm):
     """Choix du signataire proposé d'office sur les nouveaux documents."""
 
     class Meta:
@@ -288,7 +287,7 @@ class SignataireParDefautForm(AideAccessibleMixin, forms.ModelForm):
         self.fields["signataire_par_defaut"].queryset = Signataire.objects.filter(actif=True)
 
 
-class ContactPubliqueForm(AideAccessibleMixin, forms.ModelForm):
+class ContactPubliqueForm(forms.ModelForm):
     """Coordonnées publiées sur la page Contact, à côté du formulaire."""
 
     class Meta:
@@ -387,7 +386,7 @@ class ResolutionForm(forms.ModelForm):
         self.fields["sujet"].required = False
 
 
-class MembreForm(AideAccessibleMixin, forms.ModelForm):
+class MembreForm(forms.ModelForm):
     """Fiche d'une personne (adhérent / membre), pour la création et l'édition.
 
     L'identité vit sur la fiche ; le compte de connexion est facultatif. À la
@@ -474,7 +473,7 @@ class AdhesionForm(forms.ModelForm):
 # --- Programmation : événements & projets (gestion directe par le bureau) ----
 
 
-class EvenementBureauForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
+class EvenementBureauForm(ImagesFicheFormMixin, forms.ModelForm):
     """Création / édition d'un événement par le bureau.
 
     Superset du formulaire membre : expose en plus `visibilite`, le `lieu` (fiche)
@@ -515,7 +514,7 @@ class EvenementBureauForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.Model
         self.fields["lieu"].required = False
 
 
-class ProjetBureauForm(AideAccessibleMixin, ImagesFicheFormMixin, forms.ModelForm):
+class ProjetBureauForm(ImagesFicheFormMixin, forms.ModelForm):
     """Création / édition d'un projet/spectacle par le bureau.
 
     Superset du formulaire membre : `type_portage` complet (dont « association »)

@@ -2,10 +2,17 @@
 Rend un champ de formulaire (label + widget + aide + erreurs).
 Attendu dans le contexte : `field` (un BoundField).
 Réutilisable pour regrouper les champs en sections `.bloc-form`.
+
+Les id `_helptext` et `_error` ne sont pas décoratifs : Django ≥ 5 pose lui-même
+`aria-describedby` sur le widget en les nommant (`forms/boundfield.py`,
+`aria_describedby`). Les changer ici suffit à ce que l'aide s'affiche sans
+jamais s'annoncer, et le message d'erreur sans être rattaché au champ — sans
+qu'aucune erreur ne se produise. Un test de balayage garde l'invariant
+(`test_aucune_reference_aria_ne_pointe_dans_le_vide`).
 {% endcomment %}
 <p class="champ">
   <label for="{{ field.id_for_label }}">{{ field.label }}</label>
   {{ field }}
-  {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_aide">{{ field.help_text }}</span>{% endif %}
-  {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+  {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+  {% if field.errors %}<span class="champ__erreur" id="{{ field.auto_id }}_error" role="alert">{% for erreur in field.errors %}{{ erreur }}{% if not forloop.last %} {% endif %}{% endfor %}</span>{% endif %}
 </p>

@@ -648,6 +648,23 @@ def _qs_branche(membre, branche, *, racines=False):
     return base.filter(espace=PERSO, proprietaire=membre, visibilite=vis)
 
 
+# Les quatre branches de l'explorateur, dans l'ordre où la page les présente.
+BRANCHES_DOSSIER = ("perso", "partage", "bureau", "association")
+
+
+def _form_dossier(branche="dossier", donnees=None):
+    """Formulaire de création de dossier, aux id préfixés par sa branche.
+
+    La page « Fichiers » en rend QUATRE (une par branche), et l'écran d'un
+    dossier en rend un à côté du formulaire de téléversement, qui porte aussi un
+    champ « description ». Sans préfixe distinct, toutes ces copies rendent les
+    mêmes `id_nom` / `id_description` : un `label` cliqué envoie alors le focus
+    dans le premier champ de la page au lieu de celui qu'on visait, et toute
+    référence `aria-*` devient ambiguë.
+    """
+    return DossierCommunForm(donnees, auto_id=f"id_{branche}_%s")
+
+
 def _arbres_fichiers(membre, dossier_courant_id=None, *, avec_association=False):
     """Contexte des arbres du panneau latéral. L'arbre Association (arborescence
     des dossiers officiels) n'est exposé qu'au bureau ; un membre n'a qu'une liste
@@ -678,15 +695,18 @@ def mes_fichiers(request):
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
         return redirect("espace_membre:tableau_de_bord")
 
-    dossier_form = DossierCommunForm()
+    formulaires_dossier = {b: _form_dossier(b) for b in BRANCHES_DOSSIER}
     branche = request.POST.get("branche")
+    dossier_form = formulaires_dossier.get(branche) or _form_dossier()
     if request.method == "POST" and request.POST.get("form_type") == "dossier":
         if branche == "association":
             if not peut_ecrire_asso:
                 raise Http404  # création en Association réservée au bureau
         elif membre is None:
             raise Http404  # perso / partagé / bureau exigent une fiche membre
-        dossier_form = DossierCommunForm(request.POST)
+        dossier_form = _form_dossier(branche or "perso", request.POST)
+        if branche in formulaires_dossier:
+            formulaires_dossier[branche] = dossier_form  # pour rendre ses erreurs
         if dossier_form.is_valid():
             nom = dossier_form.cleaned_data["nom"]
             desc = dossier_form.cleaned_data["description"]
@@ -724,7 +744,7 @@ def mes_fichiers(request):
         "association_roots": association_roots,
         "association_docs": association_docs,
         "peut_ecrire_asso": peut_ecrire_asso,
-        "dossier_form": dossier_form,
+        "formulaires_dossier": formulaires_dossier,
         "branche_active": branche,
         # Les reçus fiscaux ne sont pas des `Document` (ils vivent dans budget,
         # avec leur PDF rendu à la demande) : ils forment leur propre section,
@@ -748,13 +768,13 @@ def dossier_membre(request, pk):
     dossier = get_object_or_404(_dossiers_membre_visibles(request.user), pk=pk)
     est_proprio = membre is not None and dossier.proprietaire_id == membre.pk
 
-    dossier_form = DossierCommunForm()
+    dossier_form = _form_dossier()
     document_form = DocumentMembreForm()
     if request.method == "POST":
         if not est_proprio:
             raise Http404  # seul le propriétaire modifie son dossier
         if request.POST.get("form_type") == "dossier":
-            dossier_form = DossierCommunForm(request.POST)
+            dossier_form = _form_dossier(donnees=request.POST)
             if dossier_form.is_valid():
                 documents_services.creer_dossier_membre(
                     membre,
@@ -953,11 +973,11 @@ def dossier_commun(request, pk):
         return redirect("espace_membre:tableau_de_bord")
     dossier = get_object_or_404(Dossier, pk=pk, espace=COMMUN)
 
-    dossier_form = DossierCommunForm()
+    dossier_form = _form_dossier()
     document_form = DocumentMembreForm()
     if request.method == "POST":
         if request.POST.get("form_type") == "dossier":
-            dossier_form = DossierCommunForm(request.POST)
+            dossier_form = _form_dossier(donnees=request.POST)
             if dossier_form.is_valid():
                 documents_services.creer_dossier_commun(
                     nom=dossier_form.cleaned_data["nom"],
@@ -1077,11 +1097,11 @@ def dossier_association(request, pk):
     dossier = get_object_or_404(Dossier, pk=pk, espace=ASSOCIATION)
     peut_ecrire = True
 
-    dossier_form = DossierCommunForm()
+    dossier_form = _form_dossier()
     document_form = DocumentAssociationForm()
     if request.method == "POST":
         if request.POST.get("form_type") == "dossier":
-            dossier_form = DossierCommunForm(request.POST)
+            dossier_form = _form_dossier(donnees=request.POST)
             if dossier_form.is_valid():
                 documents_services.creer_dossier_association(
                     nom=dossier_form.cleaned_data["nom"],

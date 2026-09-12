@@ -967,6 +967,27 @@ h3 {
   transform: translateY(-2px);
   opacity: 1;
 }
+/* Neutralisé : le lien « Valider et numéroter… » tant que le brouillon porte des
+   modifications non enregistrées (front/static/js/facturation.js).
+
+   L'attribut `aria-disabled` n'a AUCUN effet visuel par lui-même : il informe le
+   lecteur d'écran et laisse l'œil devant un bouton d'apparence normale, qui ne
+   mène nulle part. La couleur ne porte pas seule l'information (WCAG 1.4.1) : le
+   curseur change aussi, et le message « Modifications non enregistrées » s'affiche
+   à côté. On garde un contraste de texte suffisant — un bouton neutralisé reste à
+   lire, il n'est pas décoratif — donc pas d'`opacity` qui l'effacerait à demi. */
+.lien-bouton[aria-disabled="true"] {
+  background: var(--surface-alt);
+  color: var(--couleur-texte);
+  border-color: var(--bordure);
+  cursor: not-allowed;
+}
+.lien-bouton[aria-disabled="true"]:hover {
+  /* Ni élévation ni éclaircissement : le survol ne doit pas suggérer un clic utile. */
+  background: var(--surface-alt);
+  transform: none;
+}
+
 /* Variante « fantôme » : sur fond sombre (hero) */
 .lien-bouton--ghost {
   background: transparent;

@@ -2093,7 +2093,7 @@ def test_backoffice_formulaire_lie_l_aide_via_aria_describedby(db):
     from apps.backoffice.forms import IdentiteAssociationForm
 
     html = str(IdentiteAssociationForm()["mention_tva"])
-    assert 'aria-describedby="id_mention_tva_aide"' in html
+    assert 'aria-describedby="id_mention_tva_helptext"' in html
 
 
 # --- Tableau de bord budgétaire (BUD-1) -------------------------------------

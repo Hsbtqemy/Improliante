@@ -1805,11 +1805,15 @@ def test_mes_evenements_lie_vers_la_fiche_pas_le_formulaire(client, db):
 
 def test_formulaire_lie_l_aide_via_aria_describedby(db):
     """Le texte d'aide d'un champ est relié au widget (WCAG 1.3.1), avec un id
-    qui correspond au <span class="champ__aide"> du gabarit."""
+    qui correspond au <span class="champ__aide"> du gabarit.
+
+    L'id suit désormais la convention de DJANGO (`_helptext`) et non plus celle
+    d'un mixin maison (`_aide`) : deux conventions concurrentes laissaient une
+    référence morte dans tout formulaire qui oubliait le mixin."""
     from apps.espace_membre.forms import ProfilMembreForm
 
     html = str(ProfilMembreForm()["role_public"])
-    assert 'aria-describedby="id_role_public_aide"' in html
+    assert 'aria-describedby="id_role_public_helptext"' in html
 
 
 # --- Déplacement d'un dossier (GED-1) ---------------------------------------

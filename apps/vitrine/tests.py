@@ -1089,3 +1089,29 @@ def test_l_entete_public_garde_sa_navigation(client, db):
     for lien in ("Accueil", "L'association", "Spectacles", "Agenda", "Galerie", "Contact"):
         assert lien in entete, lien
     assert "Voir le site" not in entete
+
+
+def test_un_lien_neutralise_se_distingue_a_l_oeil():
+    """`aria-disabled` n'a AUCUN effet visuel par lui-même.
+
+    Le lien « Valider et numéroter… » le reçoit dès qu'un brouillon de facture
+    porte des modifications non enregistrées (`facturation.js`). Sans règle CSS,
+    l'œil voyait un bouton d'apparence normale qui ne mène nulle part — annoncé
+    au lecteur d'écran, invisible pour tous les autres.
+
+    La règle vit dans la feuille, pas dans un gabarit : seul un test de son
+    existence la retient d'être perdue à la prochaine refonte. La contrepartie
+    est assumée — il vérifie qu'elle EST là, pas qu'elle se voit. C'est la passe
+    QA qui regarde (`pilotage/qa/accessibilite-front-08.md`)."""
+    from pathlib import Path
+
+    from django.conf import settings
+
+    css = Path(settings.BASE_DIR, "front", "static", "css", "site.css").read_text(encoding="utf-8")
+    regle = '.lien-bouton[aria-disabled="true"]'
+    assert regle in css, "aucun style ne distingue un lien neutralisé"
+    bloc = css.split(regle, 1)[1].split("}", 1)[0]
+    assert "cursor" in bloc, "la couleur porterait seule l'information (WCAG 1.4.1)"
+    assert "opacity" not in bloc, (
+        "une opacité effacerait le texte à demi : un bouton neutralisé reste à lire"
+    )
