@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~570 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~590 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---

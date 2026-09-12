@@ -1,0 +1,13 @@
+# Outils de DÉVELOPPEMENT : tests, lint, audit de dépendances.
+# Le serveur ne les installe pas — `deploy.sh` ne lit que requirements.txt.
+#
+#   pip install -r requirements-dev.txt
+#
+# Mêmes règles d'épinglage que pour l'exécution : on fige ce qui est éprouvé.
+
+-r requirements.txt
+
+pytest==9.1.1
+pytest-django==4.12.0
+ruff==0.15.20
+pip-audit==2.10.1

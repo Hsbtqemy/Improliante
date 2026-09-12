@@ -8,7 +8,7 @@ association de spectacle vivant. Priorité : **sur-mesure et flexible**.
 - Règles de travail : [CLAUDE.md](CLAUDE.md)
 
 > **État : v1 fonctionnelle implémentée** (front public, espace membre,
-> back-office). ~168 tests pytest verts. Reste le déploiement VPS.
+> back-office). ~590 tests pytest verts. Reste le déploiement VPS.
 
 ## Stack
 
@@ -41,12 +41,13 @@ deploiement/    deploy.sh, webhook_receiver.py, *.service, nginx-*.conf, backup.
 
 ## Démarrage (développement)
 
-Prérequis : Python 3.11+ et un serveur PostgreSQL local.
+Prérequis : Python 3.12+ (exigence de Django 6 ; éprouvé sur 3.14) et un
+serveur PostgreSQL local.
 
 ```bash
 python -m venv venv
 source venv/bin/activate          # Windows : venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # exécution + tests et lint
 
 cp .env.example .env              # puis renseigner DB_PASSWORD, etc.
 

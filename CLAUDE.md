@@ -5,7 +5,7 @@ Ce fichier est court par nature : il **oriente**. Le détail fonctionnel complet
 vit dans `docs/cahier-des-charges-asso.md` — s'y référer pour toute question métier.
 
 > État du projet : **v1 fonctionnelle implémentée** (modèles, services, front
-> public, espace membre, back-office). ~400 tests pytest verts, `ruff` propre,
+> public, espace membre, back-office). ~590 tests pytest verts, `ruff` propre,
 > `manage.py check` et `check --deploy` passent. Carte détaillée des modules et
 > des conventions transverses → `docs/etat-implementation.md`.
 > **Reste à faire** : le déploiement VPS (fichiers prêts dans `deploiement/`).
@@ -136,7 +136,7 @@ Concevoir les modèles v1 en gardant v2/v3 possibles, mais **ne coder que la v1*
 # Environnement
 python -m venv venv
 source venv/bin/activate          # Windows : venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # exécution + tests et lint
 cp .env.example .env              # renseigner DJANGO_SECRET_KEY / DB_* (ou DJANGO_DEBUG=1)
 
 # Base & développement (PostgreSQL requis)
