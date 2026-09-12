@@ -39,7 +39,8 @@ constats sur trente sont clos.
 - [x] FRONT-06 : le niveau de confidentialité le plus ouvert s'appelle « Tout compte connecté » — il ne met rien en ligne, et il est plus large que « Membres »
 
 ### Constats du rapport encore ouverts, à programmer
-- [ ] PUB-01 : une limitation de débit protège contact et réservations — des envois répétés depuis la même origine sont ralentis ou refusés, et une jauge ne peut plus être saturée par des réservations successives
+- [ ] PUB-01 : une limitation de débit protège contact, réservations **et « mot de passe oublié »** — des envois répétés depuis la même origine sont ralentis ou refusés, et une jauge ne peut plus être saturée par des réservations successives
+- [ ] Le formulaire de « mot de passe oublié » ne permet pas de noyer la boîte d'un membre : c'est le seul formulaire public qui envoie un courriel à un TIERS choisi par le demandeur, donc le plus abusable des trois, et le lot 7 l'a ajouté sans rien pour le retenir — la réputation d'envoi de l'association s'y joue aussi
 - [ ] PUB-02 est **différé** (12 septembre) : la page de confidentialité reste un modèle à compléter, et reste servie publiquement en l'état
 - [ ] FRONT-03 est **écarté** (12 septembre) : le sélecteur de 18 palettes est offert au visiteur, pas oublié. Ce qu'il coûte est reporté sur FRONT-08 ci-dessous — le contraste se vérifie sur les 18
 - [x] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — y compris celui qui n'en a jamais défini, que le défaut de Django laissait sans réponse

@@ -2334,3 +2334,28 @@ def test_un_lien_ne_sert_qu_une_fois(client, db, mailoutbox):
 
     texte = client.get(lien, follow=True).content.decode()
     assert 'name="new_password1"' not in texte, "le lien sert une seconde fois"
+
+
+def test_les_deux_ecrans_terminaux_du_parcours_se_rendent(client, db, mailoutbox):
+    """Trouvé en relecture : aucun test ne rendait « Vérifiez votre messagerie »,
+    l'écran que TOUT LE MONDE voit après avoir demandé un lien — les tests
+    s'arrêtaient à la redirection. Une erreur de gabarit y serait partie en
+    production sans bruit. Idem pour l'écran de fin."""
+    membre = _membre("alice")
+    membre.user.email = "alice@example.org"
+    membre.user.save(update_fields=["email"])
+
+    envoye = client.post("/mot-de-passe/oublie/", {"email": "alice@example.org"}, follow=True)
+    assert envoye.status_code == 200
+    assert "messagerie" in envoye.content.decode()
+
+    lien = _lien_de_reinitialisation(mailoutbox[0].body)
+    saisie = client.get(lien, follow=True)
+    fin = client.post(
+        saisie.request["PATH_INFO"],
+        {"new_password1": "unMotDePasse!42", "new_password2": "unMotDePasse!42"},
+        follow=True,
+    )
+    assert fin.status_code == 200
+    corps = fin.content.decode()
+    assert "/connexion/" in corps, "l'écran de fin ne ramène pas à la connexion"

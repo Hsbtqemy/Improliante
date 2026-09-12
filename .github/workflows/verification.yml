@@ -24,7 +24,10 @@ on:
 
 concurrency:
   group: verification-${{ github.ref }}
-  cancel-in-progress: true
+  # On annule les runs dépassés d'une PR, jamais ceux de `main` : une fois la
+  # barrière fermée (DEP-1), un run annulé vaudrait « pas vérifié », et deux
+  # pushes rapprochés laisseraient un commit passer sans que rien ne le dise.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   suite:
@@ -66,7 +69,12 @@ jobs:
           # développement (3.14) : c'est le plancher qui doit tenir.
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          # Les DEUX fichiers : `requirements-dev.txt` se contente d'un `-r` vers
+          # l'autre, si bien qu'une version modifiée dans `requirements.txt`
+          # laisserait le cache intact — et la CI installerait l'ancienne.
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Bibliothèques natives de WeasyPrint
         # La MÊME liste que le VPS devra installer (case de DEP-1). La tenir ici
