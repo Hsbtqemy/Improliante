@@ -61,6 +61,7 @@ from apps.common.pdf import RenduPDFIndisponible
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
+    AvoirNonDuplicable,
     DevisDejaFacture,
     FactureDejaValidee,
     FactureNonAvoirable,
@@ -1333,9 +1334,16 @@ def creer_avoir_vue(request, pk):
 @bureau_requis
 @require_POST
 def dupliquer_facture_vue(request, pk):
-    """Recopie une facture (ou un avoir) en brouillon, prêt à être ajusté."""
+    """Recopie une facture en brouillon, prêt à être ajusté.
+
+    L'écran d'un avoir n'offre pas le bouton ; l'adresse reste tapable, d'où le
+    refus ici aussi — le service est seul juge."""
     facture = get_object_or_404(Facture, pk=pk)
-    copie = dupliquer_facture(facture)
+    try:
+        copie = dupliquer_facture(facture)
+    except AvoirNonDuplicable as exc:
+        messages.error(request, str(exc))
+        return redirect("backoffice:editer_facture", pk=facture.pk)
     messages.success(
         request,
         "Copie créée en brouillon. Ajustez-la, puis validez-la pour lui "

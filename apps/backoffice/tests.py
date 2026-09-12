@@ -25,7 +25,7 @@ from apps.coeur.roles import NOM_GROUPE_BUREAU
 from apps.common.models import Moderation
 from apps.documents.models import Document, Dossier
 from apps.facturation.models import Client, Devis, Facture, LigneDevis, LigneFacture
-from apps.facturation.services import valider_facture
+from apps.facturation.services import creer_avoir, valider_facture
 from apps.gouvernance.models import (
     BlocCompteRendu,
     Pouvoir,
@@ -2258,6 +2258,42 @@ def test_l_ecran_d_une_facture_propose_de_la_dupliquer(client, db):
     corps = client.get(f"/bureau/factures/{facture.pk}/").content.decode()
 
     assert f"/bureau/factures/{facture.pk}/dupliquer/" in corps
+
+
+def test_l_ecran_d_un_avoir_ne_propose_pas_de_le_dupliquer(client, db):
+    """Un avoir vise une facture précise ; le copier n'a pas de sens. Le bouton
+    disparaît plutôt que d'ouvrir sur un refus."""
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    avoir = creer_avoir(facture)
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/factures/{avoir.pk}/").content.decode()
+
+    assert f"/bureau/factures/{avoir.pk}/dupliquer/" not in corps
+
+
+def test_dupliquer_un_avoir_par_l_url_est_refuse_avec_un_message(client, db):
+    """Le bouton retiré, l'adresse reste tapable : le refus vit dans le service."""
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    avoir = creer_avoir(facture)
+    client.force_login(_staff())
+    avant = Facture.objects.count()
+
+    reponse = client.post(f"/bureau/factures/{avoir.pk}/dupliquer/", follow=True)
+
+    assert Facture.objects.count() == avant
+    corps = reponse.content.decode()
+    assert "ne se duplique pas" in corps
 
 
 # --- Facture : édition périmée, aperçu archivé, erreurs de ligne ------------

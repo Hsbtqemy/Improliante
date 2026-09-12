@@ -63,6 +63,10 @@ class FactureNonAvoirable(Exception):
     """Levée quand on tente de créer un avoir sur une pièce qui ne le permet pas."""
 
 
+class AvoirNonDuplicable(Exception):
+    """Levée quand on tente de dupliquer un avoir : la copie n'aurait pas d'origine."""
+
+
 def _euros(montant: Decimal) -> str:
     return f"{montant:.2f} €".replace(".", ",")
 
@@ -230,9 +234,16 @@ def dupliquer_facture(facture: Facture) -> Facture:
     recevra son propre numéro à SA validation — reprendre le numéro d'origine
     créerait un doublon dans une série qui doit rester unique et continue.
 
-    Un avoir se duplique aussi : le résultat est un brouillon de même type,
-    mais détaché de la facture annulée, car un avoir ne s'annule pas deux fois.
+    Un avoir, lui, ne se duplique pas. Il vise UNE facture précise ; la copie
+    ne peut pas rejouer ce lien (ce serait annuler deux fois la même pièce) et
+    sans lui elle ne s'émet pas — elle resterait un brouillon sans issue. Pour
+    annuler une autre facture, on part de cette facture-là.
     """
+    if facture.type_piece == Facture.TypePiece.AVOIR:
+        raise AvoirNonDuplicable(
+            "Un avoir ne se duplique pas : il annule une facture précise. "
+            "Pour en annuler une autre, créez l'avoir depuis cette facture."
+        )
     copie = Facture.objects.create(
         client=facture.client,
         type_piece=facture.type_piece,

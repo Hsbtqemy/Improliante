@@ -29,6 +29,7 @@ from apps.facturation.models import (
 )
 from apps.facturation.services import (
     AvoirExcessif,
+    AvoirNonDuplicable,
     AvoirSansOrigine,
     DevisDejaFacture,
     FactureDejaValidee,
@@ -382,16 +383,20 @@ def test_un_avoir_remis_a_l_endroit_ne_s_emet_pas(client_facture):
 
 
 def test_un_avoir_detache_de_sa_facture_ne_s_emet_pas(client_facture):
-    """`dupliquer_facture` détache volontairement la copie d'un avoir. Sans
-    facture d'origine, elle échappait au contrôle du reste à annuler : elle peut
-    donc se préparer, mais pas s'émettre telle quelle."""
+    """Sans facture d'origine, un avoir échappe au contrôle du reste à annuler.
+
+    La duplication ne produit plus ce cas (elle refuse les avoirs), mais l'admin
+    et le shell peuvent encore détacher une pièce : le garde-fou reste utile."""
     origine = _facture_validee(client_facture)
-    copie = dupliquer_facture(creer_avoir(origine))
+    avoir = creer_avoir(origine)
+    Facture.objects.filter(pk=avoir.pk).update(avoir_de=None)
+    avoir.refresh_from_db()
 
     with pytest.raises(AvoirSansOrigine):
-        valider_facture(copie, date_emission=date(2026, 3, 1))
+        valider_facture(avoir, date_emission=date(2026, 3, 1))
 
-    assert copie.numero is None
+    avoir.refresh_from_db()
+    assert avoir.numero is None
 
 
 def test_creer_avoir_sur_brouillon_refuse(client_facture):
@@ -957,16 +962,19 @@ def test_la_copie_recoit_son_propre_numero_a_sa_validation(client_facture):
     assert [origine.numero, copie.numero] == ["F2026-0001", "F2026-0002"]
 
 
-def test_dupliquer_un_avoir_ne_le_relie_pas_a_la_facture_annulee(client_facture):
-    """Un avoir ne s'annule pas deux fois : la copie est détachée."""
+def test_dupliquer_un_avoir_est_refuse(client_facture):
+    """Un avoir vise UNE facture précise : le copier produit une pièce dont
+    l'origine est fausse par construction. La copie se préparait puis refusait
+    de s'émettre, sans issue ; on refuse le geste lui-même."""
     origine = _brouillon(client_facture)
     valider_facture(origine, date_emission=date(2026, 3, 1))
     avoir = creer_avoir(origine)
+    avant = Facture.objects.count()
 
-    copie = dupliquer_facture(avoir)
+    with pytest.raises(AvoirNonDuplicable):
+        dupliquer_facture(avoir)
 
-    assert copie.type_piece == Facture.TypePiece.AVOIR
-    assert copie.avoir_de is None
+    assert Facture.objects.count() == avant, "une copie a été laissée derrière"
 
 
 def test_dupliquer_un_brouillon_est_possible(client_facture):
