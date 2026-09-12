@@ -57,6 +57,15 @@ Application web à deux faces partageant une même base de données :
 
 > **Règle de sécurité clé (IDOR)** : chaque écran de l'espace membre filtre **toujours** selon l'utilisateur connecté, jamais selon un identifiant fourni dans l'URL sans revérifier la propriété.
 
+> **Fin d'adhésion — décision du 12 septembre 2026.** Un membre devenu inactif
+> **consulte** son espace : reçus fiscaux, documents, convocations passées,
+> fiches qu'il a portées. Il n'y **écrit** plus : ni proposition de projet ou
+> d'événement, ni dépôt de fichier, ni réponse à une convocation — il n'est plus
+> électeur. Le compte n'est pas fermé, et c'est le point : un reçu fiscal sert
+> plusieurs années, et le lui retirer obligerait le bureau à rouvrir un accès à
+> chaque demande. Les écrans qui ne sont qu'un formulaire disparaissent de sa
+> navigation plutôt que de l'accueillir pour refuser à la fin.
+
 ### 3.3 Back-office (selon rôles)
 
 - **Cœur associatif** : membres, lieux

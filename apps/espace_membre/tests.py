@@ -2168,12 +2168,17 @@ def test_membre_inactif_ne_recoit_pas_un_formulaire_qui_sera_refuse(client, db):
 
 
 def test_le_membre_a_jour_atteint_toujours_ces_ecrans(client, db):
-    """Le garde-fou ci-dessus ne doit pas fermer la porte à qui a le droit."""
+    """Le garde-fou ci-dessus ne doit pas fermer la porte à qui a le droit — ni
+    les écrans, ni leurs entrées de navigation."""
     membre = _membre("active")
     client.force_login(membre.user)
 
     for url in ("/espace/profil/", "/espace/projets/nouveau/", "/espace/evenements/nouveau/"):
         assert client.get(url).status_code == 200, url
+
+    corps = client.get("/espace/").content.decode()
+    assert "/espace/profil/" in corps, "le rail a perdu « Mon profil » pour tout le monde"
+    assert "/espace/projets/nouveau/" in corps
 
 
 def test_une_page_membre_ne_redemande_pas_les_groupes_a_chaque_controle(client, db):
