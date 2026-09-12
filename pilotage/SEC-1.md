@@ -1,7 +1,7 @@
 ---
 chantier: SEC-1
 statut: interrompu
-audit: docs/audit-externe-2026-09-11.md
+audit: docs/audit-externe-2026-09-11-constats.md
 ---
 
 # SEC-1 — consolidation après l'audit externe
@@ -15,8 +15,8 @@ CSS inventée, cas « sans ligne » sans test), commit `98abd08`, 12 septembre.
 
 ### Pièces émises
 - [x] Le reçu fiscal suit les mêmes règles que la facture : rien d'éditable ni de supprimable dans l'admin une fois émis, PDF rendu dès l'émission
-- [ ] Une facture dont le PDF archivé a disparu se régénère à l'identique, et non depuis les données du jour : sans instantané des mentions et des identités, la pièce reconstruite n'est plus la pièce émise
-- [ ] Un avoir dupliqué ne peut plus annuler plus que sa facture — `dupliquer_facture` retire volontairement `avoir_de`, ce qui sort la copie du contrôle « jamais plus que le reste à annuler »
+- [ ] FIN-02 : une facture dont le PDF archivé a disparu se régénère à l'identique, et non depuis les données du jour : sans instantané des mentions et des identités, la pièce reconstruite n'est plus la pièce émise
+- [ ] FIN-04 : un avoir dupliqué ne peut plus annuler plus que sa facture — `dupliquer_facture` retire volontairement `avoir_de`, ce qui sort la copie du contrôle « jamais plus que le reste à annuler »
 - [ ] Télécharger ou prévisualiser une facture sans moteur PDF affiche un message, pas une erreur 500 — la vue du PV le fait déjà, les vues de facture non
 
 ### Saisie et parcours
@@ -30,14 +30,25 @@ CSS inventée, cas « sans ligne » sans test), commit `98abd08`, 12 septembre.
 - [ ] Le PDF rendu à l'émission est éprouvé avec le vrai WeasyPrint : le fichier archivé s'ouvre et porte le bon numéro
 
 ### Livraison
-- [ ] Une vérification distante sur PostgreSQL est la barrière avant `main` : un commit non validé ne part pas en déploiement — aujourd'hui le webhook se déclenche sur le push, et le hook local se contourne ou s'oublie à chaque clone
+- [ ] OPS-01 : une vérification distante sur PostgreSQL est la barrière avant `main` : un commit non validé ne part pas en déploiement — aujourd'hui le webhook se déclenche sur le push, et le hook local se contourne ou s'oublie à chaque clone
+
+### Constats du rapport encore ouverts, à programmer
+- [ ] PUB-01 : une limitation de débit protège contact et réservations — des envois répétés depuis la même origine sont ralentis ou refusés, et une jauge ne peut plus être saturée par des réservations successives
+- [ ] PUB-02 : la page de confidentialité décrit les traitements réels (comptes, adhésions, réservations, documents, photos, gouvernance) et leurs durées, au lieu de se présenter comme un modèle à compléter
+- [ ] FRONT-03 : le sélecteur de 18 palettes a disparu des pages servies, une palette ayant été choisie — il s'affiche aujourd'hui sans condition `DEBUG`
+- [ ] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — aucune route ne le permet aujourd'hui
+- [ ] FRONT-08 : une campagne d'accessibilité a été menée (375 px et bureau, zoom 200 %, clavier, focus après erreur, contraste de la palette retenue) et ce qu'elle trouve est corrigé ou fiché
+- [ ] GOU-01 : une réunion close garde son résultat — changer quorum ou majorité dans les paramètres ne modifie plus une AG passée, et l'électorat n'est plus réduit aux seules présences enregistrées
+- [ ] OPS-04 : l'environnement testé est verrouillé (lockfile), et le README annonce la bonne version de Python et un compte de tests exact
+- [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
 
 ## Contexte
 
 Un audit externe du dépôt (révision `8525e56`, daté du 11 septembre) a été relu constat par
-constat contre le code. Il est versé tel quel dans `docs/audit-externe-2026-09-11.md`, cité
-par l'en-tête `audit:` ci-dessus : chaque case ci-dessous reste ainsi rattachable au constat
-dont elle vient. Deux de ses constats ont été écartés :
+constat contre le code. Il est versé tel quel dans `docs/audit-externe-2026-09-11.md` ;
+l'en-tête `audit:` ci-dessus pointe son **index de constats**, écrit par le dépôt, qui donne
+à chacun son état et laisse l'outil les compter — le rapport, lui, est en prose et n'a pas
+de tableau. Deux de ses constats ont été écartés :
 
 - **Les PV de bureau lisibles par les membres** ne sont pas une fuite mais la règle voulue —
   un compte rendu rend compte à toute l'association. Le cahier §233 et un test le disent
