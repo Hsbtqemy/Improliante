@@ -410,10 +410,22 @@ def transformer_en_facture(devis: Devis) -> Facture:
     """Crée une facture brouillon à partir d'un devis (client + lignes copiés).
 
     Marque le devis comme « Facturé » et relie la facture à son devis d'origine.
-    Lève `DevisDejaFacture` si le devis a déjà été transformé — statut relu sous
-    verrou, pour qu'un double clic ne crée pas deux factures."""
+    Lève `DevisDejaFacture` si une facture en est déjà issue — devis relu sous
+    verrou, pour qu'un double clic ne crée pas deux factures.
+
+    Le garde-fou porte sur L'EXISTENCE de la facture, pas sur le statut du
+    devis. Il se gardait sur `statut == FACTURE`, et l'admin peut remettre ce
+    statut en arrière : on repassait le devis en « Accepté », on recliquait
+    « Transformer », et deux factures naissaient du même devis. Un fait ne se
+    remet pas à zéro depuis un formulaire d'admin ; une étiquette, si.
+
+    Revers assumé : un devis étiqueté « Facturé » dont la facture n'existe plus
+    (brouillon supprimé depuis) redevient transformable. C'est voulu — il
+    restait sinon dans une impasse, la vue refusant de faire reculer un statut
+    « Facturé ». Seul ce service écrit ce statut, donc il ne signifie rien
+    d'autre que « une facture en est issue »."""
     courant = Devis.objects.select_for_update().get(pk=devis.pk)
-    if courant.statut == Devis.Statut.FACTURE:
+    if Facture.objects.filter(devis_origine=courant).exists():
         raise DevisDejaFacture(
             f"Le devis {courant.numero or courant.pk} a déjà été transformé en facture."
         )

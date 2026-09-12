@@ -237,12 +237,55 @@ def test_transformer_en_facture_copie_client_et_lignes(client_facture):
     assert facture.total_ttc == Decimal("240.00")  # 2 × 100 + 20 %
 
 
-def test_transformer_un_devis_deja_facture_leve(client_facture):
+def test_un_devis_dont_la_facture_existe_ne_se_retransforme_pas(client_facture):
+    """Le garde-fou porte sur LE FAIT, pas sur l'étiquette.
+
+    Il se gardait sur `statut == FACTURE`, que l'admin peut remettre en arrière
+    (`DevisAdmin` ne verrouillait que les dates) : on repassait le devis en
+    « Accepté », on recliquait « Transformer », et deux factures naissaient du
+    même devis, toutes deux pointant `devis_origine` vers lui. Le verrou du
+    lot 1 sérialisait l'opération, il ne la rendait pas idempotente."""
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    transformer_en_facture(devis)
+
+    # Ce que fait un compte bureau depuis l'admin.
+    Devis.objects.filter(pk=devis.pk).update(statut=Devis.Statut.ACCEPTE)
+    devis.refresh_from_db()
+
+    with pytest.raises(DevisDejaFacture):
+        transformer_en_facture(devis)
+
+    assert Facture.objects.filter(devis_origine=devis).count() == 1
+
+
+def test_un_statut_facture_sans_facture_ne_bloque_plus(client_facture):
+    """Revers assumé du choix ci-dessus, et il corrige une impasse.
+
+    `FACTURE` n'est écrit que par `transformer_en_facture` : il signifie « une
+    facture existe ». Quand elle n'existe pas — brouillon supprimé depuis —, le
+    statut mentait, et le devis restait bloqué : la vue refuse de faire reculer
+    un statut `FACTURE`, donc plus rien n'était possible depuis l'interface."""
     devis = Devis.objects.create(
         client=client_facture, date=date(2026, 3, 1), statut=Devis.Statut.FACTURE
     )
-    with pytest.raises(DevisDejaFacture):
-        transformer_en_facture(devis)
+
+    facture = transformer_en_facture(devis)
+
+    assert facture.devis_origine == devis
+
+
+def test_supprimer_le_brouillon_issu_d_un_devis_libere_le_devis(client_facture):
+    """La même impasse par le chemin réel : l'admin autorise la suppression
+    d'une facture en BROUILLON, y compris celle issue d'un devis."""
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    premiere = transformer_en_facture(devis)
+    premiere.delete()
+    devis.refresh_from_db()
+
+    seconde = transformer_en_facture(devis)
+
+    assert Facture.objects.filter(devis_origine=devis).count() == 1
+    assert seconde.pk != premiere.pk
 
 
 def test_deux_transformations_du_meme_devis_ne_creent_qu_une_facture(client_facture):
@@ -739,6 +782,23 @@ def test_admin_une_facture_emise_ne_garde_que_le_suivi_de_paiement(rf, client_fa
     assert not inline.has_add_permission(requete, facture)
     assert not inline.has_change_permission(requete, facture)
     assert not inline.has_delete_permission(requete, facture)
+
+
+def test_admin_le_statut_d_un_devis_facture_est_fige(rf, client_facture):
+    """Le service refuse désormais une seconde facture, donc plus rien de grave
+    ne se joue ici. Reste qu'un devis affiché « Accepté » alors qu'une facture
+    en est issue désinforme le trésorier sur son propre écran comptable — et
+    c'est ce chemin d'admin que l'inventaire ARCH-01 a relevé."""
+    devis = Devis.objects.create(client=client_facture, date=date(2026, 3, 1))
+    modele_admin = admin.site.get_model_admin(Devis)
+    requete = _requete_admin(rf)
+
+    assert "statut" not in modele_admin.get_readonly_fields(requete, devis)
+
+    transformer_en_facture(devis)
+    devis.refresh_from_db()
+
+    assert "statut" in modele_admin.get_readonly_fields(requete, devis)
 
 
 def test_admin_le_statut_d_un_brouillon_ne_change_qu_en_validant(rf, client_facture):

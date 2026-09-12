@@ -57,6 +57,18 @@ class DevisAdmin(admin.ModelAdmin):
     readonly_fields = ("date_creation", "date_modification")
     inlines = (LigneDevisInline,)
 
+    def get_readonly_fields(self, request, obj=None):
+        """Fige le statut d'un devis dont une facture est issue.
+
+        Le service refuse la seconde facture — il se garde sur l'existence de la
+        pièce, pas sur cette étiquette. Mais un devis affiché « Accepté » alors
+        qu'une facture en est née désinforme le trésorier sur son écran
+        comptable, et c'est ce chemin que l'inventaire ARCH-01 a relevé."""
+        figes = super().get_readonly_fields(request, obj)
+        if obj is not None and Facture.objects.filter(devis_origine=obj).exists():
+            return (*figes, "statut")
+        return figes
+
 
 @admin.action(description="Valider et numéroter les factures sélectionnées")
 def valider_factures(modeladmin, request, queryset):
