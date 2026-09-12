@@ -83,6 +83,7 @@ from apps.gouvernance.services import (
     generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
+    regles_applicables,
     resultat_resolution,
 )
 from apps.spectacles import services as spectacles_services
@@ -1776,7 +1777,9 @@ def gouvernance_reunion(request, pk):
     """Détail d'une réunion : quorum, ordre du jour, présences, pouvoirs,
     résolutions (avec résultat calculé)."""
     reunion = get_object_or_404(Reunion, pk=pk)
-    resolutions = [(r, resultat_resolution(r)) for r in reunion.resolutions.all()]
+    # Les règles se lisent une fois pour la réunion, pas une fois par résolution.
+    regles = regles_applicables(reunion)
+    resolutions = [(r, resultat_resolution(r, regles=regles)) for r in reunion.resolutions.all()]
 
     # Déroulé du compte-rendu : blocs de récit en préambule (apres_sujet nul) +
     # blocs rattachés à chaque point (affichés juste après lui).

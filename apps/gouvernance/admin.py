@@ -12,7 +12,7 @@ from .models import (
     Reunion,
     Sujet,
 )
-from .services import calcul_quorum, resultat_resolution
+from .services import calcul_quorum, figer_les_regles, resultat_resolution
 
 
 @admin.register(ParametresGouvernance)
@@ -55,6 +55,15 @@ class ReunionAdmin(admin.ModelAdmin):
     readonly_fields = ("quorum", "date_creation", "date_modification")
     inlines = (ResolutionInline, PresenceInline, PouvoirInline)
 
+    def save_model(self, request, obj, form, change):
+        """Archiver ici fige les règles, comme depuis l'écran du bureau.
+
+        Le statut est modifiable dans cet admin : sans ce geste, une réunion
+        close par ce chemin resterait soumise aux paramètres du jour, et son
+        résultat changerait au prochain réglage."""
+        super().save_model(request, obj, form, change)
+        figer_les_regles(obj)
+
     @admin.display(description="Quorum")
     def quorum(self, obj):
         """Affiche l'état du quorum (calculé par le service)."""
@@ -92,6 +101,7 @@ class ResolutionAdmin(admin.ModelAdmin):
         "est_adoptee",
     )
     list_filter = ("type_majorite",)
+    list_select_related = ("reunion",)  # `est_adoptee` lit les règles de la réunion
     search_fields = ("intitule",)
     autocomplete_fields = ("reunion", "sujet")
     readonly_fields = ("date_creation", "date_modification")

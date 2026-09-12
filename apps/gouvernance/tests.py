@@ -368,6 +368,25 @@ def test_avant_cloture_les_regles_courantes_s_appliquent(params, make_membre):
     assert resultat_resolution(resolution).adoptee is False
 
 
+def test_archiver_depuis_l_admin_fige_aussi_les_regles(db, rf, params):
+    """Le statut est modifiable dans l'admin : le gel ne peut pas vivre
+    seulement dans l'écran du bureau, sinon ce chemin-là laisse une assemblée
+    à la merci du prochain réglage."""
+    from django.contrib import admin as django_admin
+
+    params.quorum_ag_ordinaire = Decimal("0.500")
+    params.save()
+    reunion = _reunion()
+    reunion.statut = Reunion.Statut.ARCHIVEE
+    requete = rf.post("/admin/")
+    requete.user = Utilisateur.objects.create_superuser(username="admin", password="x")
+
+    django_admin.site.get_model_admin(Reunion).save_model(requete, reunion, None, True)
+
+    reunion.refresh_from_db()
+    assert reunion.regles_figees["quorum"] == "0.500"
+
+
 def test_le_gel_ne_se_rejoue_pas(params):
     """Refiger écraserait les règles du jour par celles d'aujourd'hui."""
     params.quorum_ag_ordinaire = Decimal("0.500")
@@ -420,6 +439,21 @@ def test_le_preremplissage_inscrit_tous_les_electeurs(params, make_membre):
     assert reunion.presences.get(membre=a_jour[1]).statut == Presence.Statut.ABSENT
     # Le membre qui n'est pas à jour n'entre pas dans l'électorat.
     assert not reunion.presences.filter(membre=retardataire, peut_voter=True).exists()
+
+
+def test_le_registre_ne_s_ouvre_pas_pour_une_reunion_de_bureau(params, make_membre):
+    """Un bureau n'a pas d'électorat : le quorum n'y est pas applicable, et
+    inscrire d'office toute l'association à une réunion de bureau produirait une
+    liste de présences qui ne veut rien dire."""
+    params.vote_reserve_aux_membres_a_jour = False
+    params.save()
+    reunion = _reunion(Reunion.TypeReunion.BUREAU)
+    _presence(reunion, make_membre(), Presence.Statut.PRESENT)
+    make_membre()  # membre de l'association, étranger au bureau
+
+    preremplir_droit_de_vote(reunion)
+
+    assert reunion.presences.count() == 1
 
 
 def test_le_quorum_se_calcule_sur_l_electorat_complet(params, make_membre):

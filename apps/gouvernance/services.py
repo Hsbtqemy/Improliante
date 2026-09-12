@@ -148,11 +148,14 @@ class ResultatResolution:
     base: int
 
 
-def resultat_resolution(resolution: Resolution) -> ResultatResolution:
+def resultat_resolution(resolution: Resolution, *, regles=None) -> ResultatResolution:
     """Détermine si une résolution est adoptée selon son type de majorité.
 
-    Les seuils sont ceux applicables à SA réunion : figés si elle est close."""
-    params = regles_applicables(resolution.reunion)
+    Les seuils sont ceux applicables à SA réunion : figés si elle est close.
+    Une boucle sur les résolutions d'une même réunion passe `regles` une fois
+    pour toutes — sinon chaque résolution va rechercher sa réunion et ses
+    paramètres, une requête par ligne."""
+    params = regles or regles_applicables(resolution.reunion)
     pour = resolution.nombre_pour
     contre = resolution.nombre_contre
     abstention = resolution.nombre_abstention
@@ -272,11 +275,6 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
 
     Retourne le nombre de présences créées ou modifiées.
     """
-    if reunion.statut == Reunion.Statut.ARCHIVEE:
-        raise ValueError(
-            "Cette réunion est close : son registre électoral ne se rouvre pas. "
-            "Les électeurs inscrits ce jour-là font son quorum."
-        )
     params = ParametresGouvernance.load()
     reserve = params.vote_reserve_aux_membres_a_jour
     if reserve and saison is None:
@@ -293,6 +291,14 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
 
     touchees = 0
     with transaction.atomic():
+        # Sous verrou : deux préremplissages lancés ensemble calculeraient les
+        # mêmes manquants et se heurteraient à l'unicité (réunion, membre).
+        reunion = Reunion.objects.select_for_update().get(pk=reunion.pk)
+        if reunion.statut == Reunion.Statut.ARCHIVEE:
+            raise ValueError(
+                "Cette réunion est close : son registre électoral ne se rouvre pas. "
+                "Les électeurs inscrits ce jour-là font son quorum."
+            )
         deja_inscrits = {presence.membre_id: presence for presence in reunion.presences.all()}
         for presence in deja_inscrits.values():
             electeur = presence.membre_id in electeurs
@@ -300,6 +306,14 @@ def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
                 presence.peut_voter = electeur
                 presence.save(update_fields=["peut_voter"])
                 touchees += 1
+        # Le registre ne s'ouvre que pour une AG : le quorum ne s'applique qu'à
+        # elle, et inscrire d'office toute l'association à une réunion de bureau
+        # produirait une liste de présences qui ne veut rien dire.
+        if reunion.type_reunion not in (
+            Reunion.TypeReunion.AG_ORDINAIRE,
+            Reunion.TypeReunion.AG_EXTRAORDINAIRE,
+        ):
+            return touchees
         manquants = electeurs - set(deja_inscrits)
         Presence.objects.bulk_create(
             [
@@ -345,6 +359,9 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     for sujet in sujets:
         sujet.blocs_suivants = blocs_par_sujet.get(sujet.pk, [])
 
+    # Une seule lecture des règles pour toute la réunion : dans la compréhension
+    # ci-dessous, l'appel serait refait à chaque résolution.
+    regles = regles_applicables(reunion)
     contexte = {
         "reunion": reunion,
         "asso": ParametresAssociation.load(),
@@ -356,7 +373,9 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
         "representes": presences.filter(statut=Presence.Statut.REPRESENTE),
         "excuses": presences.filter(statut=Presence.Statut.EXCUSE),
         "absents": presences.filter(statut=Presence.Statut.ABSENT),
-        "resolutions": [(r, resultat_resolution(r)) for r in reunion.resolutions.all()],
+        "resolutions": [
+            (r, resultat_resolution(r, regles=regles)) for r in reunion.resolutions.all()
+        ],
     }
     octets = pdf.html_vers_pdf(render_to_string("pv/pv.html", contexte))
     nom = f"pv-reunion-{reunion.pk}.pdf"
