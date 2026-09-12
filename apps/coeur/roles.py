@@ -27,6 +27,25 @@ def est_bureau(user) -> bool:
     return user.groups.filter(name=NOM_GROUPE_BUREAU).exists()
 
 
+def peut_ecrire_espace_membre(user) -> bool:
+    """Vrai si l'utilisateur peut DÉPOSER ou MODIFIER dans l'espace membre.
+
+    Une adhésion qui prend fin (`Membre.actif = False`) ferme l'écriture, pas la
+    lecture : l'ancien membre garde ses reçus fiscaux, ses documents et son
+    historique — un reçu fiscal sert plusieurs années, et le lui retirer
+    obligerait le bureau à rouvrir un compte à chaque demande.
+
+    Le bureau n'est pas concerné : il administre l'association, pas sa propre
+    adhésion. Un trésorier dont la fiche est inactive doit continuer à gérer.
+    """
+    if not user.is_authenticated or not user.is_active:
+        return False
+    if est_bureau(user):
+        return True
+    membre = getattr(user, "membre", None)
+    return membre is not None and membre.actif
+
+
 def bureau_requis(view):
     """Réserve une vue au bureau.
 

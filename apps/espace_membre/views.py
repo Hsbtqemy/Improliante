@@ -10,6 +10,7 @@ si le membre n'est pas porteur, sans révéler l'existence de la fiche.
 from __future__ import annotations
 
 import logging
+from functools import wraps
 from pathlib import PurePosixPath
 
 from django.contrib import messages
@@ -27,7 +28,7 @@ from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
-from apps.coeur.roles import est_bureau
+from apps.coeur.roles import est_bureau, peut_ecrire_espace_membre
 from apps.coeur.services import (
     definir_photo_membre,
     retirer_photo_membre,
@@ -75,6 +76,45 @@ def _membre_connecte(request):
     return getattr(request.user, "membre", None)
 
 
+MESSAGE_LECTURE_SEULE = (
+    "Votre adhésion a pris fin : votre espace reste consultable — reçus, "
+    "documents et historique — mais vous ne pouvez plus y déposer ni modifier. "
+    "Contactez le bureau pour la renouveler."
+)
+
+# Méthodes qui ne changent rien : la fin d'adhésion ne doit pas les fermer.
+METHODES_DE_LECTURE = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def ecriture_requise(view):
+    """Ferme l'ÉCRITURE à un membre dont l'adhésion a pris fin, pas la lecture.
+
+    Posé sur des vues qui mêlent GET et POST : les décorer entièrement
+    fermerait aussi la consultation, qui reste ouverte par décision (SEC-05).
+    Seules les méthodes qui écrivent sont refusées, et elles le sont par un
+    message plutôt que par un 403 — l'ancien membre n'a rien fait de mal.
+    """
+
+    @wraps(view)
+    def _verifie_ecriture(request, *args, **kwargs):
+        # On n'intercepte QUE la fin d'adhésion — une fiche membre existe et
+        # n'est plus active. Le compte sans fiche membre est déjà traité par
+        # chaque vue, et mieux : par un 404 qui ne révèle pas l'existence de
+        # l'objet visé (SEC-01). Le lui voler ici rendrait un 302 bavard et lui
+        # servirait un message d'adhésion qu'il n'a jamais eue.
+        fiche = _membre_connecte(request)
+        if (
+            request.method not in METHODES_DE_LECTURE
+            and fiche is not None
+            and not peut_ecrire_espace_membre(request.user)
+        ):
+            messages.error(request, MESSAGE_LECTURE_SEULE)
+            return redirect("espace_membre:tableau_de_bord")
+        return view(request, *args, **kwargs)
+
+    return login_required(_verifie_ecriture)
+
+
 @login_required
 def tableau_de_bord(request):
     """Accueil de l'espace membre : rappels à traiter, prochaines dates, projets.
@@ -110,24 +150,30 @@ def tableau_de_bord(request):
         for evenement in evenements:
             evenement.je_participe = evenement.pk in mes_dates
 
-        # « À traiter » : réponses attendues du membre.
-        convocations = list(
-            Reunion.objects.filter(
-                statut=Reunion.Statut.CONVOQUEE,
-                type_reunion__in=[
-                    Reunion.TypeReunion.AG_ORDINAIRE,
-                    Reunion.TypeReunion.AG_EXTRAORDINAIRE,
-                ],
-                date__gte=maintenant,
+        # « À traiter » : réponses attendues du membre. Une adhésion terminée
+        # n'attend plus rien de lui — lui réclamer une réponse qu'il ne peut
+        # plus donner serait une impasse (SEC-05).
+        peut_ecrire = peut_ecrire_espace_membre(request.user)
+        convocations = []
+        projets_a_soumettre = []
+        if peut_ecrire:
+            convocations = list(
+                Reunion.objects.filter(
+                    statut=Reunion.Statut.CONVOQUEE,
+                    type_reunion__in=[
+                        Reunion.TypeReunion.AG_ORDINAIRE,
+                        Reunion.TypeReunion.AG_EXTRAORDINAIRE,
+                    ],
+                    date__gte=maintenant,
+                )
+                .exclude(presences__membre=membre)
+                .order_by("date")
             )
-            .exclude(presences__membre=membre)
-            .order_by("date")
-        )
-        projets_a_soumettre = list(
-            Spectacle.objects.filter(
-                porteurs=membre, statut_moderation=statut_mod.BROUILLON
-            ).order_by("titre")
-        )
+            projets_a_soumettre = list(
+                Spectacle.objects.filter(
+                    porteurs=membre, statut_moderation=statut_mod.BROUILLON
+                ).order_by("titre")
+            )
         adhesion_en_attente = adhesion is not None and not adhesion.a_jour
 
         contexte.update(
@@ -144,7 +190,7 @@ def tableau_de_bord(request):
     return render(request, "espace_membre/tableau_de_bord.html", contexte)
 
 
-@login_required
+@ecriture_requise
 def mon_profil(request):
     """Édition par le membre de SA propre fiche (bio, rôle, site, réseaux, photo).
 
@@ -196,7 +242,7 @@ def mes_projets(request):
     )
 
 
-@login_required
+@ecriture_requise
 def creer_projet(request):
     """Création d'un projet par un membre : enregistré en brouillon, puis
     éventuellement soumis à la modération (bouton « Soumettre »)."""
@@ -247,7 +293,7 @@ def voir_projet(request, pk):
     )
 
 
-@login_required
+@ecriture_requise
 def editer_projet(request, pk):
     """Édition d'un projet du membre. La propriété est vérifiée par le filtre
     `porteurs=membre` (anti-IDOR). L'auteur édite en brouillon, après refus et
@@ -318,7 +364,7 @@ def mes_evenements(request):
     )
 
 
-@login_required
+@ecriture_requise
 def creer_evenement(request):
     """Proposition d'un événement : enregistré en brouillon puis, au choix,
     soumis à la modération. La visibilité reste fixée par le bureau."""
@@ -368,7 +414,7 @@ def voir_evenement(request, pk):
     )
 
 
-@login_required
+@ecriture_requise
 def editer_evenement(request, pk):
     """Édition d'un événement du membre. Propriété vérifiée par
     `cree_par=request.user` (anti-IDOR). L'auteur édite en brouillon, après refus
@@ -505,7 +551,7 @@ def _peut_acceder_document(user, document) -> bool:
     if est_bureau(user):
         return True
     conf = document.confidentialite
-    if conf == Document.Confidentialite.PUBLIC:
+    if conf == Document.Confidentialite.CONNECTES:
         return True
     if conf == Document.Confidentialite.MEMBRES:
         return getattr(user, "membre", None) is not None
@@ -522,7 +568,7 @@ def _documents_accessibles(user):
     )
     if est_bureau(user):
         return base.order_by("titre")
-    niveaux = {Document.Confidentialite.PUBLIC}
+    niveaux = {Document.Confidentialite.CONNECTES}
     if getattr(user, "membre", None) is not None:
         niveaux.add(Document.Confidentialite.MEMBRES)
     return base.filter(confidentialite__in=niveaux).order_by("titre")
@@ -594,7 +640,7 @@ def _arbres_fichiers(membre, dossier_courant_id=None, *, avec_association=False)
     }
 
 
-@login_required
+@ecriture_requise
 def mes_fichiers(request):
     """Explorateur des fichiers : branches Perso / Partagé / Bureau / Association.
     POST (`branche` + nom/description) crée un dossier racine dans la branche
@@ -668,7 +714,7 @@ def mes_fichiers(request):
     return render(request, "espace_membre/mes_fichiers.html", contexte)
 
 
-@login_required
+@ecriture_requise
 def dossier_membre(request, pk):
     """Détail d'un dossier personnel (branche Perso ou Bureau). Le propriétaire y
     crée des sous-dossiers / téléverse ; le bureau peut lire les dossiers
@@ -723,13 +769,15 @@ def dossier_membre(request, pk):
         "url_suppr_doc": "espace_membre:supprimer_document_membre",
         "url_editer": "espace_membre:editer_dossier_membre",
         "url_suppr_dossier": "espace_membre:supprimer_dossier_membre",
-        "peut_ecrire": est_proprio,
+        # Propriétaire ET adhésion en cours : la fin d'adhésion ferme le dépôt
+        # dans ses propres dossiers, sans en fermer la lecture (SEC-05).
+        "peut_ecrire": est_proprio and peut_ecrire_espace_membre(request.user),
     }
     contexte.update(_arbres_fichiers(membre, dossier.pk, avec_association=est_bureau(request.user)))
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
-@login_required
+@ecriture_requise
 def editer_dossier_membre(request, pk):
     """Renomme / redécrit un dossier personnel — propriétaire seul (404 sinon)."""
     membre = _membre_connecte(request)
@@ -786,7 +834,7 @@ def _peut_deplacer(user, membre, dossier) -> bool:
     return est_bureau(user)
 
 
-@login_required
+@ecriture_requise
 def deplacer_dossier(request, pk):
     """Range un dossier ailleurs dans SON espace.
 
@@ -828,7 +876,7 @@ def deplacer_dossier(request, pk):
     )
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def supprimer_dossier_membre(request, pk):
     """Supprime un dossier personnel VIDE (propriétaire seul)."""
@@ -849,7 +897,7 @@ def supprimer_dossier_membre(request, pk):
     return redirect("espace_membre:mes_fichiers")
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def supprimer_document_membre(request, pk):
     """Supprime un fichier personnel (anti-IDOR via le dossier)."""
@@ -871,7 +919,7 @@ def supprimer_document_membre(request, pk):
 # Tout membre y lit ET écrit. Les vues n'ouvrent que des dossiers `espace=COMMUN`.
 
 
-@login_required
+@ecriture_requise
 def dossier_commun(request, pk):
     """Détail d'un dossier commun : tout membre peut créer / téléverser."""
     membre = _membre_connecte(request)
@@ -921,13 +969,13 @@ def dossier_commun(request, pk):
         "url_suppr_doc": "espace_membre:supprimer_document_commun",
         "url_editer": "espace_membre:editer_dossier_commun",
         "url_suppr_dossier": "espace_membre:supprimer_dossier_commun",
-        "peut_ecrire": True,
+        "peut_ecrire": peut_ecrire_espace_membre(request.user),
     }
     contexte.update(_arbres_fichiers(membre, dossier.pk, avec_association=est_bureau(request.user)))
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
-@login_required
+@ecriture_requise
 def editer_dossier_commun(request, pk):
     """Renomme / redécrit un dossier commun (tout membre)."""
     membre = _membre_connecte(request)
@@ -954,7 +1002,7 @@ def editer_dossier_commun(request, pk):
     )
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def supprimer_dossier_commun(request, pk):
     """Supprime un dossier commun VIDE (tout membre)."""
@@ -973,7 +1021,7 @@ def supprimer_dossier_commun(request, pk):
     return redirect("espace_membre:mes_fichiers")
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def supprimer_document_commun(request, pk):
     """Supprime un fichier de la branche partagée (tout membre)."""
@@ -994,7 +1042,7 @@ def supprimer_document_commun(request, pk):
 # (on ne révèle jamais l'existence), et un pk hors espace=ASSOCIATION → 404.
 
 
-@login_required
+@ecriture_requise
 def dossier_association(request, pk):
     """Détail d'un dossier officiel (espace ASSOCIATION) — réservé au bureau
     (création de sous-dossiers, dépôt, versionnement)."""
@@ -1061,7 +1109,7 @@ def dossier_association(request, pk):
     return render(request, "espace_membre/dossier_detail.html", contexte)
 
 
-@login_required
+@ecriture_requise
 def editer_dossier_association(request, pk):
     """Renomme / redécrit un dossier officiel — bureau seul (404 sinon)."""
     if not est_bureau(request.user):
@@ -1086,7 +1134,7 @@ def editer_dossier_association(request, pk):
     )
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def supprimer_dossier_association(request, pk):
     """Supprime un dossier officiel VIDE — bureau seul."""
@@ -1105,7 +1153,7 @@ def supprimer_dossier_association(request, pk):
     return redirect("espace_membre:mes_fichiers")
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def supprimer_document_association(request, pk):
     """Supprime un document officiel (dossier ou non classé) — bureau seul."""
@@ -1122,7 +1170,7 @@ def supprimer_document_association(request, pk):
     return redirect("espace_membre:mes_fichiers")
 
 
-@login_required
+@ecriture_requise
 @require_POST
 def nouvelle_version_association(request, pk):
     """Remplace un document officiel par une nouvelle version — bureau seul.
@@ -1195,14 +1243,20 @@ def _reponse_du_membre(reunion, membre):
     return ma_presence, pouvoir_donne, pouvoir_recu
 
 
-@login_required
+@ecriture_requise
 def detail_convocation(request, pk):
     """Détail d'une convocation : ordre du jour, documents, PV, situation du
     membre, et — tant que l'AG est « Convoquée » — sa réponse (présence /
     pouvoir). 404 hors périmètre de visibilité (anti-IDOR)."""
     reunion = get_object_or_404(_reunions_visibles(request.user), pk=pk)
     membre = _membre_connecte(request)
-    peut_repondre = membre is not None and reunion.statut == Reunion.Statut.CONVOQUEE
+    # Une adhésion terminée laisse lire la convocation mais retire le droit de
+    # s'y déclarer : l'ancien membre n'est plus électeur (SEC-05).
+    peut_repondre = (
+        membre is not None
+        and reunion.statut == Reunion.Statut.CONVOQUEE
+        and peut_ecrire_espace_membre(request.user)
+    )
 
     ma_presence, pouvoir_donne, pouvoir_recu = _reponse_du_membre(reunion, membre)
 

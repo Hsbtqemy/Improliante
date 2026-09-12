@@ -56,7 +56,7 @@
     <section class="accueil-bloc" aria-labelledby="titre-dates">
       <div class="accueil-bloc__tete">
         <h2 id="titre-dates">Prochaines dates</h2>
-        <a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">+ Proposer une date</a>
+        {% if peut_ecrire_espace %}<a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">+ Proposer une date</a>{% endif %}
       </div>
       {% if evenements %}
         <ul class="dates">
@@ -77,8 +77,8 @@
           {% endfor %}
         </ul>
       {% else %}
-        <p class="accueil-vide">Aucune date à venir pour l'instant —
-          <a href="{% url 'espace_membre:creer_evenement' %}">proposes-en une</a>.</p>
+        <p class="accueil-vide">Aucune date à venir pour l'instant{% if peut_ecrire_espace %} —
+          <a href="{% url 'espace_membre:creer_evenement' %}">proposes-en une</a>{% endif %}.</p>
       {% endif %}
     </section>
 
@@ -86,7 +86,7 @@
     <section class="accueil-bloc" aria-labelledby="titre-projets">
       <div class="accueil-bloc__tete">
         <h2 id="titre-projets">Tes projets</h2>
-        <a class="lien-bouton" href="{% url 'espace_membre:creer_projet' %}">+ Proposer un projet</a>
+        {% if peut_ecrire_espace %}<a class="lien-bouton" href="{% url 'espace_membre:creer_projet' %}">+ Proposer un projet</a>{% endif %}
       </div>
       {% if projets %}
         <ul class="liste-projets">
@@ -106,8 +106,8 @@
           <p><a href="{% url 'espace_membre:mes_projets' %}">Voir tous mes projets →</a></p>
         {% endif %}
       {% else %}
-        <p class="accueil-vide">Tu ne portes pas encore de projet —
-          <a href="{% url 'espace_membre:creer_projet' %}">proposes-en un</a>.</p>
+        <p class="accueil-vide">Tu ne portes pas encore de projet{% if peut_ecrire_espace %} —
+          <a href="{% url 'espace_membre:creer_projet' %}">proposes-en un</a>{% endif %}.</p>
       {% endif %}
     </section>
 

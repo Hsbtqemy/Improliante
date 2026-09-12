@@ -85,9 +85,16 @@ class Document(Horodatage):
     """Document rattaché à un dossier, versionné et à confidentialité réglable."""
 
     class Confidentialite(models.TextChoices):
+        """Qui peut télécharger le document. AUCUN niveau n'ouvre au visiteur :
+        tous passent par une vue authentifiée (règle 5 de CLAUDE.md).
+
+        La valeur stockée de `CONNECTES` reste ``"public"`` : la renommer
+        imposerait une migration de données sur les documents déjà classés sans
+        rien changer aux droits. Seul le libellé mentait."""
+
         PRIVE = "prive", "Privé"
         MEMBRES = "membres", "Membres"
-        PUBLIC = "public", "Public"
+        CONNECTES = "public", "Tout compte connecté"
 
     titre = models.CharField(max_length=200)
     dossier = models.ForeignKey(
@@ -106,6 +113,10 @@ class Document(Horodatage):
         max_length=8,
         choices=Confidentialite.choices,
         default=Confidentialite.PRIVE,
+        help_text=(
+            "Qui peut télécharger ce document une fois connecté. Aucun niveau ne "
+            "le met en ligne : « Tout compte connecté » reste fermé aux visiteurs."
+        ),
     )
 
     # Versionnement : une nouvelle version pointe vers celle qu'elle remplace ;

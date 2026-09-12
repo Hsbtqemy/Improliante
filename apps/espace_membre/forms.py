@@ -250,8 +250,9 @@ class DocumentAssociationForm(forms.ModelForm):
     """Téléversement d'un document dans la branche Association (bureau).
 
     Contrairement à la branche perso/partagé, l'audience est portée par le
-    **document** : le bureau fixe la `confidentialite` (public / membres / privé)
-    et une éventuelle date de validité."""
+    **document** : le bureau fixe la `confidentialite` (tout compte connecté /
+    membres / privé) et une éventuelle date de validité. Aucun de ces niveaux
+    n'ouvre au visiteur — le plus large s'arrête à la connexion."""
 
     class Meta:
         model = Document
@@ -265,7 +266,7 @@ class DocumentAssociationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["date_validite"].input_formats = ["%Y-%m-%d"]
         # Un document officiel est destiné aux membres par défaut (CR d'AG,
-        # statuts, bilan…) ; le bureau choisit « Public » ou « Privé » au besoin.
+        # statuts, bilan…) ; le bureau élargit ou restreint au besoin.
         self.fields["confidentialite"].initial = Document.Confidentialite.MEMBRES
 
     def clean_fichier(self):

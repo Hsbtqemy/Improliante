@@ -573,20 +573,38 @@ def test_le_fichier_prive_est_stocke_hors_racine_publique(db):
 
 
 def test_telecharger_document_exige_la_connexion(client, db):
-    document = _document(Document.Confidentialite.PUBLIC)
+    document = _document(Document.Confidentialite.CONNECTES)
     reponse = client.get(f"/espace/documents/{document.pk}/telecharger/")
     assert reponse.status_code == 302
     assert "/connexion/" in reponse.url
 
 
-def test_document_public_est_servi_a_un_membre_connecte(client, db):
+def test_document_tout_compte_connecte_est_servi_a_un_membre(client, db):
     membre = _membre("alice")
-    document = _document(Document.Confidentialite.PUBLIC, contenu=b"contenu public")
+    document = _document(Document.Confidentialite.CONNECTES, contenu=b"contenu ouvert")
     client.force_login(membre.user)
     reponse = client.get(f"/espace/documents/{document.pk}/telecharger/")
     assert reponse.status_code == 200
-    assert _corps_stream(reponse) == b"contenu public"
+    assert _corps_stream(reponse) == b"contenu ouvert"
     assert "attachment" in reponse["Content-Disposition"]
+
+
+def test_document_tout_compte_connecte_est_servi_sans_fiche_membre(client, db):
+    """Ce que le niveau veut VRAIMENT dire, et pourquoi il ne s'appelle plus
+    « Public » : il est plus large que « Membres » (un compte technique y a
+    droit) tout en restant fermé aux visiteurs. Le libellé disait l'inverse."""
+    user = Utilisateur.objects.create_user(username="technique", password="x")
+    document = _document(Document.Confidentialite.CONNECTES)
+    client.force_login(user)
+    assert client.get(f"/espace/documents/{document.pk}/telecharger/").status_code == 200
+
+
+def test_le_niveau_le_plus_ouvert_ne_s_annonce_pas_comme_public(db):
+    """Le mot « Public » en base de documents privés a fait classer des pièces
+    au mauvais niveau. Le libellé doit dire ce que le contrôle fait."""
+    libelles = dict(Document.Confidentialite.choices)
+    assert libelles[Document.Confidentialite.CONNECTES] == "Tout compte connecté"
+    assert "Public" not in libelles.values()
 
 
 def test_document_membres_refuse_sans_fiche_membre(client, db):
@@ -634,7 +652,7 @@ def test_documents_association_lisibles_selon_confidentialite(client, db):
     voit les documents publics/membres, jamais un privé d'autrui ni un fichier
     personnel d'un autre membre."""
     membre = _membre("alice")
-    _document(Document.Confidentialite.PUBLIC, titre="StatutsPublics")
+    _document(Document.Confidentialite.CONNECTES, titre="StatutsPublics")
     _document(Document.Confidentialite.MEMBRES, titre="ConvocationAG")
     _document(
         Document.Confidentialite.PRIVE, titre="ContratConfidentiel", cree_par=_membre("rh").user
@@ -1989,3 +2007,132 @@ def test_le_tableau_de_bord_membre_ne_reprend_pas_les_entrees_du_rail(client, db
     nus = liens_nus_rouvrant_le_rail(client.get("/espace/").content.decode())
 
     assert not nus, "liens nus rouvrant le rail :\n  " + "\n  ".join(nus)
+
+
+# --- Fin d'adhésion : lecture seule (SEC-05) --------------------------------
+#
+# `Membre.actif = False` retirait du corps électoral et des listes de sélection,
+# mais laissait l'espace membre entièrement ouvert en écriture. La décision :
+# l'ancien membre CONSULTE (un reçu fiscal sert plusieurs années) et n'écrit plus.
+
+
+def _membre_inactif(username="ancien"):
+    membre = _membre(username)
+    membre.actif = False
+    membre.save(update_fields=["actif"])
+    return membre
+
+
+def test_membre_inactif_telecharge_encore_son_recu(client, db, monkeypatch):
+    """Le cœur de la décision : ce qui lui appartient lui reste accessible."""
+    monkeypatch.setattr(
+        "apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF-1.4 x"
+    )
+    membre = _membre_inactif()
+    recu = _recu_pour(membre)
+    client.force_login(membre.user)
+
+    reponse = client.get(f"/espace/recus/{recu.pk}/telecharger/")
+
+    assert reponse.status_code == 200
+    assert b"".join(reponse.streaming_content).startswith(b"%PDF")
+
+
+def test_membre_inactif_consulte_encore_ses_ecrans(client, db):
+    """La lecture ne se ferme nulle part : ni tableau de bord, ni projets, ni
+    fichiers, ni convocations."""
+    membre = _membre_inactif()
+    client.force_login(membre.user)
+
+    for url in ("/espace/", "/espace/projets/", "/espace/fichiers/", "/espace/convocations/"):
+        assert client.get(url).status_code == 200, url
+
+
+def test_membre_inactif_ne_cree_plus_de_projet(client, db):
+    membre = _membre_inactif()
+    client.force_login(membre.user)
+
+    reponse = client.post(
+        "/espace/projets/nouveau/", _donnees_projet(action="enregistrer"), follow=True
+    )
+
+    assert Spectacle.objects.count() == 0
+    assert "adhésion" in reponse.content.decode()
+
+
+def test_membre_inactif_ne_modifie_plus_son_projet(client, db):
+    """Ses fiches restent en ligne et lisibles ; il ne les retouche plus."""
+    membre = _membre_inactif()
+    projet = Spectacle.objects.create(
+        titre="Ancien", type_portage=Spectacle.TypePortage.PERSONNEL, cree_par=membre.user
+    )
+    projet.porteurs.add(membre)
+    client.force_login(membre.user)
+
+    client.post(
+        f"/espace/projets/{projet.pk}/modifier/",
+        _donnees_projet(titre="Retouché", action="enregistrer"),
+    )
+
+    projet.refresh_from_db()
+    assert projet.titre == "Ancien"
+
+
+def test_membre_inactif_ne_depose_plus_de_fichier(client, db):
+    membre = _membre_inactif()
+    dossier = _dossier_membre(membre, Visibilite.PRIVE, nom="Perso")
+    client.force_login(membre.user)
+
+    client.post(
+        f"/espace/fichiers/{dossier.pk}/",
+        {
+            "form_type": "document",
+            "titre": "Tardif",
+            "description": "",
+            "fichier": SimpleUploadedFile("x.pdf", b"data", content_type="application/pdf"),
+        },
+    )
+
+    assert not Document.objects.filter(titre="Tardif").exists()
+
+
+def test_membre_inactif_ne_repond_plus_a_une_convocation(client, db):
+    """Il reçoit encore la convocation et lit l'ordre du jour — mais il n'est
+    plus électeur, donc il ne se déclare plus présent ni représenté."""
+    membre = _membre_inactif()
+    ag = Reunion.objects.create(
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        titre="AG 2026",
+        date=make_aware(datetime(2026, 6, 1, 18, 0)),
+        statut=Reunion.Statut.CONVOQUEE,
+    )
+    client.force_login(membre.user)
+
+    corps = client.get(f"/espace/convocations/{ag.pk}/").content.decode()
+    client.post(f"/espace/convocations/{ag.pk}/", {"statut": Presence.Statut.PRESENT})
+
+    assert "AG 2026" in corps, "la convocation reste lisible"
+    assert not Presence.objects.filter(reunion=ag, membre=membre).exists()
+
+
+def test_membre_inactif_ne_se_voit_pas_proposer_d_ecrire(client, db):
+    """Un bouton qui mène à un refus est un défaut d'interface : il disparaît."""
+    membre = _membre_inactif()
+    client.force_login(membre.user)
+
+    corps = client.get("/espace/projets/").content.decode()
+
+    assert "/espace/projets/nouveau/" not in corps
+
+
+def test_un_membre_du_bureau_ecrit_meme_si_sa_fiche_est_inactive(client, db):
+    """Le bureau administre l'association, pas sa propre adhésion : fermer son
+    écriture bloquerait la gestion. Le contournement est volontaire, donc testé."""
+    membre = _membre_inactif("tresorier")
+    membre.user.is_staff = True
+    membre.user.save(update_fields=["is_staff"])
+    client.force_login(membre.user)
+
+    client.post("/espace/projets/nouveau/", _donnees_projet(action="enregistrer"))
+
+    assert Spectacle.objects.count() == 1

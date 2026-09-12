@@ -5,7 +5,9 @@
 {% block contenu %}
   <header class="page-tete"><span class="page-tete__eyebrow">Espace membre</span><h1>Mes événements</h1></header>
 
-  <p><a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
+  {% if peut_ecrire_espace %}
+    <p><a class="lien-bouton" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
+  {% endif %}
 
   {% if evenements %}
     <ul class="liste-projets">
@@ -31,8 +33,12 @@
     <div class="etat-vide">
       <div class="etat-vide__ico" aria-hidden="true"><svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-calendrier"></use></svg></div>
       <p class="etat-vide__titre">Aucun événement proposé</p>
-      <p>Proposez un événement pour qu'il apparaisse ici après validation.</p>
-      <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
+      {% if peut_ecrire_espace %}
+        <p>Proposez un événement pour qu'il apparaisse ici après validation.</p>
+        <p class="etat-vide__actions"><a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_evenement' %}">Proposer un événement</a></p>
+      {% else %}
+        <p>Votre adhésion a pris fin : vous consultez votre espace, sans pouvoir y proposer de date.</p>
+      {% endif %}
     </div>
   {% endif %}
 

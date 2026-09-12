@@ -9,11 +9,13 @@
   </header>
 
   {% if membre %}
-    <p class="formulaire__actions">
-      <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_projet' %}">
-        Proposer un nouveau projet
-      </a>
-    </p>
+    {% if peut_ecrire_espace %}
+      <p class="formulaire__actions">
+        <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_projet' %}">
+          Proposer un nouveau projet
+        </a>
+      </p>
+    {% endif %}
 
     {% if projets %}
       <ul class="liste-projets">
@@ -41,10 +43,14 @@
           <svg class="ico" style="width: 2rem; height: 2rem"><use href="#ico-etoile"></use></svg>
         </div>
         <p class="etat-vide__titre">Aucun projet pour l'instant</p>
-        <p>Proposez votre première création : elle sera soumise au bureau pour validation.</p>
-        <p class="etat-vide__actions">
-          <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_projet' %}">Proposer un projet</a>
-        </p>
+        {% if peut_ecrire_espace %}
+          <p>Proposez votre première création : elle sera soumise au bureau pour validation.</p>
+          <p class="etat-vide__actions">
+            <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:creer_projet' %}">Proposer un projet</a>
+          </p>
+        {% else %}
+          <p>Votre adhésion a pris fin : vous consultez votre espace, sans pouvoir y proposer de création.</p>
+        {% endif %}
       </div>
     {% endif %}
 

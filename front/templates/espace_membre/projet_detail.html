@@ -69,7 +69,9 @@
   </div>
 
   <div class="formulaire__actions">
-    {% if editable %}
+    {% if not peut_ecrire_espace %}
+      <span class="carte-projet__meta">Votre adhésion a pris fin — cette fiche reste consultable.</span>
+    {% elif editable %}
       <a class="lien-bouton lien-bouton--primaire" href="{% url 'espace_membre:editer_projet' pk=projet.pk %}">
         Modifier
       </a>
