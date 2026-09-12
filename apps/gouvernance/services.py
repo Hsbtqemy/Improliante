@@ -214,7 +214,7 @@ def ajouter_bloc_de_recit(
 def enregistrer_compte_rendu(
     reunion: Reunion,
     *,
-    synthese: str = "",
+    synthese: str | None = None,
     notes: dict[int, str] | None = None,
     blocs: dict[int, dict[str, str]] | None = None,
     blocs_supprimes: set[int] | None = None,
@@ -225,13 +225,18 @@ def enregistrer_compte_rendu(
     suppression des blocs cochés. Les boucles partent des points et des blocs
     DE CETTE RÉUNION : une clé désignant le point d'une autre séance n'écrit
     rien, et c'est la seule protection qui vaille ici — les clés viennent d'un
-    formulaire, donc de l'extérieur."""
+    formulaire, donc de l'extérieur.
+
+    Ce qui n'est pas donné n'est pas touché, `synthese=None` comprise : un envoi
+    qui ne porte pas un champ ne le vide pas. La page peut avoir été rendue
+    avant qu'un point n'existe, et ce qu'elle n'a pas montré ne s'écrase pas."""
     notes = notes or {}
     blocs = blocs or {}
     blocs_supprimes = blocs_supprimes or set()
     with _ecriture_du_contenu(reunion) as courante:
-        courante.compte_rendu_texte = synthese
-        courante.save(update_fields=["compte_rendu_texte"])
+        if synthese is not None:
+            courante.compte_rendu_texte = synthese
+            courante.save(update_fields=["compte_rendu_texte"])
         for sujet in courante.sujets.all():
             if sujet.pk in notes:
                 sujet.notes = notes[sujet.pk]

@@ -2046,6 +2046,29 @@ def test_gouvernance_enregistre_les_notes(client, db):
     assert sujet.notes == "Adopté"
 
 
+def test_une_reunion_creee_deja_close_fige_ses_regles(client, db):
+    """L'écran de création offre le statut : une séance passée se saisit après
+    coup, déjà archivée. Ses règles ne se figeaient alors jamais — elles
+    suivaient les paramètres, et un seuil relevé plus tard réécrivait son
+    résultat. Le gel vivait sur le seul chemin de l'édition."""
+    client.force_login(_staff())
+
+    client.post(
+        "/bureau/gouvernance/",
+        {
+            "titre": "AG 2024 (reprise)",
+            "type_reunion": Reunion.TypeReunion.AG_ORDINAIRE,
+            "statut": Reunion.Statut.ARCHIVEE,
+            "date": "",
+            "lieu_texte": "",
+            "convocation_texte": "",
+        },
+    )
+
+    reunion = Reunion.objects.get(titre="AG 2024 (reprise)")
+    assert reunion.regles_figees["quorum"]
+
+
 def test_l_ecran_d_une_reunion_archivee_n_offre_plus_ses_formulaires(client, db):
     """Refuser à l'envoi sans retirer le formulaire fait remplir un écran pour
     rien. L'écran et la règle lisent la même ligne (`contenu_scelle`)."""

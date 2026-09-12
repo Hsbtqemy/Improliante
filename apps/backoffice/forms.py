@@ -508,10 +508,11 @@ class CompteRenduForm(forms.Form):
         Un champ ABSENT de l'envoi est laissé tel quel en base, et non vidé : la
         page peut avoir été rendue avant qu'un point n'existe, et ce qu'elle n'a
         pas montré ne s'écrase pas. `cleaned_data` ne distingue pas les deux —
-        un champ optionnel absent y vaut la chaîne vide."""
+        un champ optionnel absent y vaut la chaîne vide —, d'où la lecture de
+        `self.data`, qui est l'envoi lui-même."""
         propres = self.cleaned_data
         return {
-            "synthese": propres.get("synthese", ""),
+            "synthese": propres["synthese"] if "synthese" in self.data else None,
             "notes": {
                 sujet.pk: propres[f"notes_{sujet.pk}"]
                 for sujet in self._sujets

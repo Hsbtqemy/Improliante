@@ -489,6 +489,29 @@ def test_une_reunion_archivee_refuse_une_reecriture_du_compte_rendu(db):
     assert bloc.texte == "récit d'origine"
 
 
+def test_un_envoi_partiel_du_compte_rendu_ne_vide_pas_ce_qu_il_ne_porte_pas(db):
+    """La synthèse suivait une autre règle que les notes : absente de l'envoi,
+    elle était remise à blanc. Une page rendue avant qu'un point n'existe, ou un
+    envoi tronqué, effaçait donc la conclusion de séance sans rien demander."""
+    reunion = _reunion()
+    sujet = Sujet.objects.create(
+        titre="Point 1", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR, notes="dit hier"
+    )
+    enregistrer_compte_rendu(reunion, synthese="conclusion d'hier")
+
+    enregistrer_compte_rendu(reunion)  # un envoi qui ne porte aucun des deux
+
+    reunion.refresh_from_db()
+    sujet.refresh_from_db()
+    assert reunion.compte_rendu_texte == "conclusion d'hier"
+    assert sujet.notes == "dit hier"
+
+    enregistrer_compte_rendu(reunion, synthese="")  # vider, en le demandant
+
+    reunion.refresh_from_db()
+    assert reunion.compte_rendu_texte == ""
+
+
 def test_une_reunion_archivee_refuse_une_presence_et_un_pouvoir(db, make_membre):
     """Présences et pouvoirs FONT le quorum : les rouvrir après la clôture
     déplace le résultat d'une assemblée tenue, ce que le gel des seuils ne peut

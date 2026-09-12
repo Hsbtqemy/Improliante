@@ -1838,6 +1838,14 @@ def gouvernance_reunions(request):
     form = ReunionForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         reunion = form.save()
+        # Une réunion peut naître DÉJÀ archivée : on saisit après coup une
+        # séance passée. Ses règles se figent donc ici aussi — sinon elles
+        # suivraient les paramètres pour toujours, ce que la clôture est
+        # justement censée empêcher.
+        if figer_les_regles(reunion):
+            messages.info(
+                request, "Réunion close : le quorum et les majorités de ce jour sont figés."
+            )
         messages.success(request, "Réunion créée.")
         return redirect("backoffice:gouvernance_reunion", pk=reunion.pk)
     return render(
