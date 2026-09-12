@@ -2344,6 +2344,68 @@ def test_une_quantite_invalide_est_expliquee_dans_sa_ligne(client, db):
     assert "Saisissez un nombre" in corps
 
 
+# --- Moteur PDF absent : un message, pas une erreur 500 ----------------------
+#
+# WeasyPrint a besoin de bibliothèques natives (Pango, Cairo) absentes d'un poste
+# Windows. La vue du PV le disait déjà ; celles des factures, devis et reçus
+# tombaient en 500 — y compris en développement, tous les jours.
+
+
+def _moteur_pdf_absent(monkeypatch):
+    from apps.common.pdf import RenduPDFIndisponible
+
+    def absent(html, *, base_url=None):
+        raise RenduPDFIndisponible(
+            "Les bibliothèques natives de WeasyPrint sont introuvables sur cette machine."
+        )
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", absent)
+
+
+def test_telecharger_une_facture_sans_moteur_pdf_explique(client, db, monkeypatch):
+    _moteur_pdf_absent(monkeypatch)
+    c = Client.objects.create(nom="Théâtre")
+    facture = Facture.objects.create(client=c)
+    LigneFacture.objects.create(
+        facture=facture, designation="Cachet", prix_unitaire_ht=Decimal("300")
+    )
+    valider_facture(facture, date_emission=date(2026, 3, 1))
+    client.force_login(_staff())
+
+    reponse = client.get(f"/bureau/factures/{facture.pk}/telecharger/", follow=True)
+
+    assert reponse.status_code == 200
+    assert "WeasyPrint" in reponse.content.decode()
+
+
+def test_apercu_d_un_devis_sans_moteur_pdf_explique(client, db, monkeypatch):
+    _moteur_pdf_absent(monkeypatch)
+    c = Client.objects.create(nom="Théâtre")
+    devis = Devis.objects.create(client=c, date=date(2026, 3, 1))
+    client.force_login(_staff())
+
+    reponse = client.get(f"/bureau/devis/{devis.pk}/telecharger/", follow=True)
+
+    assert reponse.status_code == 200
+    assert "WeasyPrint" in reponse.content.decode()
+
+
+def test_telecharger_un_recu_sans_moteur_pdf_explique(client, db, monkeypatch):
+    _moteur_pdf_absent(monkeypatch)
+    recu = emettre_recu(
+        type_versement=RecuFiscal.TypeVersement.DON,
+        montant=Decimal("50"),
+        date_versement=date(2026, 3, 1),
+        donateur_nom="Paul Durand",
+    )
+    client.force_login(_staff())
+
+    reponse = client.get(f"/bureau/recus/{recu.pk}/telecharger/", follow=True)
+
+    assert reponse.status_code == 200
+    assert "WeasyPrint" in reponse.content.decode()
+
+
 # --- Valider : confirmer une version enregistrée -----------------------------
 #
 # « Enregistrer le brouillon » et « Valider » étaient deux formulaires distincts.

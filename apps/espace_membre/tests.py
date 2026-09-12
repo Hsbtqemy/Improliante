@@ -973,6 +973,38 @@ def test_nouvelle_version_d_une_version_deja_remplacee_refusee(client, db):
 # pris pour une fuite.
 
 
+def test_un_membre_sans_moteur_pdf_recoit_un_message_pas_une_500(client, db, monkeypatch):
+    """Le reçu fiscal d'un membre passe par le même rendu : sans les
+    bibliothèques natives, il tombait en erreur 500 côté membre aussi."""
+    from apps.common.pdf import RenduPDFIndisponible
+
+    def absent(html, *, base_url=None):
+        raise RenduPDFIndisponible(
+            "Les bibliothèques natives de WeasyPrint sont introuvables sur cette machine."
+        )
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", absent)
+    membre = _membre("alice")
+    saison = Saison.objects.create(nom="2025-2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE, montant_verse=Decimal("30")
+    )
+    recu = emettre_recu(
+        type_versement=RecuFiscal.TypeVersement.COTISATION,
+        montant=Decimal("30"),
+        date_versement=date(2026, 3, 1),
+        donateur_nom=str(membre),
+        membre=membre,
+        adhesion=adhesion,
+    )
+    client.force_login(membre.user)
+
+    reponse = client.get(f"/espace/recus/{recu.pk}/telecharger/", follow=True)
+
+    assert reponse.status_code == 200
+    assert "WeasyPrint" in reponse.content.decode()
+
+
 def test_le_pv_d_une_reunion_de_bureau_est_lisible_par_tout_membre(client, db, monkeypatch):
     from apps.gouvernance.services import generer_compte_rendu
 

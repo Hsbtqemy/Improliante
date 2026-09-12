@@ -981,6 +981,17 @@ def supprimer_projet(request, pk):
     return redirect("backoffice:liste_projets")
 
 
+def _pdf_indisponible(request, exc, vue, **kwargs):
+    """Le moteur PDF manque : le dire et revenir, plutôt qu'une erreur 500.
+
+    WeasyPrint a besoin de bibliothèques natives (Pango, Cairo), installées sur
+    le VPS mais absentes d'un poste Windows. La vue du PV traitait déjà ce cas ;
+    factures, devis et reçus tombaient en 500, sans rien apprendre à qui
+    demandait le document."""
+    messages.error(request, str(exc))
+    return redirect(vue, **kwargs)
+
+
 # --- Reçus fiscaux ----------------------------------------------------------
 
 
@@ -1017,9 +1028,18 @@ def creer_recu(request):
             if request.POST.get("action") == "previsualiser":
                 # Reçu transitoire (non enregistré, sans numéro) pour contrôle.
                 recu = RecuFiscal(**form.cleaned_data, date_emission=timezone.localdate())
-                reponse = HttpResponse(
-                    pdf_de_recu(recu, apercu=True), content_type="application/pdf"
-                )
+                try:
+                    octets = pdf_de_recu(recu, apercu=True)
+                except RenduPDFIndisponible as exc:
+                    # On revient au formulaire plutôt que de rediriger : la
+                    # saisie en cours ne doit pas être perdue pour autant.
+                    messages.error(request, str(exc))
+                    return render(
+                        request,
+                        "backoffice/recu_form.html",
+                        {"form": form, "adhesion": adhesion},
+                    )
+                reponse = HttpResponse(octets, content_type="application/pdf")
                 reponse["Content-Disposition"] = 'inline; filename="apercu-recu.pdf"'
                 return reponse
             # Garde-fou légal (un versement = un seul reçu Cerfa) : porté par le
@@ -1048,7 +1068,10 @@ def creer_recu(request):
 def telecharger_recu(request, pk):
     """Téléchargement d'un reçu pour le bureau (rend le PDF au besoin)."""
     recu = get_object_or_404(RecuFiscal, pk=pk)
-    return servir_recu(recu)
+    try:
+        return servir_recu(recu)
+    except RenduPDFIndisponible as exc:
+        return _pdf_indisponible(request, exc, "backoffice:liste_recus")
 
 
 def servir_recu(recu: RecuFiscal):
@@ -1244,7 +1267,10 @@ def telecharger_facture(request, pk):
     facture = get_object_or_404(Facture, pk=pk)
     if facture.statut == Facture.Statut.BROUILLON:
         raise Http404  # pas de PDF légal pour un brouillon
-    assurer_pdf_facture(facture)
+    try:
+        assurer_pdf_facture(facture)
+    except RenduPDFIndisponible as exc:
+        return _pdf_indisponible(request, exc, "backoffice:editer_facture", pk=facture.pk)
     return reponse_fichier_prive(
         facture.fichier, nom_telechargement=f"facture-{facture.numero}.pdf"
     )
@@ -1256,12 +1282,16 @@ def previsualiser_facture(request, pk):
     « brouillon », sans consommer de numéro. Pièce émise : le PDF ARCHIVÉ, celui
     qu'on télécharge — un nouveau rendu reprendrait les données du jour."""
     facture = get_object_or_404(Facture, pk=pk)
-    if facture.statut != Facture.Statut.BROUILLON:
-        assurer_pdf_facture(facture)
-        return reponse_fichier_prive(
-            facture.fichier, nom_telechargement=f"facture-{facture.numero}.pdf", inline=True
-        )
-    reponse = HttpResponse(pdf_de_facture(facture, apercu=True), content_type="application/pdf")
+    try:
+        if facture.statut != Facture.Statut.BROUILLON:
+            assurer_pdf_facture(facture)
+            return reponse_fichier_prive(
+                facture.fichier, nom_telechargement=f"facture-{facture.numero}.pdf", inline=True
+            )
+        octets = pdf_de_facture(facture, apercu=True)
+    except RenduPDFIndisponible as exc:
+        return _pdf_indisponible(request, exc, "backoffice:editer_facture", pk=facture.pk)
+    reponse = HttpResponse(octets, content_type="application/pdf")
     reponse["Content-Disposition"] = 'inline; filename="apercu-facture.pdf"'
     return reponse
 
@@ -1415,7 +1445,11 @@ def transformer_devis(request, pk):
 def telecharger_devis(request, pk):
     """Sert le PDF d'un devis, rendu à la volée."""
     devis = get_object_or_404(Devis, pk=pk)
-    reponse = HttpResponse(pdf_de_devis(devis), content_type="application/pdf")
+    try:
+        octets = pdf_de_devis(devis)
+    except RenduPDFIndisponible as exc:
+        return _pdf_indisponible(request, exc, "backoffice:editer_devis", pk=devis.pk)
+    reponse = HttpResponse(octets, content_type="application/pdf")
     reponse["Content-Disposition"] = f'attachment; filename="devis-{devis.numero or devis.pk}.pdf"'
     return reponse
 

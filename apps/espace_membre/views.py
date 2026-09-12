@@ -40,6 +40,7 @@ from apps.common.moderation import (
     signaler_modification_apres_publication,
     soumettre_a_moderation,
 )
+from apps.common.pdf import RenduPDFIndisponible
 from apps.documents import services as documents_services
 from apps.documents.models import Document, Dossier
 from apps.documents.services import DossierNonVide
@@ -1275,6 +1276,12 @@ def telecharger_recu(request, pk):
     if membre is None:
         raise Http404
     recu = get_object_or_404(RecuFiscal, pk=pk, membre=membre)
-    assurer_pdf_recu(recu)
+    try:
+        assurer_pdf_recu(recu)
+    except RenduPDFIndisponible as exc:
+        # Le membre n'a rien à faire d'une erreur 500 : il doit savoir que le
+        # document n'a pas pu être produit, et que ce n'est pas lui.
+        messages.error(request, str(exc))
+        return redirect("espace_membre:mes_fichiers")
     extension = PurePosixPath(recu.fichier.name).suffix
     return reponse_fichier_prive(recu.fichier, nom_telechargement=f"recu-{recu.numero}{extension}")
