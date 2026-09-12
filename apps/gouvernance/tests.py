@@ -292,6 +292,44 @@ def test_donner_pouvoir_refuse_au_dela_du_plafond(params, make_membre):
         donner_pouvoir(reunion, make_membre(), mandataire)  # 2e : dépasse le plafond
 
 
+# --- Pouvoirs : un seul service pour les deux chemins (GOU-01) ---------------
+#
+# Le membre passait par `donner_pouvoir`, qui contrôle le plafond ; le bureau
+# écrivait directement en base, sans aucun contrôle. Le plafond est statutaire :
+# il ne peut pas dépendre de qui saisit.
+
+
+def test_le_bureau_ne_depasse_pas_le_plafond_de_pouvoirs(params, make_membre):
+    params.max_pouvoirs_par_personne = 1
+    params.save()
+    reunion = _reunion_convoquee()
+    mandataire = make_membre()
+    donner_pouvoir(reunion, make_membre(), mandataire, par_le_bureau=True)
+
+    with pytest.raises(ReponseConvocationImpossible):
+        donner_pouvoir(reunion, make_membre(), mandataire, par_le_bureau=True)
+
+    assert reunion.pouvoirs.count() == 1
+
+
+def test_le_bureau_enregistre_un_pouvoir_sur_une_reunion_deja_tenue(make_membre):
+    """Ce qui justifiait un second chemin : un pouvoir papier se saisit pendant
+    ou après la séance, quand la réunion n'accepte plus de réponse en ligne. Le
+    plafond, lui, s'applique dans les deux cas."""
+    reunion = Reunion.objects.create(
+        titre="AG tenue",
+        type_reunion=Reunion.TypeReunion.AG_ORDINAIRE,
+        statut=Reunion.Statut.TENUE,
+    )
+    a, b = make_membre(), make_membre()
+
+    pouvoir = donner_pouvoir(reunion, a, b, par_le_bureau=True)
+
+    assert pouvoir.mandataire == b
+    with pytest.raises(ReponseConvocationImpossible):
+        donner_pouvoir(reunion, make_membre(), b)  # le membre, lui, ne peut plus
+
+
 def test_pas_de_reponse_si_reunion_non_convoquee(make_membre):
     reunion = Reunion.objects.create(
         titre="AG tenue",

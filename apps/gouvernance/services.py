@@ -143,24 +143,38 @@ def enregistrer_presence_membre(reunion: Reunion, membre, statut) -> Presence:
     return presence
 
 
-def donner_pouvoir(reunion: Reunion, mandant, mandataire) -> Pouvoir:
+def donner_pouvoir(
+    reunion: Reunion, mandant, mandataire, *, par_le_bureau: bool = False
+) -> Pouvoir:
     """Le mandant donne pouvoir au mandataire pour cette réunion.
 
     Marque le mandant « représenté » et crée/actualise son pouvoir. Vérifie :
-    mandataire différent du mandant, plafond `max_pouvoirs_par_personne`, et
-    réunion encore ouverte aux réponses."""
-    if not _accepte_les_reponses(reunion):
-        raise ReponseConvocationImpossible("Cette convocation n'accepte plus de réponse.")
+    mandataire différent du mandant, plafond `max_pouvoirs_par_personne`, et —
+    pour un membre — réunion encore ouverte aux réponses.
+
+    `par_le_bureau=True` lève cette dernière condition, et elle seule : un
+    pouvoir papier se saisit pendant ou après la séance. Le plafond, lui, est
+    STATUTAIRE et ne dépend pas de qui saisit — le bureau écrivait jusqu'ici
+    directement en base, sans aucun contrôle.
+
+    Le décompte se fait sous verrou de la réunion : deux pouvoirs donnés au même
+    instant au même mandataire lisaient sinon le même total, et passaient tous
+    les deux."""
     if mandataire == mandant:
         raise ReponseConvocationImpossible("Vous ne pouvez pas vous donner pouvoir à vous-même.")
-    params = ParametresGouvernance.load()
-    deja_detenus = reunion.pouvoirs.filter(mandataire=mandataire).exclude(mandant=mandant).count()
-    if deja_detenus >= params.max_pouvoirs_par_personne:
-        raise ReponseConvocationImpossible(
-            f"{mandataire} détient déjà le maximum de pouvoirs "
-            f"({params.max_pouvoirs_par_personne})."
-        )
     with transaction.atomic():
+        reunion = Reunion.objects.select_for_update().get(pk=reunion.pk)
+        if not par_le_bureau and not _accepte_les_reponses(reunion):
+            raise ReponseConvocationImpossible("Cette convocation n'accepte plus de réponse.")
+        params = ParametresGouvernance.load()
+        deja_detenus = (
+            reunion.pouvoirs.filter(mandataire=mandataire).exclude(mandant=mandant).count()
+        )
+        if deja_detenus >= params.max_pouvoirs_par_personne:
+            raise ReponseConvocationImpossible(
+                f"{mandataire} détient déjà le maximum de pouvoirs "
+                f"({params.max_pouvoirs_par_personne})."
+            )
         Presence.objects.update_or_create(
             reunion=reunion, membre=mandant, defaults={"statut": Presence.Statut.REPRESENTE}
         )

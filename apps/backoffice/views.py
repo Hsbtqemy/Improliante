@@ -74,9 +74,11 @@ from apps.facturation.services import (
     transformer_en_facture,
     valider_facture,
 )
-from apps.gouvernance.models import BlocCompteRendu, Pouvoir, Presence, Reunion, Sujet
+from apps.gouvernance.models import BlocCompteRendu, Presence, Reunion, Sujet
 from apps.gouvernance.services import (
+    ReponseConvocationImpossible,
     calcul_quorum,
+    donner_pouvoir,
     generer_compte_rendu,
     mandataires_en_exces,
     preremplir_droit_de_vote,
@@ -1894,13 +1896,19 @@ def gouvernance_ajouter_pouvoir(request, pk):
     reunion = get_object_or_404(Reunion, pk=pk)
     form = PouvoirForm(request.POST)
     if form.is_valid():
-        # update_or_create : un mandant ne donne qu'un pouvoir par réunion.
-        Pouvoir.objects.update_or_create(
-            reunion=reunion,
-            mandant=form.cleaned_data["mandant"],
-            defaults={"mandataire": form.cleaned_data["mandataire"]},
-        )
-        messages.success(request, "Pouvoir enregistré.")
+        # Le service porte le plafond statutaire, le même que pour un membre :
+        # écrire ici en direct le contournait purement et simplement.
+        try:
+            donner_pouvoir(
+                reunion,
+                form.cleaned_data["mandant"],
+                form.cleaned_data["mandataire"],
+                par_le_bureau=True,
+            )
+        except ReponseConvocationImpossible as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Pouvoir enregistré.")
     else:
         messages.error(request, "; ".join(form.non_field_errors()) or "Pouvoir invalide.")
     return _vers_reunion(reunion.pk, "#t-participants")

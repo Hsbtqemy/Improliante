@@ -1393,6 +1393,27 @@ def test_pouvoir_mandant_egal_mandataire_refuse(client, db):
     assert Pouvoir.objects.count() == 0  # refusé : mandant == mandataire
 
 
+def test_le_bureau_ne_peut_pas_depasser_le_plafond_de_pouvoirs(client, db):
+    """Le plafond est statutaire : il vaut aussi pour la saisie du bureau, qui
+    écrivait jusqu'ici directement en base, sans passer par le service."""
+    from apps.gouvernance.models import ParametresGouvernance
+
+    params = ParametresGouvernance.load()
+    params.max_pouvoirs_par_personne = 1
+    params.save()
+    reunion = _reunion()
+    mandataire = _membre("mandataire").membre
+    client.force_login(_staff())
+
+    for nom in ("alice", "bob"):
+        client.post(
+            f"/bureau/gouvernance/reunion/{reunion.pk}/pouvoir/",
+            {"mandant": _membre(nom).membre.pk, "mandataire": mandataire.pk},
+        )
+
+    assert Pouvoir.objects.filter(reunion=reunion).count() == 1
+
+
 def test_resolution_adoptee_affichee(client, db):
     reunion = _reunion()
     client.force_login(_staff())
