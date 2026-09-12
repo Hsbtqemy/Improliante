@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 # Garde de pré-push : la suite doit passer sur le MOTEUR DE PRODUCTION.
 #
-# Pourquoi ici, et pas en intégration continue : le déploiement est déclenché
-# PAR le push (webhook GitHub → deploiement/deploy.sh). Une CI qui démarre après
-# le push arriverait après la mise en ligne — elle constaterait, elle ne
-# garderait rien. Le pré-push est le dernier moment où l'on peut encore dire non.
+# Pourquoi ici ET en intégration continue : le déploiement est déclenché PAR le
+# push (webhook GitHub → deploiement/deploy.sh). Une CI qui démarre après le push
+# arrive après la mise en ligne — elle constate, elle ne garde rien. Tant que le
+# récepteur écoute le push et non la conclusion du workflow (case de DEP-1), ce
+# hook reste le dernier moment où l'on peut encore dire non.
+#
+# `.github/workflows/verification.yml` rejoue la même chose à distance. Il ne
+# remplace pas ce hook — il le rattrape quand on l'a oublié (`core.hooksPath` se
+# pose par clone) ou contourné (`--no-verify`), et il éprouve en plus ce qu'une
+# machine Windows ne peut pas : le rendu PDF réel.
 #
 # Ce que ce run prouve et que le run ordinaire ne prouve pas : sous SQLite,
-# `select_for_update` ne fait RIEN. Les trois tests qui éprouvent la numérotation
-# séquentielle et sans trou des factures sous concurrence (règle 4, contrainte
-# légale) se déclarent « skipped » plutôt que de passer sans rien prouver. Ils ne
-# tournent donc jamais, sauf ici.
+# `select_for_update` ne fait RIEN. Les QUATRE tests de concurrence — dont la
+# numérotation séquentielle et sans trou des factures et des reçus, règle 4 et
+# contrainte légale — se déclarent « skipped » plutôt que de passer sans rien
+# prouver. Ils ne tournent donc que sur PostgreSQL : ici, et en intégration.
 #
 # Installation (une fois par clone) :
 #   git config core.hooksPath deploiement/hooks
@@ -31,7 +37,7 @@ if ! pg_isready -q 2>/dev/null; then
   ✗ Push refusé : PostgreSQL n'est pas joignable.
 
     La suite tournerait alors sous SQLite, où le verrou qui garantit la
-    numérotation légale des factures ne fait rien — les trois tests concernés
+    numérotation légale des factures ne fait rien — les quatre tests concernés
     s'ignoreraient en silence, et ce push part en production.
 
     Démarrer PostgreSQL, ou pousser en l'assumant :  git push --no-verify

@@ -40,7 +40,11 @@ django-treebeard==5.3.0          # arborescence GED (Dossier auto-référent) �
 Pillow==12.3.0                   # traitement d'images (ImageField, vignettes)
 
 # --- Documents (PDF / Excel) -----------------------------------------------
-# WeasyPrint nécessite des dépendances SYSTÈME (Pango, cairo, gdk-pixbuf…).
+# WeasyPrint nécessite des dépendances SYSTÈME. Depuis la v60 ce ne sont NI cairo
+# NI gdk-pixbuf, contrairement à ce qui se répète un peu partout : la v69 ouvre
+# glib (gobject), pango, pangoft2, harfbuzz, harfbuzz-subset et fontconfig — la
+# liste exacte se lit dans `weasyprint/text/ffi.py`, et la seule éprouvée sur une
+# Debian est celle de `.github/workflows/verification.yml`, qui la rejoue.
 # Voir https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
 WeasyPrint==69.0                 # génération PDF (devis, factures, reçus)
 openpyxl==3.1.5                  # exports Excel (budget)
