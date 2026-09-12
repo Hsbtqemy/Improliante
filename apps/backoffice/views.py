@@ -1884,7 +1884,11 @@ def gouvernance_preremplir_votes(request, pk):
     )
     try:
         nb = preremplir_droit_de_vote(reunion, saison=saison)
-        messages.success(request, f"Droits de vote mis à jour ({nb} présence(s)).")
+        messages.success(
+            request,
+            f"Registre électoral à jour : {nb} présence(s) créée(s) ou modifiée(s). "
+            "Les électeurs absents y figurent aussi — c'est l'électorat qui fait le quorum.",
+        )
     except ValueError as exc:
         messages.error(request, str(exc))
     return _vers_reunion(reunion.pk, "#t-participants")

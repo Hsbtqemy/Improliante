@@ -25,7 +25,7 @@ from django.db.models import Count
 from django.template.loader import render_to_string
 
 from apps.budget.models import Adhesion
-from apps.coeur.models import ParametresAssociation
+from apps.coeur.models import Membre, ParametresAssociation
 from apps.common import pdf
 from apps.documents.models import Document
 from apps.documents.services import televerser_fichier
@@ -185,35 +185,58 @@ def donner_pouvoir(
 
 
 def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
-    """Renseigne `Presence.peut_voter` pour la réunion, selon l'adhésion à jour.
+    """Ouvre le REGISTRE ÉLECTORAL de la réunion et fige les droits de vote.
 
-    Si `vote_reserve_aux_membres_a_jour` est faux, tout le monde peut voter.
-    Sinon, seul un membre à jour de cotisation pour la `saison` donnée le peut
-    (le droit de vote est ainsi figé au moment de la tenue). Retourne le nombre
-    de présences effectivement modifiées.
+    Tout électeur y entre, qu'il vienne ou non : le quorum se calcule sur
+    l'électorat, et un registre réduit aux personnes qu'on a pensé à inscrire le
+    ferait paraître atteint alors qu'il ne l'est pas — vingt électeurs, cinq
+    inscrits, quorum à 100 %. Les électeurs ajoutés d'office le sont comme
+    ABSENTS ; le bureau corrige ensuite ce qu'il constate en séance.
+
+    Est électeur tout membre actif si `vote_reserve_aux_membres_a_jour` est faux ;
+    sinon, tout membre actif à jour de cotisation pour la `saison` donnée. Une
+    présence déjà enregistrée garde son statut : seul son droit de vote est
+    recalculé, et il est ainsi figé au moment de la tenue (§8.4).
+
+    Retourne le nombre de présences créées ou modifiées.
     """
     params = ParametresGouvernance.load()
     reserve = params.vote_reserve_aux_membres_a_jour
     if reserve and saison is None:
         raise ValueError("Une saison est requise quand le vote est réservé aux membres à jour.")
 
-    membres_a_jour: set[int] = set()
+    electeurs = set(Membre.objects.filter(actif=True).values_list("id", flat=True))
     if reserve:
-        membres_a_jour = set(
+        electeurs &= set(
             Adhesion.objects.filter(
                 saison=saison,
                 statut__in=[Adhesion.Statut.PAYEE, Adhesion.Statut.EXONEREE],
             ).values_list("membre_id", flat=True)
         )
 
-    modifies = 0
-    for presence in reunion.presences.all():
-        nouveau = (not reserve) or (presence.membre_id in membres_a_jour)
-        if presence.peut_voter != nouveau:
-            presence.peut_voter = nouveau
-            presence.save(update_fields=["peut_voter"])
-            modifies += 1
-    return modifies
+    touchees = 0
+    with transaction.atomic():
+        deja_inscrits = {presence.membre_id: presence for presence in reunion.presences.all()}
+        for presence in deja_inscrits.values():
+            electeur = presence.membre_id in electeurs
+            if presence.peut_voter != electeur:
+                presence.peut_voter = electeur
+                presence.save(update_fields=["peut_voter"])
+                touchees += 1
+        manquants = electeurs - set(deja_inscrits)
+        Presence.objects.bulk_create(
+            [
+                Presence(
+                    reunion=reunion,
+                    membre_id=membre_id,
+                    statut=Presence.Statut.ABSENT,
+                    peut_voter=True,
+                )
+                for membre_id in manquants
+            ]
+        )
+        touchees += len(manquants)
+    return touchees
 
 
 def generer_compte_rendu(reunion: Reunion, *, par) -> Document:

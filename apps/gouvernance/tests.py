@@ -292,6 +292,55 @@ def test_donner_pouvoir_refuse_au_dela_du_plafond(params, make_membre):
         donner_pouvoir(reunion, make_membre(), mandataire)  # 2e : dépasse le plafond
 
 
+# --- Registre électoral (GOU-01) ---------------------------------------------
+#
+# Le quorum se calculait sur les présences ENREGISTRÉES : vingt électeurs dont
+# cinq inscrits donnaient un quorum atteint à 100 %. Le dénominateur doit être
+# l'électorat, donc le registre doit contenir tout le monde — présents comme
+# absents.
+
+
+def test_le_preremplissage_inscrit_tous_les_electeurs(params, make_membre):
+    params.vote_reserve_aux_membres_a_jour = True
+    params.save()
+    saison = Saison.objects.create(nom="2025-2026")
+    reunion = _reunion()
+    a_jour = [make_membre() for _ in range(3)]
+    for membre in a_jour:
+        Adhesion.objects.create(membre=membre, saison=saison, statut=Adhesion.Statut.PAYEE)
+    retardataire = make_membre()
+    _presence(reunion, a_jour[0], Presence.Statut.PRESENT)
+
+    preremplir_droit_de_vote(reunion, saison=saison)
+
+    assert reunion.presences.filter(peut_voter=True).count() == 3
+    # Inscrit d'office, mais absent tant que personne ne dit le contraire.
+    assert reunion.presences.get(membre=a_jour[1]).statut == Presence.Statut.ABSENT
+    # Le membre qui n'est pas à jour n'entre pas dans l'électorat.
+    assert not reunion.presences.filter(membre=retardataire, peut_voter=True).exists()
+
+
+def test_le_quorum_se_calcule_sur_l_electorat_complet(params, make_membre):
+    """Le cas de l'audit, chiffres compris."""
+    params.vote_reserve_aux_membres_a_jour = False
+    params.quorum_ag_ordinaire = Decimal("0.500")
+    params.save()
+    reunion = _reunion()
+    membres = [make_membre() for _ in range(20)]
+
+    preremplir_droit_de_vote(reunion)
+    for membre in membres[:5]:
+        Presence.objects.filter(reunion=reunion, membre=membre).update(
+            statut=Presence.Statut.PRESENT
+        )
+
+    quorum = calcul_quorum(reunion)
+
+    assert quorum.electorat == 20
+    assert quorum.presents_representes == 5
+    assert quorum.atteint is False
+
+
 # --- Pouvoirs : un seul service pour les deux chemins (GOU-01) ---------------
 #
 # Le membre passait par `donner_pouvoir`, qui contrôle le plafond ; le bureau
