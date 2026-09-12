@@ -6,10 +6,9 @@ audit: docs/audit-externe-2026-09-11-constats.md
 
 # SEC-1 — consolidation après l'audit externe
 
-**Arrêté sur** — lot 3 : instantané d'émission (FIN-02) — émetteur, client, signataire et
-lignes figés, d'où le PDF d'une pièce perdue se reconstruit à l'identique — puis les
-invariants de montants (FIN-04) : signe de la pièce, avoir détaché non émissible, taux de
-TVA borné en base, commit `93a9fe3`, 12 septembre.
+**Arrêté sur** — lot 4 : gouvernance (GOU-01) — un seul service pour les pouvoirs avec le
+plafond statutaire, registre électoral complet (le quorum se calcule enfin sur l'électorat,
+absents compris) et règles figées à la clôture, commit `d1ba3a5`, 12 septembre.
 
 ## Reste
 
@@ -39,7 +38,7 @@ TVA borné en base, commit `93a9fe3`, 12 septembre.
 - [ ] FRONT-03 : le sélecteur de 18 palettes a disparu des pages servies, une palette ayant été choisie — il s'affiche aujourd'hui sans condition `DEBUG`
 - [ ] FRONT-07 : un membre qui a oublié son mot de passe le réinitialise depuis le site, cas du lien expiré compris — aucune route ne le permet aujourd'hui
 - [ ] FRONT-08 : une campagne d'accessibilité a été menée (375 px et bureau, zoom 200 %, clavier, focus après erreur, contraste de la palette retenue) et ce qu'elle trouve est corrigé ou fiché
-- [ ] GOU-01 : une réunion close garde son résultat — changer quorum ou majorité dans les paramètres ne modifie plus une AG passée, et l'électorat n'est plus réduit aux seules présences enregistrées
+- [x] GOU-01 : une réunion close garde son résultat, et l'électorat n'est plus réduit aux présences enregistrées
 - [ ] OPS-04 : l'environnement testé est verrouillé (lockfile), et le README annonce la bonne version de Python et un compte de tests exact
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
 
