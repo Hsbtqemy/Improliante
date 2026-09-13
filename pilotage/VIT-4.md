@@ -86,6 +86,14 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
   deviner n'est pas un contrôle d'accès
 - [ ] Le bureau voit l'aperçu d'une page qu'il accompagne : ce serait la première route
   d'aperçu portant un identifiant, donc la première à devoir refuser celui d'un autre
+- [x] Une saisie du bureau sur la fiche emmène le brouillon avec elle **s'il ne portait
+  aucun travail en cours** — sinon l'écran du bureau annoncerait pour toujours des
+  modifications que l'artiste n'a pas faites, et la publication de l'artiste rendrait la
+  fiche à sa valeur d'avant
+- [x] Les champs recopiés par « Publier » se déduisent du jeu partagé : en ajouter un
+  n'oblige personne à se souvenir d'une liste
+- [ ] L'admin Django écrit `Membre` sans passer par l'alignement du brouillon : c'est la
+  porte de service, et elle rouvre le décalage que le back-office referme
 - [ ] Les réseaux sociaux et le téléphone entrent dans le brouillon, ou l'écran continue
   de dire pourquoi ils n'y sont pas — aujourd'hui il le dit, à côté du geste
 
@@ -127,7 +135,17 @@ téléphone, qui n'est pas public et n'a donc pas de version publique à protég
 réseaux sociaux, qui sont une liste et non une présentation. La ligne est arbitraire ;
 elle est au moins écrite à l'écran plutôt que devinée.
 
-**Ce que la relecture a trouvé.** Le même défaut que le lot venait de fermer sur la
+**Ce que la relecture du lot brouillon a trouvé.** Un commentaire qui mentait — la
+liste des champs recopiés par « Publier » était tenue à la main alors que le texte
+promettait le contraire, donc une consigne et non une garantie —, et surtout un défaut
+silencieux : une saisie du bureau sur la fiche laissait le brouillon en arrière. L'écran
+du bureau accusait alors l'artiste en permanence, et la publication de l'artiste
+ramenait la fiche à sa valeur d'avant. Un test de bout en bout a attrapé au passage un
+piège de `ModelForm` : `is_valid()` pose déjà les valeurs reçues sur l'instance, donc
+lire le « contenu d'avant » après la validation, c'est lire l'après — les tests de
+service, eux, passaient.
+
+**Ce que la relecture du premier jour a trouvé.** Le même défaut que le lot venait de fermer sur la
 fiche d'un artiste vivait sur la fiche d'un **spectacle** : « Prochaines dates » listait
 toutes les représentations publiques, passées comprises — une tournée finie en février
 s'annonçait encore en septembre. Fermer une règle sur une page ne la ferme pas sur sa
