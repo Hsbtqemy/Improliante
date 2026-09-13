@@ -50,6 +50,15 @@ s'efface en ligne) et rend `False` quand il n'y avait rien de neuf. L'aperçu
 enregistrée : pas de seconde maquette à tenir à jour. Écrire `Membre` — bureau,
 admin, services — c'est publier ; l'écran du bureau signale un brouillon en
 attente, qui recouvrira sa saisie.
+
+**Images non publiées** : la photo d'un brouillon est écrite sous
+`MEDIA_PRIVE_ROOT` (`Media.fichier_prive`, `StockagePrive`) et servie par
+`espace_membre/views.py::photo_de_brouillon`, qui décide sur le rattachement —
+quel brouillon référence ce média — et refuse en 404. Un média est public OU
+privé, jamais les deux : publier déplace le fichier, puis `Media.save()`
+relance le traitement et produit enfin la vignette (au brouillon elle serait
+partie dans le stockage public). La location `internal` de Nginx couvre déjà la
+racine privée entière : rien à changer au déploiement.
 Tableau de bord (à traiter, prochaines dates, projets), **proposer son projet**
 (spectacle) et **son événement**, chacun présenté d'abord en **fiche lecture**
 (`voir_projet` / `voir_evenement`, URL `.../<pk>/`) avec bouton **Modifier**

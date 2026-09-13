@@ -79,13 +79,17 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
   tient dans une transaction, et la fiche est relue sous verrou avant décision
 - [x] Publier deux fois n'est pas une erreur : le second geste dit qu'il n'y avait rien
   de neuf, il ne lève pas
-- [ ] Une image de brouillon n'est pas lisible sans session : elle vit sous
+- [x] Une image de brouillon n'est pas lisible sans session : elle vit sous
   `MEDIA_PRIVE_ROOT` et se sert par une vue qui contrôle les droits, comme les reçus et
-  les documents. **C'est le reste du lot** : le fichier d'une photo de brouillon est
-  écrit dans le stockage public, et rien ne l'y référence — mais une URL difficile à
-  deviner n'est pas un contrôle d'accès
-- [ ] Le bureau voit l'aperçu d'une page qu'il accompagne : ce serait la première route
-  d'aperçu portant un identifiant, donc la première à devoir refuser celui d'un autre
+  les documents. Publier DÉPLACE le fichier dans la racine web
+- [x] La route qui sert cette image refuse celle d'un autre : elle décide sur le
+  rattachement métier — quel brouillon référence ce média — et non sur `cree_par`, qui
+  décrit un geste et non une propriété
+- [x] Aucune vignette n'est produite pour un brouillon : elle irait dans le stockage
+  public, et une miniature d'une image protégée est une fuite de cette image
+- [ ] Le bureau voit l'aperçu d'une page qu'il accompagne : ce serait la deuxième route
+  de ce chantier à porter un identifiant, après celle des images de brouillon — donc la
+  deuxième à devoir refuser celui d'un autre
 - [x] Une saisie du bureau sur la fiche emmène le brouillon avec elle **s'il ne portait
   aucun travail en cours** — sinon l'écran du bureau annoncerait pour toujours des
   modifications que l'artiste n'a pas faites, et la publication de l'artiste rendrait la
