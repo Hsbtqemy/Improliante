@@ -201,9 +201,10 @@ témoins portent de vraies images.
 ### Budget de requêtes
 Une page publique ne doit pas voir son nombre de requêtes SQL suivre le nombre
 d'objets affichés : `select_related` sur les affiches (cartes de spectacles),
-`prefetch_related` sur les liens de réseaux des membres en vedette. Les tests
-correspondants (`apps/vitrine/tests.py`) comparent **3 objets et 12**, et non un
-total chiffré — un total se périme au premier préchargement ajouté ailleurs,
+`prefetch_related` sur les liens de réseaux des membres en vedette,
+`select_related` sur l'événement, son lieu, son affiche et son spectacle pour
+les participations d'un artiste. Les tests correspondants
+(`apps/vitrine/tests.py`) comparent **3 objets et 12**, et non un total chiffré — un total se périme au premier préchargement ajouté ailleurs,
 alors que « le nombre de requêtes ne suit pas le contenu » reste vrai.
 
 Pagination partagée : `apps/common/pagination.py::paginer` (+ le gabarit

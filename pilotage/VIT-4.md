@@ -50,6 +50,11 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
 - [x] Un événement public rattaché à un spectacle non publié n'en révèle rien : ni titre
   sur l'agenda, ni titre et lien sur la fiche de la date, ni `workPerformed` dans le
   JSON-LD, ni affiche reprise en image de partage
+- [x] La fiche d'un spectacle n'annonce comme « prochaine » qu'une date encore à
+  venir — elle listait toutes ses représentations publiques sous ce titre, passées
+  comprises
+- [x] Le nombre de requêtes de la fiche d'un artiste ne suit pas son nombre de dates :
+  même compte à 3 participations et à 12
 - [ ] Les deux compositions d'entrée rendent une page soignée sans portrait et sans
   spectacle mis en avant : pas de rectangle vide, pas de photographie générique imposée
 - [ ] La couleur d'accent d'un artiste est validée côté serveur (`#RRGGBB` opaque) et le
@@ -100,6 +105,17 @@ police, donc pas de VIT-3. Deux lots le 13 septembre :
   construction plutôt que par la recette.
 - **Le confort de lecture**, dont le défaut latent est corrigé avant qu'un thème posé en
   classe ne le réveille.
+
+**Ce que la relecture a trouvé.** Le même défaut que le lot venait de fermer sur la
+fiche d'un artiste vivait sur la fiche d'un **spectacle** : « Prochaines dates » listait
+toutes les représentations publiques, passées comprises — une tournée finie en février
+s'annonçait encore en septembre. Fermer une règle sur une page ne la ferme pas sur sa
+voisine : c'est la deuxième fois en une journée sur ce chantier, après la fuite du
+spectacle en brouillon, et la même leçon que l'inventaire ARCH-01 de SEC-1 avait tirée
+sur les gestes d'écriture. Deux autres points :
+le préchargement du service était porteur sans être épinglé (sans lui, sept requêtes
+fixes deviennent douze pour douze dates), et le balayage ne voyait de la carte de
+participation que son **état vide**, le membre témoin n'intervenant nulle part.
 
 **Une fuite trouvée en chemin, et fermée.** Un événement public rattaché à un spectacle
 en brouillon publiait le titre de ce spectacle sur l'agenda, sur la fiche de la date et
