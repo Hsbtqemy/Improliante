@@ -2195,6 +2195,54 @@ def test_gouvernance_genere_le_pv_depuis_l_ecran(client, db, monkeypatch):
     assert reunion.compte_rendu_id is not None
 
 
+def test_la_fiche_annonce_la_version_du_pv_qu_elle_sert(client, db, monkeypatch):
+    """L'écran testait l'existence du PV sur le pointeur de la réunion pendant
+    que le lien servait la version courante : deux sources pour une seule
+    phrase. Et rien n'y montrait que régénérer conserve les PV précédents."""
+    from apps.gouvernance.services import generer_compte_rendu
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF")
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    staff = _staff()
+    generer_compte_rendu(reunion, par=staff)
+    client.force_login(staff)
+
+    corps = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/").content.decode()
+    assert "version 2" not in corps  # une seule version : rien à signaler
+
+    generer_compte_rendu(reunion, par=staff)
+
+    corps = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/").content.decode()
+    assert "version 2" in corps
+    assert "précédentes sont" in corps
+
+
+def test_regenerer_un_pv_depuis_une_version_perimee_ne_casse_pas_l_ecran(client, db, monkeypatch):
+    """Régénérer VERSIONNE depuis le lot 13, donc la GED peut refuser : rendre le
+    PDF prend plusieurs secondes, on reclique, et la seconde demande repart d'une
+    version que la première vient de remplacer. Le refus est juste — une version
+    n'a qu'un successeur — mais il remontait en erreur serveur.
+
+    L'état est ici posé à la main, comme l'admin le permet (la case « version
+    courante » n'y est pas figée) : c'est le même chemin de code, et il se
+    reproduit sans concurrence."""
+    from apps.documents.models import Document
+    from apps.gouvernance.services import generer_compte_rendu
+
+    monkeypatch.setattr("apps.common.pdf.html_vers_pdf", lambda html, *, base_url=None: b"%PDF")
+    reunion = Reunion.objects.create(titre="AG", type_reunion=Reunion.TypeReunion.AG_ORDINAIRE)
+    staff = _staff()
+    pv = generer_compte_rendu(reunion, par=staff)
+    Document.objects.filter(pk=pv.pk).update(courant=False)
+    client.force_login(staff)
+
+    reponse = client.post(f"/bureau/gouvernance/reunion/{reunion.pk}/pv/", follow=True)
+
+    assert reponse.status_code == 200
+    assert "version plus récente" in reponse.content.decode()
+    assert Document.objects.count() == 1  # rien n'a été écrit
+
+
 def test_le_bureau_telecharge_le_pv_corrige_et_non_celui_d_avant(client, db, monkeypatch):
     """La fiche de la réunion pointe une version PRÉCISE du PV. Le bureau peut
     en déposer une correction depuis les pièces de l'association — l'écran

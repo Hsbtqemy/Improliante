@@ -16,7 +16,7 @@
     </p>
     <p class="reunion-actions">
       <a class="lien-bouton" href="{% url 'backoffice:gouvernance_editer_reunion' pk=reunion.pk %}">Modifier la réunion</a>
-      {% if reunion.compte_rendu %}
+      {% if compte_rendu %}
         <a class="lien-bouton" href="{% url 'backoffice:gouvernance_telecharger_pv' pk=reunion.pk %}">Télécharger le PV</a>
       {% endif %}
     </p>
@@ -232,10 +232,18 @@
   {# --- Compte-rendu (PV) --- #}
   <section class="bloc-secondaire" aria-labelledby="t-pv">
     <h2 id="t-pv">Procès-verbal (PV)</h2>
-    {% if reunion.compte_rendu %}
+    {% if compte_rendu %}
       <p>
         PV généré — <a href="{% url 'backoffice:gouvernance_telecharger_pv' pk=reunion.pk %}">Télécharger le PDF</a>.
         Déposé dans la GED et visible des membres convoqués.
+        {% if compte_rendu.version > 1 %}
+          {% comment %}
+            Régénérer versionne : le dire, sinon rien à l'écran ne montre que les
+            PV précédents existent toujours.
+          {% endcomment %}
+          C'est la <strong>version {{ compte_rendu.version }}</strong> ; les précédentes sont
+          conservées dans la GED.
+        {% endif %}
       </p>
       <form method="post" action="{% url 'backoffice:gouvernance_generer_pv' pk=reunion.pk %}">
         {% csrf_token %}

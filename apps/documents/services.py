@@ -150,7 +150,12 @@ def version_courante(document: Document) -> Document:
     Un objet qui pointe une version PRÉCISE — le PV d'une réunion, par exemple —
     garde ce pointeur quand le document est remplacé depuis la GED : il désigne
     alors une version périmée, et sert un fichier que la GED ne montre plus.
-    Retourne le document lui-même s'il est déjà courant."""
+    Retourne le document lui-même s'il est déjà courant.
+
+    Ne garantit PAS de rendre une version courante : si la chaîne est cassée
+    (une case « version courante » décochée dans l'admin, par exemple), la
+    dernière version atteinte est rendue telle quelle. Un appelant qui écrit
+    derrière — `remplacer_document` — la refusera, et c'est à lui de le dire."""
     vus = {document.pk}
     while not document.courant:
         suivante = document.versions_suivantes.first()

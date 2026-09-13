@@ -59,6 +59,7 @@ from apps.common.moderation import (
 )
 from apps.common.pdf import RenduPDFIndisponible
 from apps.documents.models import Document, Dossier
+from apps.documents.services import VersionPerimee
 from apps.facturation.models import Client, Devis, Facture
 from apps.facturation.services import (
     AvoirNonDuplicable,
@@ -1899,6 +1900,9 @@ def gouvernance_reunion(request, pk):
         {
             "reunion": reunion,
             "scelle": scelle,
+            # Le PV que le lien sert VRAIMENT : le pointeur de la réunion peut
+            # désigner une version que la GED a remplacée depuis.
+            "compte_rendu": compte_rendu_courant(reunion),
             "quorum": calcul_quorum(reunion),
             "ordre_du_jour": sujets,
             "blocs_intro": blocs_intro,
@@ -2117,11 +2121,17 @@ def gouvernance_ajouter_bloc(request, pk):
 @bureau_requis
 @require_POST
 def gouvernance_generer_pv(request, pk):
-    """Génère (ou régénère) le PV PDF et le dépose dans la GED (visible des membres)."""
+    """Génère (ou régénère) le PV PDF et le dépose dans la GED (visible des membres).
+
+    `VersionPerimee` n'est pas théorique depuis que régénérer VERSIONNE : rendre
+    le PDF prend plusieurs secondes, donc on reclique, et la seconde demande
+    repart d'une version que la première vient de remplacer. La GED refuse — ce
+    qui est juste, une version n'a qu'un successeur — et l'écran le dit au lieu
+    de tomber."""
     reunion = get_object_or_404(Reunion, pk=pk)
     try:
         generer_compte_rendu(reunion, par=request.user)
-    except RenduPDFIndisponible as exc:
+    except (RenduPDFIndisponible, VersionPerimee) as exc:
         messages.error(request, str(exc))
     else:
         messages.success(request, "Compte-rendu (PV) généré et déposé.")

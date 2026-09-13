@@ -547,23 +547,25 @@ def generer_compte_rendu(reunion: Reunion, *, par) -> Document:
     octets = pdf.html_vers_pdf(render_to_string("pv/pv.html", contexte))
     nom = f"pv-reunion-{reunion.pk}.pdf"
 
-    if reunion.compte_rendu_id:
-        # Sur la version COURANTE, pas sur celle que la réunion pointe : le PV a
-        # pu être remplacé depuis la GED entre-temps, et repartir de la version
-        # périmée ferait deux documents qui divergent.
-        doc = remplacer_document(
-            compte_rendu_courant(reunion), fichier=ContentFile(octets, name=nom), par=par
-        )
-        reunion.compte_rendu = doc
-        reunion.save(update_fields=["compte_rendu"])
-    else:
-        doc = televerser_fichier(
-            None,
-            titre=f"Compte-rendu — {reunion.titre}",
-            fichier=ContentFile(octets, name=nom),
-            par=par,
-            confidentialite=Document.Confidentialite.MEMBRES,
-        )
+    # Le rendu du PDF est hors transaction (il est lent) ; l'écriture, elle, va
+    # d'un bloc : une version créée sans que la réunion la pointe laisserait la
+    # fiche sur la précédente.
+    with transaction.atomic():
+        if reunion.compte_rendu_id:
+            # Sur la version COURANTE, pas sur celle que la réunion pointe : le
+            # PV a pu être remplacé depuis la GED entre-temps, et repartir de la
+            # version périmée ferait deux documents qui divergent.
+            doc = remplacer_document(
+                compte_rendu_courant(reunion), fichier=ContentFile(octets, name=nom), par=par
+            )
+        else:
+            doc = televerser_fichier(
+                None,
+                titre=f"Compte-rendu — {reunion.titre}",
+                fichier=ContentFile(octets, name=nom),
+                par=par,
+                confidentialite=Document.Confidentialite.MEMBRES,
+            )
         reunion.compte_rendu = doc
         reunion.save(update_fields=["compte_rendu"])
     return doc
