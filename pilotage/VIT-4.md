@@ -13,8 +13,9 @@ références au code ont été vérifiées une à une — mais il ignore quatre 
 place, et deux de ses préconditions ont été construites ailleurs depuis. Le périmètre
 retenu est plus étroit que le guide, et c'est écrit ci-dessous.
 
-**Arrêté sur** — la vidéo au clic : identifiant validé au serveur, façade qui ne demande
-rien au fournisseur, commit `f8c42aa`, 13 septembre 2026.
+**Arrêté sur** — la couverture de la vidéo, et la généralisation du média de brouillon
+à un second champ, commit `295d750`, 13 septembre 2026. Avant : la vidéo au clic,
+identifiant validé au serveur, façade qui ne demande rien au fournisseur, `f8c42aa`.
 
 ## Reste
 
@@ -72,10 +73,15 @@ rien au fournisseur, commit `f8c42aa`, 13 septembre 2026.
 - [x] Ce qui est stocké est l'identifiant, pas l'adresse collée — et l'hôte se compare
   en entier à une liste fermée : ni `youtube.com.ailleurs.test`, ni `javascript:`. Une
   adresse d'un autre hébergeur est REFUSÉE en le disant, jamais vidée en silence
-- [ ] La vidéo a une couverture choisie par l'artiste. Écartée de ce lot exprès : la
-  vignette officielle (`i.ytimg.com`) est précisément la requête que le lot refuse, et
-  une couverture propre demande de généraliser `definir_photo` à un second média de
-  brouillon. Aujourd'hui la façade est typographique
+- [x] La vidéo a une couverture choisie par l'artiste, servie par nous — la vignette
+  officielle (`i.ytimg.com`) reste écartée, elle EST la requête que le bloc refuse. Le
+  libellé porte son propre fond opaque : l'artiste choisit l'image, pas nous
+- [x] Le second média n'a rien fait réciter : pose, retrait, publication et route des
+  droits parcourent `champs_images_artiste()`, déduit du modèle. Seule la correspondance
+  avec l'écran reste nommée, en un endroit, et un test vérifie qu'elle couvre le jeu
+- [x] La déduction refuse d'être vide : interrogée sur la classe abstraite elle rendait
+  `()` — une relation déclarée par chaîne n'y est jamais résolue — et tous les contrôles
+  existants seraient restés verts, puisqu'ils parlent du portrait
 
 ### Brouillon et publication
 - [x] La page publique lit le contenu **publié** ; le brouillon n'est lu que dans
