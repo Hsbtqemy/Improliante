@@ -1,7 +1,7 @@
 ---
 passe: Accessibilité — campagne FRONT-08
 chantier: SEC-1
-duree: 45 min
+duree: 60 min
 derniere: —
 ---
 
@@ -9,21 +9,24 @@ derniere: —
 
 L'audit externe du 11 septembre 2026 demandait une campagne d'accessibilité. Le
 lot 9 a corrigé ce qui se vérifie dans le code ; cette passe couvre le reste,
-c'est-à-dire ce qu'aucune mesure n'atteint.
+c'est-à-dire ce qu'aucune mesure n'atteint. **Élargie le 13 septembre** à ce que
+les lots 12 à 17 ont changé dans le front : les images à variantes, la galerie
+paginée, et l'écran d'une séance close.
 
 **Ce que la passe NE couvre PAS**, parce qu'un test échoue si on le casse — y
 revenir à l'œil ferait perdre du temps :
 
 - le contraste AA des **dix-huit** palettes, en clair et en sombre (dix paires
   réellement peintes mesurées par palette) — `test_les_palettes_respectent_le_contraste_AA` ;
-- le plan des titres sur les 64 pages rendues (aucun niveau sauté) ;
+- le plan des titres sur les 65 pages rendues (aucun niveau sauté) ;
 - le nom accessible de chaque champ, bouton et lien de `<main>` ;
+- la présence d'un attribut `alt` sur **chaque image rendue** (règle 2 du dépôt) ;
 - l'absence de référence `aria-*` vers un id inexistant, et l'absence d'id rendu
   deux fois sur une même page ;
 - l'existence de la règle qui distingue un lien neutralisé.
 
 Ce qu'elle couvre : la lisibilité vécue, le clavier réel, les largeurs réelles,
-et la justesse de ce qui est annoncé.
+la netteté des images servies, et la justesse de ce qui est annoncé.
 
 **Trois réserves de méthode.** Les points à **375 px** demandent un vrai
 téléphone : le rendu en ligne de commande plafonne plus haut. Les points au
@@ -48,6 +51,22 @@ attendu, ne pas le remonter comme défaut.
 - [ ] Le message « Modifications non enregistrées » d'un brouillon de facture est annoncé quand il apparaît, sans avoir à le chercher
 - [ ] Le lien « Valider et numéroter… » neutralisé se distingue **à l'œil** du même lien actif, sur la palette retenue, en clair et en sombre — la règle existe, reste à voir si elle se voit
 
+### Images : la bonne variante, et la place réservée (lot 17)
+- [ ] Sur un vrai téléphone, la fiche d'un spectacle télécharge la **vignette** et non l'affiche entière — onglet Réseau des outils de développement : le fichier chargé finit par `-vignette.jpg`
+- [ ] L'affiche d'une fiche reste **nette** sur un écran à forte densité : si le navigateur retient la vignette de 600 px pour une zone de 30 rem, elle se voit floue, et c'est le `sizes` du gabarit qu'il faut revoir — pas l'image
+- [ ] À **zoom 400 %**, les images des cartes et de la galerie restent nettes : le zoom agrandit la zone d'affichage, donc le même arbitrage se rejoue à l'autre bout
+- [ ] En bridant le réseau (« 3G lente »), la page d'accueil ne **saute plus** au chargement des affiches : la place de chaque image est réservée avant son arrivée
+- [ ] L'image d'une carte du calendrier n'est **pas** annoncée par le lecteur d'écran : elle est décorative, le titre de l'événement la dit déjà
+
+### Galerie paginée (lot 16)
+- [ ] Le pager de la galerie s'atteint au clavier, son contour de focus se voit, et la position (« Page 2 / 4 ») est annoncée
+- [ ] Sur **375 px**, « Précédent » et « Suivant » ne se chevauchent pas et restent atteignables au pouce
+
+### Gouvernance : une séance close se lit (lots 12 à 14)
+- [ ] Sur une réunion **archivée**, le bandeau « Séance close » est trouvé par le lecteur d'écran à l'arrivée sur la page, avant les sections de contenu
+- [ ] Sur cette même réunion, le déroulé se LIT : notes des points et blocs de récit sont visibles en texte, retours à la ligne compris — masquer les formulaires ne doit pas avoir escamoté le compte rendu
+- [ ] Sur une réunion ouverte portant plusieurs pouvoirs, chaque bouton « Retirer » est annoncé avec le nom du mandant : cinq « Retirer » identiques ne permettent pas de choisir
+
 ### Zoom et largeurs réelles
 - [ ] À **zoom 200 %** sur bureau, aucune page ne réclame de défilement horizontal, et aucun texte n'est coupé ou recouvert
 - [ ] À **zoom 400 %**, la page se réorganise en une colonne : le rail de gestion devient atteignable, il ne recouvre pas le contenu
@@ -68,26 +87,28 @@ attendu, ne pas le remonter comme défaut.
 
 ## Contexte
 
-**Écrite le 12 septembre 2026, après le lot 9.** Elle n'est pas rejouable à
-l'identique d'une session à l'autre : plusieurs de ses points portent sur des
-correctifs précis de ce lot, et deviendront des non-événements une fois vérifiés.
-Trois points sont à garder au-delà, parce qu'ils reviennent à chaque évolution du
-front : le contour de focus sur la palette retenue, le zoom 200 %, et le tableau
-des lignes de facture sur 375 px.
+**Écrite le 12 septembre 2026 après le lot 9, élargie le 13 après le lot 17.**
+Elle n'est pas rejouable à l'identique d'une session à l'autre : plusieurs de ses
+points portent sur des correctifs précis, et deviendront des non-événements une
+fois vérifiés. Quatre points sont à garder au-delà, parce qu'ils reviennent à
+chaque évolution du front : le contour de focus sur la palette retenue, le
+zoom 200 %, le tableau des lignes de facture sur 375 px, et la netteté des
+images — chaque nouveau gabarit d'image rejoue l'arbitrage du `sizes`.
 
 **Pourquoi ces points-là.** Le lot 9 a trouvé deux défauts par balayage — une
 aide de champ affichée sans jamais être annoncée, et des identifiants rendus deux
 fois sur une même page. Les deux étaient invisibles à la relecture et muets à
 l'exécution. Ce qu'un balayage ne peut PAS trouver, en revanche, c'est si le
-contour de focus se voit, si l'erreur annoncée désigne la bonne ligne, et si une
-aide ajoutée casse une mise en page à 375 px. D'où cette passe, et d'où le fait
-qu'elle insiste sur les formulaires refusés : le balayage ne charge que des pages
-saines.
+contour de focus se voit, si l'erreur annoncée désigne la bonne ligne, si une
+aide ajoutée casse une mise en page à 375 px, et **si l'image servie est nette** :
+le `srcset` du lot 17 est mesurable dans le HTML, le choix que le navigateur en
+fait ne l'est pas. D'où cette passe, et d'où le fait qu'elle insiste sur les
+formulaires refusés : le balayage ne charge que des pages saines.
 
-**Un point reste ouvert côté code, et il est ici exprès** : vingt-cinq gabarits
-rendent un champ à la main au lieu de passer par `_champ.html`. Leurs messages
-d'erreur n'ont pas d'identifiant, donc la référence `aria-describedby` que Django
-pose vers `<id>_error` pend dès qu'un formulaire est refusé — état qu'aucun
-balayage ne visite. Deux des cases « Formulaires refusés » ci-dessus le
-constateront à l'oreille. Le remède de fond est l'inventaire ARCH-01, où cette
-duplication a sa place.
+**Ce qui a changé depuis la première rédaction.** Le point « vingt-cinq gabarits
+rendent un champ à la main » qui figurait ici a perdu son aiguillon : l'écran de
+gouvernance, le plus dense du lot, est passé par `_champ.html` au lot 12, et la
+fiche d'une réunion est entrée dans le balayage — elle n'y était pas, et l'aide
+de son champ « droit de vote » ne s'annonçait donc pas. Les gabarits restants
+sont des écrans de gestion moins fournis ; deux cases « Formulaires refusés »
+ci-dessus continueront de le constater à l'oreille.
