@@ -132,6 +132,15 @@ identifiant validé au serveur, façade qui ne demande rien au fournisseur, `f8c
 - [ ] Les réseaux sociaux et le téléphone entrent dans le brouillon, ou l'écran continue
   de dire pourquoi ils n'y sont pas — aujourd'hui il le dit, à côté du geste
 
+### Constats d'audit portés
+- [x] **FRONT-05** — « donner plus d'autonomie aux auteurs » : l'artiste édite sa page,
+  la relit en aperçu et la publie sans passer par le bureau. Le circuit retenu est un
+  brouillon séparé sans historique — le cycle de modération existant ne pouvait pas le
+  tenir, une fiche publiée y partant en ligne à chaque retouche
+- [ ] **FRONT-04** — « transformer la fiche en vraie page de présentation » : la moitié
+  données est faite (participations strictes, vidéo au clic, couverture) ; la moitié
+  identité attend VIT-3, qui porte le même constat
+
 ### Confort de lecture
 - [x] Un réglage du panneau de confort ne fait plus disparaître les autres classes de
   `<html>` : `accessibilite.js` ne bascule que les sept classes qui lui appartiennent, et

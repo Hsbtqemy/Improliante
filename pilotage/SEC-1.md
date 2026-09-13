@@ -59,8 +59,8 @@ constats sur trente sont clos.
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
 - [x] PERF-01, les requêtes : le nombre de requêtes d'une page publique ne suit plus le nombre d'objets affichés — liste des spectacles (le N+1 mesuré par l'audit), accueil, liens de la page association. Trois tests portent sur la croissance, pas sur un total. Galerie paginée, et le flux Instagram sert sa dernière réponse valide quand l'API tombe
 - [x] PERF-01, les images : réduites à 2 000 px au téléversement, flanquées d'une vignette de 600 px proposée en `srcset` (avec `sizes`, sans quoi le navigateur reprend la grande), et dimensions stockées pour que la place soit réservée. Le stock déjà en base se reprend par `manage.py preparer_medias` — case portée par DEP-1
-- [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
-- [ ] FRONT-04 et FRONT-05 sont portés par VIT-4, à venir : cette case tombe quand VIT-4 les cite dans son propre `Reste`. GED-02 et GED-03 restent en v2 assumée, sans case ici
+- [ ] **SEC-03**, **OPS-01**, **OPS-02** et **OPS-03** sont portés par DEP-1, où le report a été décidé, et ses cases les citent désormais nommément — une zone « Protections différées au déploiement » dit lesquelles des cinq protections restent à activer. La case reste OUVERTE parce que les constats le sont : elle tombe avec les cases de DEP-1 qui les portent, pas avec leur simple mention
+- [ ] **FRONT-04** est porté par VIT-4, qui le cite dans son `Reste` sous « Constats d'audit portés » : sa moitié données est faite, sa moitié identité attend VIT-3. **FRONT-05** y est clos par le circuit brouillon → aperçu → publication. GED-02 et GED-03 restent en v2 assumée, sans case ici
 
 ## Contexte
 

@@ -35,17 +35,30 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] `asso-webhook.service` tourne et un push sur `main` déclenche `deploy.sh` : `/srv/asso/logs/deploy.log` porte le hash du commit déployé
 - [ ] Une requête au webhook portant une signature HMAC fausse est rejetée en 403 et laisse une trace dans le journal
 - [ ] GitHub affiche la livraison en vert : le récepteur répond `202` en moins de dix secondes, sans attendre la fin du déploiement
-- [ ] Un second push pendant un déploiement laisse « Déploiement déjà en cours » dans `deploy.log` au lieu de lancer un doublon — `flock` n'existe pas sur macOS, ce verrou n'a jamais été exécuté
+- [ ] **OPS-02** — un second push pendant un déploiement laisse « Déploiement déjà en cours » dans `deploy.log` au lieu de lancer un doublon — `flock` n'existe pas sur macOS, ce verrou n'a jamais été exécuté
 - [ ] Le socket sort bien en 0770 (`ls -l /srv/asso/run/gunicorn.sock`) : c'est `--umask 0o007` qui l'obtient, et son absence donnait un 502 systématique — la forme `007` ferait échouer le démarrage de Gunicorn, qui la passe à `int(val, 0)`
 - [ ] `staticfiles.json` existe après déploiement et `/static/css/site.<empreinte>.css` répond 200 : sans le manifeste, chaque `{% static %}` lève une erreur et toutes les pages rendent 500
 - [ ] Un second déploiement ne casse pas les pages déjà ouvertes : `collectstatic` tourne SANS `--clear`, les anciens fichiers empreintés restent servis
+
+### Protections différées au déploiement
+- [ ] **SEC-03** — les cinq protections installées mais inactives sont activées et constatées
+  UNE À UNE sur le VPS : `axes`, `django_otp` et son greffon TOTP, `csp`, `simple_history`
+  (`config/settings.py`, lignes 85-89). Elles sont commentées par DÉCISION — elles gênent la
+  mise au point locale —, pas par oubli : ce qui manque est le geste de fin, pas le choix
+- [ ] **SEC-03** — une fois `axes` actif, cinq tentatives de connexion ratées d'affilée
+  bloquent le compte, et le bureau sait le débloquer sans passer par la base
+- [ ] **SEC-03** — une réponse du site porte un en-tête `Content-Security-Policy` qui ne
+  casse ni le panneau de confort, ni le sélecteur de palettes, ni le lecteur vidéo au clic
+- [ ] **OPS-01** — le webhook écoute la CONCLUSION de `.github/workflows/verification.yml`
+  et non le push : un commit dont la suite échoue ne part pas en ligne. La vérification
+  distante existe déjà et tourne à chaque push ; c'est le branchement qui demande la machine
 
 ### Sauvegardes
 - [ ] `backup.sh` tourne en cron et dépose un dump daté sur Swiss Backup — l'externalisation est demandée dès le départ (cahier §14)
 - [ ] `pg_dump` s'authentifie sans terminal : crontab de `postgres`, ou `.pgpass` en 0600 — sinon la sauvegarde échoue chaque nuit sans bruit
 - [ ] Une restauration d'essai repart d'un dump : la base restaurée porte les dernières adhésions, pas un schéma vide
 - [ ] L'archive des médias contient `media` **et** `media_prive` — `tar tzf` le montre ; sans le privé, ni facture ni reçu fiscal n'est sauvegardé
-- [ ] `RCLONE_REMOTE` est renseigné : sans lui le script sort en **code 1** et les sauvegardes restent sur le VPS — encore faut-il que quelque chose lise ce code, un cron qui redirige tout dans un log ne le regarde pas
+- [ ] **OPS-03** — `RCLONE_REMOTE` est renseigné : sans lui le script sort en **code 1** et les sauvegardes restent sur le VPS — encore faut-il que quelque chose lise ce code, un cron qui redirige tout dans un log ne le regarde pas
 
 ## Contexte
 
