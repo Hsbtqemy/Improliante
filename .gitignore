@@ -32,3 +32,9 @@ Thumbs.db
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Skills installées dans le harnais d'agent (impeccable) : ~2 Mo d'assets
+# vendus — index de polices, scripts de navigateur. Utiles en local, sans
+# raison d'entrer dans l'historique d'un dépôt Django.
+# Réinstallation : voir docs/outils-agent.md
+.claude/
