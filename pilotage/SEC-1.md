@@ -57,7 +57,8 @@ constats sur trente sont clos.
 - [x] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4, et GOU-01 se clôt avec lui. L'inline est en lecture seule ; le retrait d'un pouvoir, qui n'existait que là, est rendu à la fiche de la réunion et remet le mandant « absent »
 - [x] Décidé, pour une adhésion portant un reçu émis : **refus** (association, 13 septembre). Le service refuse, l'écran n'offre plus le bouton et la colonne voisine dit pourquoi, l'admin applique la même règle ; les transactions restent détachées — point 6, et l'inventaire ARCH-01 se clôt avec lui
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
-- [ ] PERF-01 : la galerie et les listes d'affiches ne dégradent plus avec le contenu — N+1 mesuré supprimé, pagination posée, images servies à la taille affichée et non en pleine résolution
+- [x] PERF-01, les requêtes : le nombre de requêtes d'une page publique ne suit plus le nombre d'objets affichés — liste des spectacles (le N+1 mesuré par l'audit), accueil, liens de la page association. Trois tests portent sur la croissance, pas sur un total. Galerie paginée, et le flux Instagram sert sa dernière réponse valide quand l'API tombe
+- [ ] PERF-01, les images : servies à la taille affichée et non en pleine résolution, avec des dimensions connues (pas de saut de mise en page) — aujourd'hui une photo de 5 Mio peut habiller une vignette
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
 - [ ] FRONT-04 et FRONT-05 sont portés par VIT-4, à venir : cette case tombe quand VIT-4 les cite dans son propre `Reste`. GED-02 et GED-03 restent en v2 assumée, sans case ici
 
@@ -122,6 +123,29 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 16 — PERF-01, mesuré avant d'être corrigé.** L'audit annonçait « un N+1 mesuré » ;
+la sonde en a trouvé trois, et pas ceux qu'on croyait. La liste des spectacles passait de
+4 à 13 requêtes entre 3 et 12 fiches — une par affiche, exactement le motif décrit.
+L'accueil avait le même défaut, borné à six par la découpe des listes : pas de croissance,
+mais douze requêtes inutiles à chaque visite de la page la plus vue. La page association,
+elle, préchargeait déjà photos et projets — son N+1 était ailleurs, sur les liens de
+réseaux des membres en vedette, que personne n'avait regardés.
+
+Les trois tests portent sur la CROISSANCE et non sur un total : « le même nombre de
+requêtes à 3 et à 12 objets » reste vrai quoi qu'on ajoute autour, là où un budget chiffré
+se périme au premier préchargement ajouté ailleurs. C'est la règle déjà posée par le test
+de requêtes du lot 6, reprise ici.
+
+La galerie est paginée — elle rassemble les images de tous les spectacles et événements
+publiés, donc elle ne cesse de grandir. Le pager du back-office est devenu commun aux deux
+faces, gabarit compris, plutôt que d'être réécrit pour le front.
+
+Le flux Instagram, enfin : il est récupéré dans le fil de la requête, et quand Meta ne
+répond plus la section d'accueil se vidait pour tout le monde jusqu'au retour de l'API. Une
+copie de la dernière réponse valide, gardée une semaine, fait qu'on montre le flux d'hier
+plutôt qu'un trou — sans file de tâches ni Redis, que l'audit déconseillait d'introduire
+par principe.
 
 **Le lot 15 — la dernière question de l'inventaire, qui n'était pas technique.** Une
 adhésion dont un reçu fiscal a été émis se supprimait sans un mot : les liens sont en

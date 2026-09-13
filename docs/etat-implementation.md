@@ -157,6 +157,18 @@ identifiant rendu deux fois, un nom accessible pour chaque champ, bouton et lien
 Un formulaire rendu plusieurs fois sur une page doit porter un `auto_id` distinct
 par copie (cf. `_form_dossier` dans `apps/espace_membre/views.py`).
 
+### Budget de requêtes
+Une page publique ne doit pas voir son nombre de requêtes SQL suivre le nombre
+d'objets affichés : `select_related` sur les affiches (cartes de spectacles),
+`prefetch_related` sur les liens de réseaux des membres en vedette. Les tests
+correspondants (`apps/vitrine/tests.py`) comparent **3 objets et 12**, et non un
+total chiffré — un total se périme au premier préchargement ajouté ailleurs,
+alors que « le nombre de requêtes ne suit pas le contenu » reste vrai.
+
+Pagination partagée : `apps/common/pagination.py::paginer` (+ le gabarit
+`front/templates/_pagination.html`), pour le back-office comme pour la galerie
+publique, qui rassemble les images de tous les spectacles et événements publiés.
+
 ### Rôles & autorisation bureau
 `apps/coeur/roles.py` est la **seule** porte : `est_bureau(user)` (groupe Django
 « Bureau » **ou** `is_staff`/superuser, compte actif) et le décorateur
