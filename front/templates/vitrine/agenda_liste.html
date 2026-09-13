@@ -44,7 +44,7 @@
               </div>
               {% if e.affiche and e.affiche.fichier %}
                 <div class="agenda-carte__affiche">
-                  <img src="{{ e.affiche.fichier.url }}" alt="{{ e.affiche.alt }}" loading="lazy" />
+                  {% include "_image.html" with media=e.affiche tailles="5.5rem" %}
                 </div>
               {% endif %}
             </li>

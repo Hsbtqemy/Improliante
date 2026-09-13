@@ -18,11 +18,7 @@
     <div class="fiche-spectacle__corps">
       {% if evenement.affiche and evenement.affiche.fichier %}
         <div class="fiche-spectacle__col-affiche">
-          <img
-            class="fiche-spectacle__affiche"
-            src="{{ evenement.affiche.fichier.url }}"
-            alt="{{ evenement.affiche.alt }}"
-          />
+          {% include "_image.html" with media=evenement.affiche classe="fiche-spectacle__affiche" tailles="(min-width: 48rem) 30rem, 90vw" prioritaire=1 %}
         </div>
       {% endif %}
 

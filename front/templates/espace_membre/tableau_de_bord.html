@@ -6,7 +6,7 @@
   {% if membre %}
     <header class="accueil-tete">
       {% if membre.photo and membre.photo.fichier %}
-        <img class="accueil-tete__photo" src="{{ membre.photo.fichier.url }}" alt="{{ membre.photo.alt }}" />
+        {% include "_image.html" with media=membre.photo classe="accueil-tete__photo" tailles="3.5rem" %}
       {% else %}
         <span class="accueil-tete__avatar" aria-hidden="true"><svg class="ico"><use href="#ico-profil"></use></svg></span>
       {% endif %}

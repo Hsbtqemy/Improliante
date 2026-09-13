@@ -1,0 +1,27 @@
+{% comment %}
+Une image de média. Attend `media` (un `Media` de type image).
+
+Pose les trois choses que l'audit demandait sous « variantes et dimensions
+connues » :
+- `srcset` vers la VIGNETTE (600 px) quand elle existe, pour qu'un téléphone ne
+  télécharge pas une image de 2 000 px dans une carte de 300 ;
+- `sizes`, sans quoi le navigateur suppose toute la largeur de l'écran et
+  reprend la grande — c'est le paramètre `tailles`, à donner selon la place
+  réelle de l'image ;
+- `width`/`height` intrinsèques, pour réserver la place avant l'arrivée du
+  fichier. La CSS l'emporte sur ces attributs : ils ne déforment rien.
+
+Paramètres : `classe`, `tailles`, `decoratif` (alt vide, image redondante avec
+le texte voisin), `prioritaire` (image principale d'une fiche, visible d'emblée
+— pas de chargement différé).
+{% endcomment %}
+<img
+  {% if classe %}class="{{ classe }}"{% endif %}
+  src="{{ media.fichier.url }}"
+  {% if media.vignette %}srcset="{{ media.vignette.url }} {{ media.vignette_largeur }}w, {{ media.fichier.url }} {{ media.largeur }}w"{% endif %}
+  {% if media.vignette and tailles %}sizes="{{ tailles }}"{% endif %}
+  alt="{% if not decoratif %}{{ media.alt }}{% endif %}"
+  {% if media.largeur %}width="{{ media.largeur }}" height="{{ media.hauteur }}"{% endif %}
+  {% if prioritaire %}fetchpriority="high"{% else %}loading="lazy"{% endif %}
+  decoding="async"
+/>

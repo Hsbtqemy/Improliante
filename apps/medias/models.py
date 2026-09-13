@@ -32,6 +32,21 @@ class Media(models.Model):
         blank=True,
         help_text="Pour un média de type image.",
     )
+    # Dimensions et vignette sont DÉRIVÉES du fichier (cf. `services.py`) :
+    # ni saisies ni modifiables à la main. Les dimensions servent à réserver la
+    # place de l'image avant son arrivée (pas de saut de mise en page) ; la
+    # vignette est proposée en `srcset` pour que le téléphone ne télécharge pas
+    # une image de 2000 px dans une carte de 300.
+    largeur = models.PositiveIntegerField("largeur (px)", null=True, blank=True, editable=False)
+    hauteur = models.PositiveIntegerField("hauteur (px)", null=True, blank=True, editable=False)
+    vignette = models.ImageField(
+        "vignette",
+        upload_to="medias/vignettes/%Y/%m/",
+        blank=True,
+        editable=False,
+    )
+    vignette_largeur = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    vignette_hauteur = models.PositiveIntegerField(null=True, blank=True, editable=False)
     url_externe = models.URLField(
         "lien vidéo",
         blank=True,
@@ -57,6 +72,44 @@ class Media(models.Model):
         verbose_name = "média"
         verbose_name_plural = "médias"
         ordering = ["-date_creation"]
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Mémorise le fichier TEL QU'IL EST EN BASE.
+
+        S'il change, les dimensions et la vignette d'avant ne décrivent plus
+        rien : `save` les jette pour que le traitement reparte de zéro."""
+        instance = super().from_db(db, field_names, values)
+        if "fichier" in field_names:
+            instance._fichier_initial = instance.fichier.name
+        return instance
+
+    def save(self, *args, **kwargs):
+        """Enregistre, puis prépare l'image (réduction + vignette).
+
+        Le traitement vit ici plutôt que dans les cinq services qui créent des
+        médias, plus l'admin : c'est le seul endroit que tous les chemins
+        traversent. Il est silencieux sur un fichier absent ou illisible — un
+        confort ne doit pas faire échouer un téléversement."""
+        # Import local : `services` importe ce module (cycle sinon).
+        from .services import preparer_media
+
+        if self.fichier.name != getattr(self, "_fichier_initial", self.fichier.name):
+            self.largeur = self.hauteur = None
+            self.vignette_largeur = self.vignette_hauteur = None
+            self.vignette.delete(save=False)
+        super().save(*args, **kwargs)
+        self._fichier_initial = self.fichier.name
+        if preparer_media(self):
+            super().save(
+                update_fields=[
+                    "largeur",
+                    "hauteur",
+                    "vignette",
+                    "vignette_largeur",
+                    "vignette_hauteur",
+                ]
+            )
 
     def __str__(self) -> str:
         return self.alt or self.legende or f"Média #{self.pk}"

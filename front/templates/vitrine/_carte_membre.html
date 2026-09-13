@@ -1,12 +1,7 @@
 {% comment %}Carte d'un membre public (attend la variable `membre`).{% endcomment %}
 <li class="carte carte--membre">
   {% if membre.photo and membre.photo.fichier %}
-    <img
-      class="carte__image"
-      src="{{ membre.photo.fichier.url }}"
-      alt="{{ membre.photo.alt }}"
-      loading="lazy"
-    />
+    {% include "_image.html" with media=membre.photo classe="carte__image" tailles="(min-width: 48rem) 20rem, 45vw" %}
   {% endif %}
   <h4 class="carte__titre">
     <a href="{{ membre.get_absolute_url }}">{{ membre }}</a>

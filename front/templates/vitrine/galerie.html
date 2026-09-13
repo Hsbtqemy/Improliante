@@ -9,7 +9,7 @@
       {% for media in medias %}
         <li class="galerie__item">
           {% if media.type_media == "image" and media.fichier %}
-            <img src="{{ media.fichier.url }}" alt="{{ media.alt }}" loading="lazy" />
+            {% include "_image.html" with tailles="(min-width: 48rem) 18rem, 45vw" %}
           {% elif media.type_media == "video" and media.url_externe %}
             <a class="galerie__video" href="{{ media.url_externe }}" target="_blank" rel="noopener">
               ▶ {{ media.alt }}

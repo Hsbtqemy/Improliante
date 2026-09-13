@@ -23,11 +23,7 @@
     <div class="fiche-membre__corps">
       <div class="fiche-membre__col-photo">
         {% if membre.photo and membre.photo.fichier %}
-          <img
-            class="fiche-membre__photo"
-            src="{{ membre.photo.fichier.url }}"
-            alt="{{ membre.photo.alt }}"
-          />
+          {% include "_image.html" with media=membre.photo classe="fiche-membre__photo" tailles="(min-width: 48rem) 30rem, 90vw" prioritaire=1 %}
         {% endif %}
         {% if membre.site_web or membre.liens_reseaux.all %}
           <nav class="linktree" aria-label="Liens de {{ membre }}">

@@ -409,6 +409,38 @@ def test_la_page_association_ne_suit_pas_le_nombre_de_membres(client, db):
     assert douze == trois, f"{trois} requêtes pour 3 membres, {douze} pour 12"
 
 
+def test_une_carte_propose_la_vignette_et_reserve_sa_place(client, db):
+    """La moitié « images » de PERF-01 : une affiche de 2 400 px habillait une
+    carte de 300. Le gabarit propose désormais la vignette en `srcset` — avec
+    `sizes`, sans quoi le navigateur suppose toute la largeur de l'écran et
+    reprend la grande — et donne les dimensions intrinsèques, pour que la place
+    soit réservée avant l'arrivée du fichier."""
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    tampon = io.BytesIO()
+    Image.new("RGB", (2400, 3200), (10, 120, 200)).save(tampon, "JPEG")
+    affiche = Media.objects.create(
+        fichier=SimpleUploadedFile("aff.jpg", tampon.getvalue()), alt="Affiche du spectacle"
+    )
+    Spectacle.objects.create(
+        titre="SpecPub",
+        statut_moderation=Spectacle.StatutModeration.PUBLIE,
+        affiche=affiche,
+    )
+
+    corps = client.get("/spectacles/").content.decode()
+
+    affiche.refresh_from_db()
+    assert f"{affiche.vignette.url} 600w" in corps
+    assert f"{affiche.fichier.url} 2000w" in corps
+    assert "sizes=" in corps
+    assert 'width="2000" height="2667"' in corps
+    assert 'loading="lazy"' in corps
+
+
 def test_la_galerie_est_paginee(client, db):
     """Elle rassemble les images de TOUS les spectacles et événements publiés :
     sans pagination, une saison de plus et la page servait quelques centaines

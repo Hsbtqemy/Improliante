@@ -25,12 +25,7 @@
         {% for membre in vedette %}
           <li class="panneau">
             {% if membre.photo and membre.photo.fichier %}
-              <img
-                class="panneau__photo"
-                src="{{ membre.photo.fichier.url }}"
-                alt="{{ membre.photo.alt }}"
-                loading="lazy"
-              />
+              {% include "_image.html" with media=membre.photo classe="panneau__photo" tailles="(min-width: 48rem) 30rem, 90vw" %}
             {% endif %}
             <div class="panneau__contenu">
               <h4 class="panneau__nom">
