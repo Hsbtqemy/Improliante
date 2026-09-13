@@ -7,10 +7,34 @@
     <span class="page-tete__eyebrow">Espace membre</span>
     <h1>Mon profil</h1>
     <p class="page-tete__sous">
-      Ces informations apparaissent sur votre fiche publique si celle-ci est visible
-      (la visibilité est réglée par le bureau).
+      Ce que vous écrivez ici est un <strong>brouillon</strong> : votre page en ligne ne
+      change pas tant que vous n'avez pas publié. La visibilité de la page, elle, est
+      réglée par le bureau.
     </p>
   </header>
+
+  {% comment %}
+    « Dernier enregistrement » et « Version publique » : sans les deux, on ne sait
+    pas ce que le public voit, et c'est précisément la question que pose un
+    brouillon.
+
+    La date n'est montrée que si QUELQU'UN a enregistré : le brouillon naît à la
+    première ouverture de l'écran, et afficher son horodatage de création
+    reviendrait à annoncer un enregistrement que personne n'a fait.
+  {% endcomment %}
+  <p class="etat-publication">
+    {% if brouillon.modifie_par %}
+      Dernier enregistrement : {{ brouillon.date_modification|date:"j F Y, G\hi" }}.
+    {% endif %}
+    {% if brouillon.publie_le %}
+      Version publique : {{ brouillon.publie_le|date:"j F Y, G\hi" }}.
+    {% else %}
+      Version publique : celle que le bureau a saisie.
+    {% endif %}
+    {% if en_attente %}
+      <strong class="etat-publication__attente">Des modifications ne sont pas encore en ligne.</strong>
+    {% endif %}
+  </p>
 
   <form method="post" class="formulaire" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
@@ -18,20 +42,23 @@
       <div class="erreurs" role="alert">{{ form.non_field_errors }}</div>
     {% endif %}
 
-    {% for field in form.champs_profil %}
-      <p class="champ">
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {{ field }}
-        {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
-        {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
-      </p>
-    {% endfor %}
+    <fieldset class="formulaire__images">
+      <legend>Ma présentation</legend>
+      {% for field in form.champs_profil %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+    </fieldset>
 
     <fieldset class="formulaire__images">
       <legend>Photo</legend>
-      {% if membre.photo and membre.photo.fichier %}
+      {% if brouillon.photo and brouillon.photo.fichier %}
         <figure class="apercu-image">
-          {% include "_image.html" with media=membre.photo largeur_affichee=160 tailles="160px" %}
+          {% include "_image.html" with media=brouillon.photo largeur_affichee=160 tailles="160px" %}
         </figure>
         <p class="champ champ--case">
           <label>{{ form.retirer_photo }} {{ form.retirer_photo.label }}</label>
@@ -48,7 +75,27 @@
     </fieldset>
 
     <fieldset class="formulaire__images">
+      <legend>Mes coordonnées</legend>
+      <p class="champ__aide">
+        Le téléphone n'apparaît pas sur le site : il est enregistré tout de suite,
+        sans passer par la publication.
+      </p>
+      {% for field in coordonnees %}
+        <p class="champ">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="champ__aide" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+          {% for erreur in field.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+    </fieldset>
+
+    <fieldset class="formulaire__images">
       <legend>Réseaux sociaux</legend>
+      <p class="champ__aide">
+        Vos liens sont une liste, pas une présentation : ils sont mis en ligne dès
+        l'enregistrement, sans attendre la publication.
+      </p>
       {{ formset.management_form }}
       {% if formset.non_form_errors %}
         <div class="erreurs" role="alert">{{ formset.non_form_errors }}</div>
@@ -88,8 +135,20 @@
       <p class="champ__aide">Laissez une ligne vide pour ne rien ajouter ; cochez « Retirer » pour supprimer un lien.</p>
     </fieldset>
 
+    {% comment %}
+      « Publier » enregistre d'abord : personne ne clique dessus en voulant mettre
+      en ligne la version d'avant.
+    {% endcomment %}
     <div class="formulaire__actions">
-      <button type="submit" class="lien-bouton lien-bouton--primaire">Enregistrer</button>
+      <button type="submit" name="action" value="enregistrer" class="lien-bouton lien-bouton--primaire">
+        Enregistrer le brouillon
+      </button>
+      <button type="submit" name="action" value="publier" class="lien-bouton">
+        Publier les modifications
+      </button>
+      <a class="lien-bouton lien-bouton--ghost" href="{% url 'espace_membre:apercu_ma_page' %}">
+        Voir l'aperçu
+      </a>
     </div>
   </form>
 

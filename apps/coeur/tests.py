@@ -10,11 +10,15 @@ from apps.coeur.models import Membre, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, est_bureau
 from apps.coeur.services import (
     OuvertureCompteImpossible,
+    brouillon_de,
+    brouillon_en_attente,
     creer_membre,
     membres_en_vedette,
     ouvrir_compte,
+    publier_page_artiste,
     synchroniser_compte,
 )
+from apps.medias.models import Media
 
 
 def test_utilisateur_lambda_n_est_pas_bureau(db):
@@ -200,3 +204,132 @@ def test_slug_choisi_a_la_main_est_respecte(db):
     membre = Membre.objects.create(prenom="Sur", nom="Mesure", slug="la-patronne")
     membre.refresh_from_db()
     assert membre.slug == "la-patronne"
+
+
+# --- Brouillon d'une page artiste (VIT-4) -----------------------------------
+
+
+def _artiste(nom="Camille", **champs):
+    champs.setdefault("bio", "Biographie publiée.")
+    champs.setdefault("role_public", "Comédienne")
+    return Membre.objects.create(nom=nom, visible_sur_site=True, **champs)
+
+
+def test_un_premier_brouillon_part_de_la_page_publiee(db):
+    """Un brouillon vide effacerait la page en le publiant. Il part donc de ce
+    que le public voit déjà, et l'artiste retouche."""
+    membre = _artiste()
+
+    brouillon = brouillon_de(membre)
+
+    assert brouillon.bio == "Biographie publiée."
+    assert brouillon.role_public == "Comédienne"
+    assert brouillon_en_attente(membre) is False
+
+
+def test_enregistrer_un_brouillon_ne_change_rien_a_la_page_publique(db):
+    """La promesse du chantier, en une phrase."""
+    membre = _artiste()
+    brouillon = brouillon_de(membre)
+
+    brouillon.bio = "Nouvelle biographie, pas encore relue."
+    brouillon.save()
+
+    membre.refresh_from_db()
+    assert membre.bio == "Biographie publiée."
+    assert brouillon_en_attente(membre) is True
+
+
+def test_publier_recopie_tout_le_brouillon_d_un_coup(db):
+    membre = _artiste()
+    photo = Media.objects.create(fichier="medias/portrait.jpg", alt="Portrait")
+    brouillon = brouillon_de(membre)
+    brouillon.bio = "Biographie relue."
+    brouillon.role_public = "Comédienne, mise en scène"
+    brouillon.site_web = "https://exemple.org"
+    brouillon.photo = photo
+    brouillon.save()
+
+    assert publier_page_artiste(membre) is True
+
+    membre.refresh_from_db()
+    assert membre.bio == "Biographie relue."
+    assert membre.role_public == "Comédienne, mise en scène"
+    assert membre.site_web == "https://exemple.org"
+    assert membre.photo_id == photo.pk
+    assert brouillon_en_attente(membre) is False
+
+
+def test_publier_deux_fois_n_est_pas_une_erreur(db):
+    """Un double-clic, un retour arrière du navigateur : le second geste ne
+    doit pas lever, il doit dire qu'il n'y avait rien à publier."""
+    membre = _artiste()
+    brouillon = brouillon_de(membre)
+    brouillon.bio = "Relue."
+    brouillon.save()
+
+    assert publier_page_artiste(membre) is True
+    assert publier_page_artiste(membre) is False
+
+
+def test_publier_sans_brouillon_ne_touche_a_rien(db):
+    membre = _artiste()
+    assert publier_page_artiste(membre) is False
+    membre.refresh_from_db()
+    assert membre.bio == "Biographie publiée."
+
+
+def test_un_champ_vide_au_brouillon_se_publie_vide(db):
+    """Effacer sa biographie est une modification comme une autre : la
+    publication recopie, elle ne fusionne pas. Un service qui ignorerait les
+    valeurs vides rendrait un effacement impossible à publier."""
+    membre = _artiste()
+    brouillon = brouillon_de(membre)
+    brouillon.bio = ""
+    brouillon.save()
+
+    assert publier_page_artiste(membre) is True
+
+    membre.refresh_from_db()
+    assert membre.bio == ""
+
+
+def test_le_brouillon_d_un_artiste_ne_touche_pas_celui_d_un_autre(db):
+    camille = _artiste("Camille")
+    dominique = _artiste("Dominique")
+    brouillon = brouillon_de(camille)
+    brouillon.bio = "La biographie de Camille."
+    brouillon.save()
+
+    publier_page_artiste(camille)
+
+    dominique.refresh_from_db()
+    assert dominique.bio == "Biographie publiée."
+    assert brouillon_en_attente(dominique) is False
+
+
+def test_demander_deux_fois_le_brouillon_rend_le_meme(db):
+    membre = _artiste()
+    premier = brouillon_de(membre)
+    premier.bio = "En cours."
+    premier.save()
+
+    second = brouillon_de(membre)
+
+    assert second.pk == premier.pk
+    assert second.bio == "En cours."
+
+
+def test_la_publication_trace_son_auteur(db):
+    membre = _artiste()
+    user = Utilisateur.objects.create_user(username="camille", password="x")
+    brouillon = brouillon_de(membre)
+    brouillon.bio = "Relue."
+    brouillon.modifie_par = user
+    brouillon.save()
+
+    publier_page_artiste(membre, par=user)
+
+    brouillon.refresh_from_db()
+    assert brouillon.publie_le is not None
+    assert brouillon.publie_par == user

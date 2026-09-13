@@ -291,6 +291,18 @@ def detail_membre(request, slug: str):
     membre = get_object_or_404(
         Membre.objects.select_related("user", "photo"), slug=slug, visible_sur_site=True
     )
+    return render(request, "vitrine/membre_detail.html", contexte_fiche_membre(request, membre))
+
+
+def contexte_fiche_membre(request, membre) -> dict:
+    """Tout ce que la fiche publique d'un artiste affiche, à partir du membre.
+
+    Isolé de la vue pour que l'**aperçu** de l'espace membre serve la même page
+    avec les mêmes données dérivées, à partir d'un membre portant les valeurs du
+    brouillon. Le guide de refonte est explicite là-dessus : une maquette
+    d'aperçu entretenue à part finit par ne plus dire la même chose que la
+    production, et c'est justement ce qu'on demande à l'aperçu de garantir.
+    """
     publies = Spectacle.objects.filter(statut_moderation=_PUBLIE)
     spectacles_portes = publies.filter(porteurs=membre).distinct().order_by("titre")
     collaborations = (
@@ -306,7 +318,7 @@ def detail_membre(request, slug: str):
     # liste, sinon il annonce des dates que la page ne montre pas.
     limite = agenda_services.PARTICIPATIONS_EN_PREMIERE_LISTE
     participations = list(agenda_services.prochaines_participations(membre)[: limite + 1])
-    contexte = {
+    return {
         "membre": membre,
         "participations": participations[:limite],
         "autres_participations": len(participations) > limite,
@@ -316,7 +328,6 @@ def detail_membre(request, slug: str):
         "og_image": seo.image_partage(request, membre.photo),
         "jsonld": seo.membre_json_ld(request, membre),
     }
-    return render(request, "vitrine/membre_detail.html", contexte)
 
 
 def galerie(request):

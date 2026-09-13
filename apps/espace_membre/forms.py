@@ -7,7 +7,7 @@ from django.contrib.auth.forms import PasswordResetForm, _unicode_ci_compare
 from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
-from apps.coeur.models import LienReseau, Membre, Utilisateur
+from apps.coeur.models import BrouillonPageArtiste, LienReseau, Membre, Utilisateur
 from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
@@ -101,16 +101,25 @@ class EvenementMembreForm(ImagesFicheFormMixin, forms.ModelForm):
         self.fields["spectacle"].required = False
 
 
-class ProfilMembreForm(forms.ModelForm):
-    """Édition par un membre de SA propre fiche (bio, rôle public, coordonnées,
-    site web, photo). Les réseaux sociaux sont gérés à part via un formset
-    (`LienReseauFormSet`). La photo crée un `Media` (alt obligatoire) traité par
-    la vue via `apps.coeur.services`."""
+class PageArtisteForm(forms.ModelForm):
+    """Édition par un membre de SA page publique — dans son **brouillon**.
+
+    Rien de ce qui est saisi ici ne part en ligne à l'enregistrement : le public
+    lit le `Membre`, ce formulaire écrit le `BrouillonPageArtiste`. C'est la
+    vue qui, sur le geste « Publier », recopie l'un sur l'autre.
+
+    Ce que ce formulaire ne couvre PAS, et qui part donc en ligne tout de suite :
+    le téléphone (qui n'est pas public) et les réseaux sociaux, gérés à part par
+    `CoordonneesForm` et `LienReseauFormSet`. L'écran le dit à côté du geste.
+
+    La photo crée un `Media` (alt obligatoire) traité par la vue via
+    `apps.coeur.services`.
+    """
 
     photo_fichier = forms.ImageField(
         label="Photo (portrait)",
         required=False,
-        help_text="Affichée sur votre fiche publique (JPG/PNG).",
+        help_text="Affichée sur votre fiche publique une fois publiée (JPG/PNG).",
     )
     photo_alt = forms.CharField(
         label="Description de la photo",
@@ -121,8 +130,8 @@ class ProfilMembreForm(forms.ModelForm):
     retirer_photo = forms.BooleanField(label="Retirer la photo actuelle", required=False)
 
     class Meta:
-        model = Membre
-        fields = ["role_public", "bio", "telephone", "site_web"]
+        model = BrouillonPageArtiste
+        fields = ["role_public", "bio", "site_web"]
         widgets = {"bio": forms.Textarea(attrs={"rows": 5})}
 
     def clean_photo_fichier(self):
@@ -143,6 +152,18 @@ class ProfilMembreForm(forms.ModelForm):
 
     def champ_photo(self):
         return [self["photo_fichier"], self["photo_alt"]]
+
+
+class CoordonneesForm(forms.ModelForm):
+    """Ce qui n'est pas public et n'a donc rien à publier : le téléphone.
+
+    Enregistré tout de suite, sans passer par le brouillon — une coordonnée que
+    le site n'affiche pas n'a pas de « version publique » à protéger.
+    """
+
+    class Meta:
+        model = Membre
+        fields = ["telephone"]
 
 
 class LienReseauForm(forms.ModelForm):

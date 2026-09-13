@@ -672,7 +672,13 @@ def creer_membre(request):
 @bureau_requis
 def editer_membre(request, pk):
     """Édite l'identité d'une personne. Si elle a un compte, l'identité est
-    recopiée vers le compte (l'identifiant de connexion reste inchangé)."""
+    recopiée vers le compte (l'identifiant de connexion reste inchangé).
+
+    Écrire ici, c'est **publier** : la fiche porte la version publique de la page
+    artiste. Si la personne a un brouillon en attente, sa prochaine publication
+    recouvrira ce qu'on écrit maintenant — l'écran le dit, plutôt que de laisser
+    la surprise arriver des semaines plus tard.
+    """
     membre = get_object_or_404(Membre, pk=pk)
     form = MembreForm(request.POST or None, instance=membre, edition=True)
     if request.method == "POST" and form.is_valid():
@@ -680,7 +686,15 @@ def editer_membre(request, pk):
         coeur_services.synchroniser_compte(membre)
         messages.success(request, "Fiche mise à jour.")
         return redirect("backoffice:liste_membres")
-    return render(request, "backoffice/membre_form.html", {"form": form, "membre": membre})
+    return render(
+        request,
+        "backoffice/membre_form.html",
+        {
+            "form": form,
+            "membre": membre,
+            "brouillon_en_attente": coeur_services.brouillon_en_attente(membre),
+        },
+    )
 
 
 @bureau_requis

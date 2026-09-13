@@ -5,6 +5,8 @@
   (login par e-mail, champs d'authentification, 2FA) sans migration lourde.
 - `Membre` : profil associatif rattaché à un `Utilisateur` (OneToOne). Porte
   les informations propres à l'association et à la présentation publique.
+- `BrouillonPageArtiste` : le travail en cours d'un artiste sur sa page
+  publique. Le public lit `Membre` ; publier recopie le brouillon dessus.
 - `Lieu` : lieu réutilisable (salles, théâtres) référencé par l'agenda.
 """
 
@@ -18,6 +20,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.urls import reverse
 
+from apps.common.models import Horodatage
 from apps.common.stockage import StockagePrive
 
 
@@ -35,7 +38,54 @@ class Utilisateur(AbstractUser):
         verbose_name_plural = "utilisateurs"
 
 
-class Membre(models.Model):
+class ContenuPublicArtiste(models.Model):
+    """Les champs éditoriaux qu'un artiste donne à voir sur sa page publique.
+
+    Ils existent en DEUX exemplaires : sur `Membre`, qui porte la version
+    **publiée** — celle que le site sert —, et sur `BrouillonPageArtiste`, qui
+    porte le travail en cours. Publier, c'est recopier le second dans le
+    premier, d'un seul coup.
+
+    Le jeu est abstrait pour que les deux ne puissent pas diverger : ajouter un
+    champ éditorial ici l'ajoute des deux côtés, et le service de publication le
+    recopie sans qu'on ait à y penser. Un champ ajouté d'un seul côté serait un
+    champ que « Publier » oublierait, en silence.
+    """
+
+    role_public = models.CharField(
+        "rôle public",
+        max_length=200,
+        blank=True,
+        help_text="Ex. « Comédienne, mise en scène » — affiché sur la fiche publique.",
+    )
+    bio = models.TextField("biographie", blank=True)
+    site_web = models.URLField("site web", blank=True)
+    photo = models.ForeignKey(
+        "medias.Media",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="photo",
+        help_text="Portrait affiché sur la fiche publique (si le membre est visible).",
+    )
+
+    class Meta:
+        abstract = True
+
+    @property
+    def contenu_public(self) -> dict:
+        """Les champs éditoriaux et leurs valeurs, pour comparer ou recopier."""
+        return {nom: getattr(self, nom) for nom in CHAMPS_PUBLICS_ARTISTE}
+
+
+# Nommés une fois, lus par la comparaison et par la publication. `photo_id`
+# plutôt que `photo` : comparer deux `Media` chargés séparément compare des
+# objets, pas des identités.
+CHAMPS_PUBLICS_ARTISTE = ("role_public", "bio", "site_web", "photo_id")
+
+
+class Membre(ContenuPublicArtiste):
     """Fiche d'une personne connue de l'association (adhérent, comédien…).
 
     `Membre` porte l'identité (prénom, nom, e-mail) ; le compte de connexion
@@ -72,14 +122,6 @@ class Membre(models.Model):
         help_text="Sert d'identifiant de connexion si un accès en ligne est ouvert.",
     )
     telephone = models.CharField("téléphone", max_length=32, blank=True)
-    role_public = models.CharField(
-        "rôle public",
-        max_length=200,
-        blank=True,
-        help_text="Ex. « Comédienne, mise en scène » — affiché sur la fiche publique.",
-    )
-    bio = models.TextField("biographie", blank=True)
-    site_web = models.URLField("site web", blank=True)
     visible_sur_site = models.BooleanField(
         "visible sur le site public",
         default=False,
@@ -98,16 +140,6 @@ class Membre(models.Model):
     )
     date_creation = models.DateTimeField("créé le", auto_now_add=True)
     date_modification = models.DateTimeField("modifié le", auto_now=True)
-
-    photo = models.ForeignKey(
-        "medias.Media",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="+",
-        verbose_name="photo",
-        help_text="Portrait affiché sur la fiche publique (si le membre est visible).",
-    )
 
     class Meta:
         verbose_name = "membre"
@@ -156,6 +188,57 @@ class Membre(models.Model):
         if self.user_id:
             return self.user.get_username()
         return "Nouveau membre"
+
+
+class BrouillonPageArtiste(Horodatage, ContenuPublicArtiste):
+    """Le travail en cours d'un artiste sur sa page publique.
+
+    Le public lit `Membre`, jamais ce modèle : tant que rien n'est publié, une
+    retouche de biographie ne change rien au site. Publier recopie ces champs
+    sur le `Membre`, d'un seul coup et sous verrou.
+
+    Pourquoi ici et pas une « révision » versionnée : à une dizaine de pages
+    éditées une ou deux fois l'an, un historique de versions ne se relirait
+    jamais. La décision est datée du 13 septembre 2026 (`pilotage/VIT-4.md`).
+
+    Ce que ce modèle ne couvre PAS, et qui part donc en ligne tout de suite :
+    les liens de réseaux sociaux (`LienReseau`), qui sont une liste et non une
+    présentation. L'écran le dit là où le geste se fait.
+    """
+
+    membre = models.OneToOneField(
+        Membre,
+        on_delete=models.CASCADE,
+        related_name="brouillon_page",
+        verbose_name="membre",
+    )
+    modifie_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="dernière modification par",
+    )
+    # « Dernier enregistrement… » et « Version publique… » : l'écran d'édition
+    # doit pouvoir dire les deux, sinon l'artiste ne sait pas ce que le public
+    # voit. `date_modification` porte le premier, ces deux champs le second.
+    publie_le = models.DateTimeField("publié le", null=True, blank=True)
+    publie_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="publié par",
+    )
+
+    class Meta:
+        verbose_name = "brouillon de page artiste"
+        verbose_name_plural = "brouillons de pages artistes"
+
+    def __str__(self) -> str:
+        return f"Brouillon de {self.membre}"
 
 
 class LienReseau(models.Model):

@@ -14,6 +14,7 @@ from apps.agenda.models import Evenement, ImageEvenement
 from apps.budget.models import Adhesion, RecuFiscal, Saison
 from apps.budget.services import emettre_recu
 from apps.coeur.models import LienReseau, Membre, Utilisateur
+from apps.coeur.services import brouillon_de, brouillon_en_attente
 from apps.common.models import Moderation
 from apps.documents import services as doc_services
 from apps.documents.models import Document, Dossier
@@ -1252,20 +1253,66 @@ def test_profil_exige_la_connexion(client, db):
     assert "/connexion/" in reponse.url
 
 
-def test_membre_met_a_jour_son_profil(client, db):
+def test_enregistrer_son_profil_ne_met_rien_en_ligne(client, db):
+    """La promesse du chantier : le public lit le `Membre`, l'écran écrit le
+    brouillon. Tant qu'on n'a pas publié, la page ne bouge pas."""
     membre = _membre("alice")
     client.force_login(membre.user)
+
     reponse = client.post(
         PROFIL,
         _donnees_profil(role_public="Comédienne", bio="Une bio", site_web="https://alice.example"),
     )
+
     assert reponse.status_code == 302
     membre.refresh_from_db()
+    assert membre.role_public == ""
+    assert membre.site_web == ""
+    assert brouillon_de(membre).role_public == "Comédienne"
+    assert brouillon_en_attente(membre) is True
+
+
+def test_publier_met_la_page_en_ligne(client, db):
+    """Et « Publier » enregistre d'abord : on ne clique pas dessus en voulant
+    mettre en ligne la version d'avant."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    client.post(
+        PROFIL,
+        _donnees_profil(
+            role_public="Comédienne",
+            bio="Une bio relue",
+            site_web="https://alice.example",
+            action="publier",
+        ),
+    )
+
+    membre.refresh_from_db()
     assert membre.role_public == "Comédienne"
+    assert membre.bio == "Une bio relue"
     assert membre.site_web == "https://alice.example"
+    assert brouillon_en_attente(membre) is False
+
+
+def test_publier_sans_rien_de_neuf_le_dit_au_lieu_de_lever(client, db):
+    """Double-clic, retour arrière du navigateur : un non-événement, pas une
+    erreur. C'est la leçon du bouton « Retirer » de la gouvernance."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(role_public="Comédienne", action="publier"))
+
+    reponse = client.post(
+        PROFIL, _donnees_profil(role_public="Comédienne", action="publier"), follow=True
+    )
+
+    assert reponse.status_code == 200
+    assert "Rien de neuf à publier" in reponse.content.decode()
 
 
 def test_membre_ajoute_un_reseau(client, db):
+    """Les liens ne passent PAS par le brouillon : ce sont une liste, pas une
+    présentation, et l'écran le dit là où ils se saisissent."""
     membre = _membre("alice")
     client.force_login(membre.user)
     client.post(
@@ -1282,28 +1329,48 @@ def test_membre_ajoute_un_reseau(client, db):
     assert lien.url == "https://instagram.com/alice"
 
 
+def test_le_telephone_n_attend_pas_la_publication(client, db):
+    """Il n'est pas public : il n'a pas de version publique à protéger."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    client.post(PROFIL, _donnees_profil(telephone="0600000000"))
+
+    membre.refresh_from_db()
+    assert membre.telephone == "0600000000"
+
+
 def test_membre_ajoute_une_photo_de_profil(client, db):
+    """Elle part au brouillon, comme le reste de la présentation : publier la
+    recopie sur la fiche publique."""
     membre = _membre("alice")
     client.force_login(membre.user)
     client.post(
         PROFIL,
         _donnees_profil(photo_fichier=_image_png("portrait.png"), photo_alt="Portrait d'Alice"),
     )
+
     membre.refresh_from_db()
-    assert membre.photo is not None
-    assert membre.photo.alt == "Portrait d'Alice"
+    assert membre.photo is None
+    brouillon = brouillon_de(membre)
+    assert brouillon.photo is not None
+    assert brouillon.photo.alt == "Portrait d'Alice"
+
+    client.post(PROFIL, _donnees_profil(action="publier"))
+    membre.refresh_from_db()
+    assert membre.photo_id == brouillon.photo_id
 
 
 def test_profil_ne_touche_que_sa_propre_fiche(client, db):
     """ANTI-IDOR : l'édition passe par request.user.membre (aucun id d'URL) —
-    la fiche d'un autre membre n'est jamais affectée."""
+    ni la fiche d'un autre membre, ni son brouillon, ne sont affectés."""
     alice = _membre("alice")
     bob = _membre("bob")
     bob.role_public = "Régisseur"
     bob.save()
 
     client.force_login(alice.user)
-    client.post(PROFIL, _donnees_profil(role_public="Metteuse en scène"))
+    client.post(PROFIL, _donnees_profil(role_public="Metteuse en scène", action="publier"))
 
     alice.refresh_from_db()
     bob.refresh_from_db()
@@ -1836,9 +1903,9 @@ def test_formulaire_lie_l_aide_via_aria_describedby(db):
     L'id suit désormais la convention de DJANGO (`_helptext`) et non plus celle
     d'un mixin maison (`_aide`) : deux conventions concurrentes laissaient une
     référence morte dans tout formulaire qui oubliait le mixin."""
-    from apps.espace_membre.forms import ProfilMembreForm
+    from apps.espace_membre.forms import PageArtisteForm
 
-    html = str(ProfilMembreForm()["role_public"])
+    html = str(PageArtisteForm()["role_public"])
     assert 'aria-describedby="id_role_public_helptext"' in html
 
 
@@ -2389,3 +2456,111 @@ def test_les_deux_ecrans_terminaux_du_parcours_se_rendent(client, db, mailoutbox
     assert fin.status_code == 200
     corps = fin.content.decode()
     assert "/connexion/" in corps, "l'écran de fin ne ramène pas à la connexion"
+
+
+# --- Aperçu de ma page publique (VIT-4) -------------------------------------
+
+APERCU = "/espace/profil/apercu/"
+
+
+def test_l_apercu_montre_le_brouillon_et_la_page_publique_ne_bouge_pas(client, db):
+    membre = _membre("alice")
+    membre.visible_sur_site = True
+    membre.bio = "Biographie en ligne."
+    membre.save()
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(bio="Biographie retravaillée."))
+
+    apercu = client.get(APERCU).content.decode()
+    publique = client.get(membre.get_absolute_url()).content.decode()
+
+    assert "Biographie retravaillée." in apercu
+    assert "Biographie en ligne." not in apercu
+    assert "Biographie en ligne." in publique
+    assert "Biographie retravaillée." not in publique
+
+
+def test_l_apercu_n_ecrit_rien(client, db):
+    """Un aperçu qui publierait serait le contraire de ce qu'on construit."""
+    membre = _membre("alice")
+    membre.bio = "Biographie en ligne."
+    membre.save()
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(bio="Brouillon."))
+
+    client.get(APERCU)
+
+    membre.refresh_from_db()
+    assert membre.bio == "Biographie en ligne."
+    assert brouillon_en_attente(membre) is True
+
+
+def test_l_apercu_se_dit_apercu(client, db):
+    """Sans bandeau, on croit regarder sa page en ligne et on ne publie jamais."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    corps = client.get(APERCU).content.decode()
+    assert "Aperçu" in corps
+
+
+def test_l_apercu_n_est_ni_indexable_ni_mis_en_cache_partage(client, db):
+    """Un aperçu n'est pas une seconde adresse pour la même page. Le `noindex`
+    ne protège pas l'accès — la session s'en charge — mais il évite que
+    l'aperçu devienne un doublon référencé."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    reponse = client.get(APERCU)
+
+    assert reponse["X-Robots-Tag"] == "noindex, nofollow"
+    assert "no-store" in reponse["Cache-Control"]
+    assert "private" in reponse["Cache-Control"]
+
+
+def test_l_apercu_demande_une_session(client, db):
+    """Anti-IDOR par construction : aucun identifiant dans l'URL, donc rien à
+    forger — reste à refuser l'anonyme."""
+    reponse = client.get(APERCU)
+    assert reponse.status_code == 302
+    assert "/connexion" in reponse["Location"] or "login" in reponse["Location"]
+
+
+def test_l_apercu_sert_la_page_publique_et_pas_une_maquette(client, db):
+    """Il passe par le gabarit ET le contexte publics : ce que l'aperçu montre
+    de la page — ses dates, ses spectacles — vient du même code."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.agenda.models import Evenement, Intervention
+
+    membre = _membre("alice")
+    membre.visible_sur_site = True
+    membre.save()
+    evenement = Evenement.objects.create(
+        titre="SoireeAnnoncee",
+        date_debut=timezone.now() + timedelta(days=5),
+        statut_moderation=Evenement.StatutModeration.PUBLIE,
+    )
+    Intervention.objects.create(evenement=evenement, membre=membre, role="Comédienne")
+    client.force_login(membre.user)
+
+    corps = client.get(APERCU).content.decode()
+
+    assert "Prochaines participations" in corps
+    assert "SoireeAnnoncee" in corps
+
+
+def test_un_profil_jamais_enregistre_n_annonce_pas_d_enregistrement(client, db):
+    """Le brouillon naît à la première ouverture de l'écran : afficher son
+    horodatage de création annoncerait un geste que personne n'a fait."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    corps = client.get(PROFIL).content.decode()
+
+    assert "Dernier enregistrement" not in corps
+    assert "Version publique" in corps
+
+    client.post(PROFIL, _donnees_profil(bio="Un début."))
+    assert "Dernier enregistrement" in client.get(PROFIL).content.decode()

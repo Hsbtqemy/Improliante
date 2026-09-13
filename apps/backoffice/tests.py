@@ -1729,6 +1729,35 @@ def test_editer_membre_propose_d_ouvrir_un_acces(client, db):
     assert "Ouvrir un accès" in reponse.content.decode()  # section personne sans compte
 
 
+def test_editer_membre_signale_un_brouillon_en_attente(client, db):
+    """Écrire cette fiche, c'est publier : elle porte la version publique de la
+    page artiste. Si la personne a un brouillon en attente, sa publication
+    recouvrira ce que le bureau écrit maintenant — sans l'encart, la surprise
+    arrive des semaines plus tard et personne ne sait pourquoi."""
+    from apps.coeur.services import brouillon_de
+
+    membre = Membre.objects.create(prenom="Bro", nom="Uillon", role_public="Comédienne")
+    brouillon = brouillon_de(membre)
+    brouillon.role_public = "Comédienne, mise en scène"
+    brouillon.save()
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/membres/{membre.pk}/").content.decode()
+
+    assert "modifications non publiées" in corps
+
+
+def test_editer_membre_ne_crie_pas_au_loup_sans_brouillon(client, db):
+    """Le revers : l'encart ne doit pas s'afficher sur chaque fiche, sans quoi
+    il cesse d'être lu."""
+    membre = Membre.objects.create(prenom="Sans", nom="Brouillon")
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/membres/{membre.pk}/").content.decode()
+
+    assert "modifications non publiées" not in corps
+
+
 # --- Tri des listes par en-tête de colonne ---------------------------------
 
 

@@ -6,17 +6,27 @@ Le nouveau membre définit lui-même son mot de passe via un **lien d'activation
 (token signé, à durée de vie limitée) — le bureau ne manipule jamais de mot de
 passe en clair. Tant que le SMTP n'est pas activé, le lien est affiché à l'écran
 et transmis hors-outil ; il pourra être envoyé par e-mail sans autre changement.
+
+Page artiste (VIT-4) : `Membre` porte la version **publiée** — celle que le site
+sert —, `BrouillonPageArtiste` le travail en cours. `publier_page_artiste`
+recopie le second sur le premier, d'un seul coup et sous verrou.
 """
 
 from __future__ import annotations
 
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.text import slugify
 
-from .models import Membre, Utilisateur
+from .models import (
+    CHAMPS_PUBLICS_ARTISTE,
+    BrouillonPageArtiste,
+    Membre,
+    Utilisateur,
+)
 
 # Taille de la vedette (accordéon) sur la page association. L'accordéon ne scale
 # pas au-delà de ~6-8 panneaux : on borne volontairement.
@@ -180,8 +190,14 @@ def jeton_activation(user: Utilisateur) -> tuple[str, str]:
     return uidb64, default_token_generator.make_token(user)
 
 
-def definir_photo_membre(membre: Membre, fichier, alt: str, *, cree_par=None):
-    """Crée un `Media` image et le pose comme photo (portrait) du membre."""
+def definir_photo(cible, fichier, alt: str, *, cree_par=None):
+    """Crée un `Media` image et le pose comme portrait de `cible`.
+
+    `cible` porte le jeu de champs `ContenuPublicArtiste` : c'est soit un
+    `Membre` — la page publiée, que seul le bureau écrit en direct —, soit un
+    `BrouillonPageArtiste`. Une seule fonction pour les deux, sinon la version
+    publiée et le brouillon finiraient par ne plus créer le même `Media`.
+    """
     from apps.medias.models import Media
 
     media = Media.objects.create(
@@ -190,17 +206,78 @@ def definir_photo_membre(membre: Membre, fichier, alt: str, *, cree_par=None):
         alt=alt,
         cree_par=cree_par,
     )
-    membre.photo = media
-    membre.save(update_fields=["photo", "date_modification"])
+    cible.photo = media
+    cible.save(update_fields=["photo", "date_modification"])
     return media
 
 
-def retirer_photo_membre(membre: Membre) -> None:
-    """Détache la photo du membre (le `Media` reste dans le socle)."""
-    if membre.photo_id is None:
+def retirer_photo(cible) -> None:
+    """Détache le portrait de `cible` (le `Media` reste dans le socle)."""
+    if cible.photo_id is None:
         return
-    membre.photo = None
-    membre.save(update_fields=["photo", "date_modification"])
+    cible.photo = None
+    cible.save(update_fields=["photo", "date_modification"])
+
+
+def brouillon_de(membre: Membre) -> BrouillonPageArtiste:
+    """Le brouillon de page de ce membre, créé au besoin.
+
+    Un premier brouillon **vide** effacerait la page en le publiant : il part
+    donc de ce que le public voit déjà, et l'artiste retouche. `get_or_create`
+    plutôt qu'un `filter` suivi d'un `create` : deux onglets ouverts en même
+    temps sur l'écran d'édition passent tous les deux par ici.
+    """
+    brouillon, _ = BrouillonPageArtiste.objects.get_or_create(
+        membre=membre, defaults=dict(membre.contenu_public)
+    )
+    return brouillon
+
+
+def brouillon_en_attente(membre: Membre) -> bool:
+    """Vrai si le brouillon dit autre chose que la page publiée.
+
+    Sans brouillon, il n'y a rien en attente : ne pas confondre « pas encore
+    ouvert l'écran » et « des modifications non publiées ».
+    """
+    brouillon = BrouillonPageArtiste.objects.filter(membre=membre).first()
+    if brouillon is None:
+        return False
+    return brouillon.contenu_public != membre.contenu_public
+
+
+@transaction.atomic
+def publier_page_artiste(membre: Membre, *, par=None) -> bool:
+    """Recopie le brouillon sur la fiche publique, d'un seul coup.
+
+    Une publication change **tous** les champs éditoriaux ou aucun : la copie et
+    l'horodatage tiennent dans une transaction, et la fiche est relue sous
+    verrou avant de décider — jamais l'instance qu'on a en main, qui peut avoir
+    vieilli depuis l'affichage de l'écran.
+
+    Recopie, et ne fusionne pas : une biographie effacée au brouillon s'efface
+    en ligne. Un service qui ignorerait les valeurs vides rendrait un effacement
+    impossible à publier, sans jamais le dire.
+
+    Retourne `False` quand il n'y avait rien à publier — pas de brouillon, ou un
+    brouillon qui ne dit rien de neuf. Publier deux fois (double-clic, retour
+    arrière du navigateur) n'est pas une erreur : c'est un non-événement, et
+    l'écran le dit plutôt que de lever.
+    """
+    courant = Membre.objects.select_for_update().get(pk=membre.pk)
+    brouillon = BrouillonPageArtiste.objects.filter(membre=courant).first()
+    if brouillon is None or brouillon.contenu_public == courant.contenu_public:
+        return False
+
+    for nom, valeur in brouillon.contenu_public.items():
+        setattr(courant, nom, valeur)
+    courant.save(update_fields=[*CHAMPS_PUBLICS_ARTISTE, "date_modification"])
+
+    brouillon.publie_le = timezone.now()
+    brouillon.publie_par = par
+    brouillon.save(update_fields=["publie_le", "publie_par", "date_modification"])
+
+    membre.refresh_from_db()
+    return True
 
 
 def utilisateur_depuis_uidb64(uidb64: str) -> Utilisateur | None:

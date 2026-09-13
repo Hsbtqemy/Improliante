@@ -28,10 +28,14 @@ from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
+from apps.coeur.models import Membre
 from apps.coeur.roles import est_bureau, peut_ecrire_espace_membre
 from apps.coeur.services import (
-    definir_photo_membre,
-    retirer_photo_membre,
+    brouillon_de,
+    brouillon_en_attente,
+    definir_photo,
+    publier_page_artiste,
+    retirer_photo,
     utilisateur_depuis_uidb64,
 )
 from apps.common.fiches import appliquer_images
@@ -50,8 +54,10 @@ from apps.gouvernance import services as gouvernance_services
 from apps.gouvernance.models import Presence, Reunion
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
+from apps.vitrine.views import contexte_fiche_membre
 
 from .forms import (
+    CoordonneesForm,
     DeplacerDossierForm,
     DocumentAssociationForm,
     DocumentMembreForm,
@@ -59,7 +65,7 @@ from .forms import (
     EvenementMembreForm,
     LienReseauFormSet,
     NouvelleVersionForm,
-    ProfilMembreForm,
+    PageArtisteForm,
     ProjetMembreForm,
     ReponseConvocationForm,
 )
@@ -217,39 +223,107 @@ def tableau_de_bord(request):
 
 @page_d_ecriture
 def mon_profil(request):
-    """Édition par le membre de SA propre fiche (bio, rôle, site, réseaux, photo).
+    """Édition par le membre de SA page publique — dans son **brouillon**.
 
     Anti-IDOR par construction : on agit sur `request.user.membre`, jamais sur
-    un identifiant d'URL — un membre ne peut éditer que sa fiche."""
+    un identifiant d'URL — un membre ne peut éditer que sa fiche.
+
+    Deux gestes, et ils ne font pas la même chose. « Enregistrer le brouillon »
+    range le travail sans rien mettre en ligne. « Publier » enregistre PUIS
+    recopie sur la fiche publique — enregistrer d'abord, parce que personne ne
+    clique « Publier » en voulant mettre en ligne la version d'avant.
+
+    Le téléphone et les réseaux sociaux ne passent pas par le brouillon : l'un
+    n'est pas public, les autres sont une liste et non une présentation. Ils
+    sont enregistrés tout de suite, et l'écran le dit là où ils se saisissent.
+    """
     membre = _membre_connecte(request)
     if membre is None:
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
         return redirect("espace_membre:tableau_de_bord")
 
+    brouillon = brouillon_de(membre)
+
     if request.method == "POST":
-        form = ProfilMembreForm(request.POST, request.FILES, instance=membre)
+        form = PageArtisteForm(request.POST, request.FILES, instance=brouillon)
+        coordonnees = CoordonneesForm(request.POST, instance=membre)
         formset = LienReseauFormSet(request.POST, instance=membre)
-        if form.is_valid() and formset.is_valid():
+        if form.is_valid() and coordonnees.is_valid() and formset.is_valid():
+            form.instance.modifie_par = request.user
             form.save()
+            coordonnees.save()
             donnees = form.cleaned_data
             if donnees.get("photo_fichier"):
-                definir_photo_membre(
-                    membre, donnees["photo_fichier"], donnees["photo_alt"], cree_par=request.user
+                definir_photo(
+                    brouillon, donnees["photo_fichier"], donnees["photo_alt"], cree_par=request.user
                 )
             elif donnees.get("retirer_photo"):
-                retirer_photo_membre(membre)
+                retirer_photo(brouillon)
             formset.save()
-            messages.success(request, "Profil mis à jour.")
+
+            if request.POST.get("action") == "publier":
+                if publier_page_artiste(membre, par=request.user):
+                    messages.success(request, "Votre page publique est à jour.")
+                else:
+                    messages.info(
+                        request, "Rien de neuf à publier : votre page en ligne dit déjà cela."
+                    )
+            else:
+                messages.success(
+                    request, "Brouillon enregistré. Votre page publique n'a pas changé."
+                )
             return redirect("espace_membre:mon_profil")
     else:
-        form = ProfilMembreForm(instance=membre)
+        form = PageArtisteForm(instance=brouillon)
+        coordonnees = CoordonneesForm(instance=membre)
         formset = LienReseauFormSet(instance=membre)
 
     return render(
         request,
         "espace_membre/profil_form.html",
-        {"form": form, "formset": formset, "membre": membre},
+        {
+            "form": form,
+            "coordonnees": coordonnees,
+            "formset": formset,
+            "membre": membre,
+            "brouillon": brouillon,
+            "en_attente": brouillon_en_attente(membre),
+        },
     )
+
+
+@login_required
+def apercu_ma_page(request):
+    """Ma page publique telle qu'elle serait si je publiais maintenant.
+
+    Rendue par le **gabarit public** et le **contexte public**, pas par une
+    maquette entretenue à côté : c'est tout ce qu'on demande à un aperçu, et une
+    seconde implémentation finirait par ne plus dire la même chose.
+
+    Le membre affiché est une instance NON enregistrée portant les valeurs du
+    brouillon. Un aperçu qui écrirait serait exactement le contraire de ce que
+    ce chantier construit.
+
+    Réservé à son propriétaire par construction — aucun identifiant dans l'URL —
+    et servi sans cache partagé ni indexation. Le `noindex` ne protège pas
+    l'accès (la session s'en charge) ; il empêche l'aperçu de devenir une
+    seconde adresse pour la même page.
+    """
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+
+    brouillon = brouillon_de(membre)
+    apercu = Membre.objects.get(pk=membre.pk)
+    for nom, valeur in brouillon.contenu_public.items():
+        setattr(apercu, nom, valeur)
+
+    contexte = contexte_fiche_membre(request, apercu)
+    reponse = render(request, "vitrine/membre_detail.html", {**contexte, "apercu": True})
+    reponse["Cache-Control"] = "private, no-store"
+    reponse["X-Robots-Tag"] = "noindex, nofollow"
+    return reponse
 
 
 @login_required

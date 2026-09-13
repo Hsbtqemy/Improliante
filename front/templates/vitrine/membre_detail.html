@@ -8,7 +8,24 @@
 {% block og_description %}{{ membre.role_public|default:membre.bio|truncatewords:25 }}{% endblock %}
 
 {% block contenu %}
-  <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>
+  {% comment %}
+    `apercu` n'est posé QUE par l'espace membre : la page publique ne le connaît
+    pas, et rend donc exactement le même document sans ce bandeau. Un aperçu
+    rendu par un second gabarit finirait par ne plus dire la même chose.
+  {% endcomment %}
+  {% if apercu %}
+    <p class="bandeau-apercu" role="status">
+      <strong>Aperçu</strong> — voici votre page telle qu'elle serait si vous publiiez
+      maintenant. Elle n'est visible que de vous.
+      {% if not membre.visible_sur_site %}
+        Votre page n'est pas encore publiée sur le site : la visibilité est réglée par
+        le bureau.
+      {% endif %}
+      <a href="{% url 'espace_membre:mon_profil' %}">Retour à l'édition</a>
+    </p>
+  {% else %}
+    <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>
+  {% endif %}
 
   <header class="page-tete">
     <span class="page-tete__eyebrow">L'association</span>
