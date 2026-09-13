@@ -79,6 +79,9 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
   tient dans une transaction, et la fiche est relue sous verrou avant décision
 - [x] Publier deux fois n'est pas une erreur : le second geste dit qu'il n'y avait rien
   de neuf, il ne lève pas
+- [x] Un brouillon s'abandonne : sans historique, une retouche malheureuse ne se
+  défaisait pas, et il aurait fallu recopier à la main depuis sa propre page publique.
+  Le bouton n'est offert que s'il y a de quoi, et il est en POST
 - [x] Une image de brouillon n'est pas lisible sans session : elle vit sous
   `MEDIA_PRIVE_ROOT` et se sert par une vue qui contrôle les droits, comme les reçus et
   les documents. Publier DÉPLACE le fichier dans la racine web
@@ -142,6 +145,11 @@ Ce qui ne passe **pas** par le brouillon, et que l'écran dit là où le geste s
 téléphone, qui n'est pas public et n'a donc pas de version publique à protéger, et les
 réseaux sociaux, qui sont une liste et non une présentation. La ligne est arbitraire ;
 elle est au moins écrite à l'écran plutôt que devinée.
+
+**Ce que la relecture de l'aperçu a trouvé.** Un geste manquant, le même oubli que ce
+dépôt répète : « Enregistrer le brouillon » existait, rien ne le défaisait. Et le
+balayage n'ouvrait pas l'aperçu du bureau, dont le bandeau est pourtant une variante que
+les contrôles d'accessibilité n'avaient jamais vue — celle du membre, elle, l'était.
 
 **Ce qui reste ouvert, et pourquoi.** Quatre cases sur les sept restantes attendent
 VIT-3 ou une décision : les deux compositions et la couleur d'accent se jugent avec le
