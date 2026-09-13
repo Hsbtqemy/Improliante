@@ -173,6 +173,11 @@ urlpatterns = [
         name="gouvernance_ajouter_pouvoir",
     ),
     path(
+        "bureau/gouvernance/reunion/<int:pk>/pouvoir/<int:mandant_pk>/retirer/",
+        views.gouvernance_retirer_pouvoir,
+        name="gouvernance_retirer_pouvoir",
+    ),
+    path(
         "bureau/gouvernance/reunion/<int:pk>/resolution/",
         views.gouvernance_ajouter_resolution,
         name="gouvernance_ajouter_resolution",

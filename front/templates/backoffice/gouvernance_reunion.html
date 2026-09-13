@@ -117,7 +117,19 @@
     {% endif %}
     {% if pouvoirs %}
       <ul class="liste-simple">
-        {% for pouvoir in pouvoirs %}<li>{{ pouvoir.mandant }} → {{ pouvoir.mandataire }}</li>{% endfor %}
+        {% for pouvoir in pouvoirs %}
+          <li>
+            {{ pouvoir.mandant }} → {{ pouvoir.mandataire }}
+            {% if not scelle %}
+              <form method="post" style="display: inline"
+                    action="{% url 'backoffice:gouvernance_retirer_pouvoir' pk=reunion.pk mandant_pk=pouvoir.mandant_id %}">
+                {% csrf_token %}
+                <button type="submit" class="bouton-texte"
+                        aria-label="Retirer le pouvoir de {{ pouvoir.mandant }}">Retirer</button>
+              </form>
+            {% endif %}
+          </li>
+        {% endfor %}
       </ul>
     {% else %}
       <p class="champ__aide">Aucun pouvoir.</p>

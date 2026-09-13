@@ -1478,6 +1478,31 @@ def test_le_bureau_ne_peut_pas_depasser_le_plafond_de_pouvoirs(client, db):
     assert Pouvoir.objects.filter(reunion=reunion).count() == 1
 
 
+def test_le_bureau_retire_un_pouvoir_depuis_l_ecran_de_la_reunion(client, db):
+    """Ce geste n'existait que dans l'admin, par la suppression d'une ligne
+    d'inline — laquelle laissait le mandant « représenté » sans personne pour
+    porter sa voix. L'inline est passé en lecture seule (il contournait le
+    plafond statutaire) : sans cet écran, un pouvoir saisi par erreur n'aurait
+    plus eu de sortie."""
+    reunion = _reunion()
+    mandant = _membre("mandant_a_retirer").membre
+    mandataire = _membre("porteur").membre
+    client.force_login(_staff())
+    client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/pouvoir/",
+        {"mandant": mandant.pk, "mandataire": mandataire.pk},
+    )
+    assert reunion.presences.get(membre=mandant).statut == Presence.Statut.REPRESENTE
+
+    corps = client.get(f"/bureau/gouvernance/reunion/{reunion.pk}/").content.decode()
+    assert f"/pouvoir/{mandant.pk}/retirer/" in corps  # le geste est OFFERT
+
+    client.post(f"/bureau/gouvernance/reunion/{reunion.pk}/pouvoir/{mandant.pk}/retirer/")
+
+    assert reunion.pouvoirs.count() == 0
+    assert reunion.presences.get(membre=mandant).statut == Presence.Statut.ABSENT
+
+
 def test_resolution_adoptee_affichee(client, db):
     reunion = _reunion()
     client.force_login(_staff())

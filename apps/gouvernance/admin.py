@@ -85,9 +85,31 @@ class PresenceInline(_InlineDeReunion):
 
 
 class PouvoirInline(_InlineDeReunion):
+    """Les pouvoirs se LISENT ici, ils ne s'y écrivent pas.
+
+    Un pouvoir porte une règle statutaire — `max_pouvoirs_par_personne`, jamais
+    codée en dur (règle 8 du dépôt) — et une conséquence : le mandant est marqué
+    « représenté », donc il compte dans le quorum. Ces quatre lignes d'inline
+    écrivaient en base sans l'une ni l'autre : deux pouvoirs au même mandataire
+    avec un plafond à un, et aucune présence créée. La saisie d'un pouvoir
+    papier se fait depuis la fiche de la réunion, qui appelle `donner_pouvoir`,
+    et le retrait par `retirer_pouvoir` au même endroit.
+
+    Le lot 4 avait annoncé « un seul service pour les pouvoirs, quel que soit le
+    chemin » : c'était vrai des trois écrans du bureau, faux de cet admin."""
+
     model = Pouvoir
     extra = 0
     autocomplete_fields = ("mandant", "mandataire")
+
+    def has_add_permission(self, request, obj=None) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
 
 
 @admin.register(Reunion)

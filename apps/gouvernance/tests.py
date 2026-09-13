@@ -36,6 +36,7 @@ from apps.gouvernance.services import (
     mandataires_en_exces,
     preremplir_droit_de_vote,
     resultat_resolution,
+    retirer_pouvoir,
     saisir_presence,
 )
 
@@ -638,7 +639,12 @@ def test_admin_les_notes_d_un_point_passe_en_seance_close_sont_figees(db, rf):
 def test_admin_les_inlines_d_une_reunion_archivee_sont_en_lecture_seule(db, rf):
     """`ResolutionInline` est l'autre chemin que l'inventaire nomme : l'admin
     écrit sans passer par aucun service. Présences et pouvoirs vont avec — ils
-    font le quorum."""
+    font le quorum.
+
+    Deux règles se superposent ici, et le test les sépare : le sceau ferme les
+    trois inlines d'une séance CLOSE, tandis que les pouvoirs sont en lecture
+    seule sur toute réunion — ils portent un plafond statutaire que l'inline ne
+    sait pas appliquer (lot 14)."""
     from django.contrib import admin as django_admin
 
     close = _reunion_close()
@@ -649,10 +655,114 @@ def test_admin_les_inlines_d_une_reunion_archivee_sont_en_lecture_seule(db, rf):
     inlines = modele.get_inline_instances(requete, close)
     assert len(inlines) == 3  # résolutions, présences, pouvoirs
     for inline in inlines:
-        assert inline.has_add_permission(requete, ouverte) is True
         assert inline.has_add_permission(requete, close) is False
         assert inline.has_change_permission(requete, close) is False
         assert inline.has_delete_permission(requete, close) is False
+
+    ouverts = {type(i).__name__: i.has_add_permission(requete, ouverte) for i in inlines}
+    assert ouverts == {
+        "ResolutionInline": True,
+        "PresenceInline": True,
+        "PouvoirInline": False,
+    }
+
+
+def test_admin_n_ecrit_plus_de_pouvoir_du_tout(client, db):
+    """La preuve par le chemin réel, et elle va plus loin que l'inventaire ne
+    disait : l'inline créait DEUX pouvoirs au même mandataire avec un plafond à
+    un, et n'inscrivait aucune présence — le mandant n'était donc même pas noté
+    « représenté », alors que `donner_pouvoir` le fait. Le plafond est
+    statutaire (règle 8 : paramétrable, jamais codé en dur)."""
+    params = ParametresGouvernance.load()
+    params.max_pouvoirs_par_personne = 1
+    params.save()
+    reunion = _reunion()
+    reunion.statut = Reunion.Statut.CONVOQUEE
+    reunion.save(update_fields=["statut"])
+    mandants = [
+        Membre.objects.create(user=Utilisateur.objects.create(username=f"m{i}")) for i in range(2)
+    ]
+    mandataire = Membre.objects.create(user=Utilisateur.objects.create(username="porteur"))
+    client.force_login(Utilisateur.objects.create_superuser(username="root", password="x"))
+
+    client.post(
+        f"/admin/gouvernance/reunion/{reunion.pk}/change/",
+        {
+            "titre": reunion.titre,
+            "type_reunion": reunion.type_reunion,
+            "statut": reunion.statut,
+            "date_0": "",
+            "date_1": "",
+            "lieu_texte": "",
+            "convocation_texte": "",
+            "compte_rendu_texte": "",
+            "compte_rendu": "",
+            "evenement": "",
+            "documents": [],
+            "resolutions-TOTAL_FORMS": "0",
+            "resolutions-INITIAL_FORMS": "0",
+            "presences-TOTAL_FORMS": "0",
+            "presences-INITIAL_FORMS": "0",
+            "pouvoirs-TOTAL_FORMS": "2",
+            "pouvoirs-INITIAL_FORMS": "0",
+            "pouvoirs-0-mandant": mandants[0].pk,
+            "pouvoirs-0-mandataire": mandataire.pk,
+            "pouvoirs-1-mandant": mandants[1].pk,
+            "pouvoirs-1-mandataire": mandataire.pk,
+            "_save": "1",
+        },
+    )
+
+    assert Pouvoir.objects.count() == 0
+
+
+def test_retirer_un_pouvoir_rend_le_mandant_absent(db, make_membre):
+    """Le mandant était « représenté » PAR ce pouvoir : sans lui, il compterait
+    dans le quorum sans que personne ne porte sa voix."""
+    reunion = _reunion()
+    reunion.statut = Reunion.Statut.CONVOQUEE
+    reunion.save(update_fields=["statut"])
+    mandant, mandataire = make_membre(), make_membre()
+    donner_pouvoir(reunion, mandant, mandataire)
+    assert reunion.presences.get(membre=mandant).statut == Presence.Statut.REPRESENTE
+
+    assert retirer_pouvoir(reunion, mandant) is True
+
+    assert reunion.pouvoirs.count() == 0
+    assert reunion.presences.get(membre=mandant).statut == Presence.Statut.ABSENT
+    assert retirer_pouvoir(reunion, mandant) is False  # plus rien à retirer
+
+
+def test_retirer_un_pouvoir_ne_defait_pas_une_presence_constatee(db, make_membre):
+    """Le bureau peut avoir noté le mandant présent entre-temps — il est venu
+    malgré son pouvoir. Ce service n'a pas écrit cette présence-là, il n'y
+    touche pas."""
+    reunion = _reunion()
+    reunion.statut = Reunion.Statut.CONVOQUEE
+    reunion.save(update_fields=["statut"])
+    mandant, mandataire = make_membre(), make_membre()
+    donner_pouvoir(reunion, mandant, mandataire)
+    saisir_presence(reunion, mandant, statut=Presence.Statut.PRESENT, peut_voter=True)
+
+    retirer_pouvoir(reunion, mandant)
+
+    assert reunion.presences.get(membre=mandant).statut == Presence.Statut.PRESENT
+
+
+def test_une_reunion_archivee_refuse_le_retrait_d_un_pouvoir(db, make_membre):
+    """Retirer, c'est écrire : le sceau vaut aussi pour ce geste."""
+    reunion = _reunion()
+    reunion.statut = Reunion.Statut.CONVOQUEE
+    reunion.save(update_fields=["statut"])
+    mandant, mandataire = make_membre(), make_membre()
+    donner_pouvoir(reunion, mandant, mandataire)
+    reunion.statut = Reunion.Statut.ARCHIVEE
+    reunion.save(update_fields=["statut"])
+
+    with pytest.raises(ReunionClose):
+        retirer_pouvoir(reunion, mandant)
+
+    assert reunion.pouvoirs.count() == 1
 
 
 def test_admin_refuse_de_rattacher_un_point_ou_une_resolution_a_une_seance_close(db, rf):

@@ -96,6 +96,7 @@ from apps.gouvernance.services import (
     preremplir_droit_de_vote,
     regles_applicables,
     resultat_resolution,
+    retirer_pouvoir,
     saisir_presence,
 )
 from apps.spectacles import services as spectacles_services
@@ -2047,6 +2048,27 @@ def gouvernance_ajouter_pouvoir(request, pk):
             messages.success(request, "Pouvoir enregistré.")
     else:
         messages.error(request, "; ".join(form.non_field_errors()) or "Pouvoir invalide.")
+    return _vers_reunion(reunion.pk, "#t-participants")
+
+
+@bureau_requis
+@require_POST
+def gouvernance_retirer_pouvoir(request, pk, mandant_pk):
+    """Retire un pouvoir saisi par erreur.
+
+    Ce geste n'existait que dans l'admin, par la suppression d'une ligne
+    d'inline — qui laissait le mandant « représenté » sans personne pour porter
+    sa voix, donc comptant dans le quorum. L'inline est passé en lecture seule
+    (le plafond statutaire ne s'y appliquait pas) : sans cet écran, un pouvoir
+    saisi par erreur n'aurait plus eu de sortie."""
+    reunion = get_object_or_404(Reunion, pk=pk)
+    pouvoir = get_object_or_404(reunion.pouvoirs, mandant_id=mandant_pk)
+    try:
+        retirer_pouvoir(reunion, pouvoir.mandant)
+    except ReunionClose as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Pouvoir retiré ; le mandant est de nouveau noté absent.")
     return _vers_reunion(reunion.pk, "#t-participants")
 
 

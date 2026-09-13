@@ -400,6 +400,29 @@ def donner_pouvoir(
     return pouvoir
 
 
+def retirer_pouvoir(reunion: Reunion, mandant) -> bool:
+    """Retire le pouvoir donné par `mandant` pour cette réunion.
+
+    L'inverse de `donner_pouvoir`, et il reprend tout ce que celui-ci avait
+    posé : le mandant était marqué « représenté » PAR ce pouvoir, donc il
+    redevient absent quand il disparaît — sinon il continue de compter dans le
+    quorum sans que personne ne porte sa voix. Une présence constatée autrement
+    (présent, excusé) n'est pas touchée : ce service ne l'a pas écrite.
+
+    Il existe parce que l'inline de l'admin, seul chemin de retrait jusqu'ici,
+    est passé en lecture seule : écrire un pouvoir sans le service contournait
+    le plafond statutaire, et le retirer laissait le mandant représenté par
+    personne. Retourne False si ce mandant n'avait pas donné pouvoir."""
+    with _ecriture_du_contenu(reunion) as courante:
+        supprimes, _ = Pouvoir.objects.filter(reunion=courante, mandant=mandant).delete()
+        if not supprimes:
+            return False
+        Presence.objects.filter(
+            reunion=courante, membre=mandant, statut=Presence.Statut.REPRESENTE
+        ).update(statut=Presence.Statut.ABSENT)
+        return True
+
+
 def preremplir_droit_de_vote(reunion: Reunion, saison=None) -> int:
     """Ouvre le REGISTRE ÉLECTORAL de la réunion et fige les droits de vote.
 
