@@ -2740,7 +2740,14 @@ def test_la_route_privee_refuse_un_media_deja_public(client, db):
     media = _photo_de_brouillon(client, membre)
     servie = client.get(f"/espace/profil/photo/{media.pk}/")
     assert servie.status_code == 200
-    servie.close()  # sinon le fichier reste ouvert et la publication le trouve verrouillé
+    # On relâche le FICHIER, pas la réponse : `close()` sur une réponse émet
+    # `request_finished`, donc ferme la connexion à la base sous PostgreSQL et
+    # fait échouer le POST qui suit. Le fichier, lui, doit bien être rendu :
+    # Windows le verrouille tant qu'il est ouvert, et la publication ne peut
+    # alors pas le déplacer.
+    from conftest import relacher_le_fichier
+
+    relacher_le_fichier(servie)
 
     client.post(PROFIL, _donnees_profil(action="publier"))
 

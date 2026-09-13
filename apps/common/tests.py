@@ -245,6 +245,46 @@ def test_reponse_fichier_prive_sert_le_contenu_en_dev(db):
     assert reponse["Content-Type"] == "application/pdf"
 
 
+def test_relacher_un_fichier_prive_n_emet_pas_request_finished(db):
+    """Le défaut que seul PostgreSQL montrait, ramené ici.
+
+    `HttpResponse.close()` émet `request_finished`, et Django y branche la
+    fermeture des connexions de base. Sous SQLite en mémoire la connexion
+    survit — la fermer perdrait la base, qui n'existe que là : la suite locale
+    passait donc, et l'intégration continue tombait sur « the connection is
+    closed » au POST suivant.
+
+    Ce contrôle ne dépend d'aucun moteur parce qu'il ne regarde pas la
+    conséquence — une connexion fermée — mais la CAUSE : le signal. Un défaut
+    qu'on ne peut reproduire que sur la machine d'en face est un défaut qu'on
+    corrige à l'aveugle.
+    """
+    from django.core.signals import request_finished
+
+    from conftest import relacher_le_fichier
+
+    document = _document_pdf()
+    emissions = []
+
+    def compter(**_):
+        emissions.append(1)
+
+    request_finished.connect(compter)
+    try:
+        relacher_le_fichier(reponse_fichier_prive(document.fichier))
+        assert emissions == [], "relâcher le fichier a émis `request_finished`"
+
+        # Témoin : si Django cessait d'émettre le signal en fermant une réponse,
+        # l'assertion ci-dessus passerait sans plus rien prouver.
+        reponse = reponse_fichier_prive(document.fichier)
+        reponse.close()
+        assert emissions, (
+            "`close()` n'émet plus `request_finished` : ce contrôle ne prouve plus rien"
+        )
+    finally:
+        request_finished.disconnect(compter)
+
+
 def test_un_fichier_prive_ne_se_met_pas_en_cache_partage(db, settings):
     """Le contrôle des droits a lieu à CHAQUE requête ; un proxy qui garderait
     la réponse la servirait ensuite sans repasser par ce contrôle.
@@ -255,7 +295,9 @@ def test_un_fichier_prive_ne_se_met_pas_en_cache_partage(db, settings):
 
     reponse = reponse_fichier_prive(document.fichier)
     assert reponse["Cache-Control"] == "private, no-store"
-    reponse.close()
+    from conftest import relacher_le_fichier
+
+    relacher_le_fichier(reponse)  # et non `reponse.close()` : voir ce qu'il en dit
 
     settings.UTILISER_X_ACCEL = True
     settings.X_ACCEL_PREFIXE = "/media-prive/"

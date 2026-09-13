@@ -36,3 +36,22 @@ def liens_nus_rouvrant_le_rail(html: str) -> list[str]:
         if not re.search(r"\d", texte):
             nus.append(f"{cible.group(1)} → {texte[:40]}")
     return nus
+
+
+def relacher_le_fichier(reponse) -> None:
+    """Libère le fichier d'une `FileResponse` SANS fermer la réponse.
+
+    `HttpResponse.close()` émet `request_finished`, et Django y branche la
+    fermeture des connexions de base. Sous SQLite en mémoire la connexion
+    survit — la fermer perdrait la base, qui n'existe que là —, mais sous
+    PostgreSQL elle est réellement fermée et la requête SUIVANTE du même test
+    échoue sur « the connection is closed ». Le défaut ne se voit donc que sur
+    le moteur de production, et c'est l'intégration continue qui l'a montré.
+
+    Fermer le fichier suffit à ce pour quoi on fermait la réponse : rendre la
+    main sur le fichier, que Windows garde verrouillé tant qu'il est ouvert et
+    qu'une publication ne peut alors pas déplacer.
+    """
+    fichier = getattr(reponse, "file_to_stream", None)
+    if fichier is not None:
+        fichier.close()
