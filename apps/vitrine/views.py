@@ -330,6 +330,46 @@ def contexte_fiche_membre(request, membre) -> dict:
     }
 
 
+def apercu_fiche_membre(request, membre, *, retour: str, titulaire=None):
+    """Rend la fiche d'un membre avec les valeurs de SON BROUILLON.
+
+    Même gabarit et même contexte que la page publique : c'est tout ce qu'on
+    demande à un aperçu, et une seconde implémentation finirait par ne plus dire
+    la même chose que la production. Le membre affiché est une instance **non
+    enregistrée** — un aperçu qui écrirait serait le contraire de ce que ce
+    chantier construit.
+
+    Servi sans cache partagé ni indexation. Le `noindex` ne protège pas l'accès
+    — la session s'en charge — il empêche l'aperçu de devenir une seconde
+    adresse pour la même page.
+
+    Ne décide de RIEN sur les droits : c'est à l'appelant de dire qui regarde.
+    Le titulaire passe par l'espace membre, sans identifiant d'URL ; le bureau
+    par le back-office, avec. Les deux portes ne se ferment pas pareil, et les
+    mélanger ici reviendrait à les confondre.
+
+    `retour` est l'adresse du bouton de sortie, `titulaire` le membre concerné
+    quand ce n'est pas celui qui regarde — le bandeau ne dit pas la même chose
+    à l'artiste qu'au bureau.
+    """
+    from apps.coeur.services import brouillon_de
+
+    brouillon = brouillon_de(membre, creer=False)
+    apercu = Membre.objects.get(pk=membre.pk)
+    for nom, valeur in brouillon.contenu_public.items():
+        setattr(apercu, nom, valeur)
+
+    contexte = contexte_fiche_membre(request, apercu)
+    reponse = render(
+        request,
+        "vitrine/membre_detail.html",
+        {**contexte, "apercu": True, "apercu_retour": retour, "apercu_titulaire": titulaire},
+    )
+    reponse["Cache-Control"] = "private, no-store"
+    reponse["X-Robots-Tag"] = "noindex, nofollow"
+    return reponse
+
+
 def galerie(request):
     """Galerie : médias des galeries des spectacles et événements publiés.
 

@@ -401,3 +401,56 @@ def test_lire_le_brouillon_sans_le_creer(db):
     assert lu.pk is None
     assert lu.bio == "Biographie publiée."
     assert BrouillonPageArtiste.objects.filter(membre=membre).count() == 0
+
+
+def test_l_admin_emmene_le_brouillon_comme_le_back_office(db, rf):
+    """L'admin écrivait `Membre` sans passer par l'alignement : c'était la
+    porte de service, et elle rouvrait le décalage que le back-office referme.
+
+    Le test exerce le crochet `save_model` directement — c'est lui qu'on a
+    posé, et le formulaire d'admin complet n'apporterait rien de plus ici.
+    """
+    from django.contrib import admin as django_admin
+    from django.contrib.messages.storage.fallback import FallbackStorage
+
+    from apps.coeur.admin import MembreAdmin
+
+    membre = _artiste(role_public="Comédienne")
+    brouillon_de(membre)  # ouvert, sans travail en cours
+
+    requete = rf.post("/admin/coeur/membre/1/change/")
+    requete.user = Utilisateur.objects.create_superuser(username="root", password="x")
+    requete.session = {}
+    requete._messages = FallbackStorage(requete)
+
+    membre.role_public = "Comédienne, mise en scène"
+    MembreAdmin(Membre, django_admin.site).save_model(requete, membre, None, change=True)
+
+    assert brouillon_de(membre).role_public == "Comédienne, mise en scène"
+    assert brouillon_en_attente(membre) is False
+
+
+def test_l_admin_ne_touche_pas_a_un_travail_en_cours_et_le_signale(db, rf):
+    """Le revers : un brouillon qui porte du travail n'est pas écrasé, et
+    l'admin est averti que sa saisie sera recouverte."""
+    from django.contrib import admin as django_admin
+    from django.contrib.messages.storage.fallback import FallbackStorage
+
+    from apps.coeur.admin import MembreAdmin
+
+    membre = _artiste(role_public="Comédienne")
+    page = brouillon_de(membre)
+    page.role_public = "En cours de réécriture"
+    page.save()
+
+    requete = rf.post("/admin/coeur/membre/1/change/")
+    requete.user = Utilisateur.objects.create_superuser(username="root", password="x")
+    requete.session = {}
+    requete._messages = FallbackStorage(requete)
+
+    membre.role_public = "Comédienne, mise en scène"
+    MembreAdmin(Membre, django_admin.site).save_model(requete, membre, None, change=True)
+
+    assert brouillon_de(membre).role_public == "En cours de réécriture"
+    messages = [str(m) for m in requete._messages]
+    assert any("modifications non publiées" in m for m in messages)

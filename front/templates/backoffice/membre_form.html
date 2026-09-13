@@ -43,6 +43,15 @@
     artiste. Un brouillon en attente la recouvrira à sa publication — le dire ici
     vaut mieux que de laisser la surprise arriver des semaines plus tard.
   {% endcomment %}
+  {% if membre %}
+    <p>
+      <a class="lien-bouton lien-bouton--ghost"
+         href="{% url 'backoffice:apercu_page_artiste' membre.pk %}">
+        Voir sa page telle qu'elle serait publiée
+      </a>
+    </p>
+  {% endif %}
+
   {% if brouillon_en_attente %}
     <p class="encart" role="status">
       Cette personne a des modifications non publiées sur sa page. Ce que vous

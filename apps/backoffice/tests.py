@@ -3259,3 +3259,89 @@ def test_l_encart_du_bureau_s_eteint_apres_sa_propre_saisie(client, db):
     corps = client.get(f"/bureau/membres/{membre.pk}/").content.decode()
     assert "modifications non publiées" not in corps
     assert brouillon_de(membre).role_public == "Comédienne, mise en scène"
+
+
+# --- Aperçu d'une page artiste par le bureau (VIT-4) ------------------------
+
+
+def _artiste_avec_brouillon(
+    nom="Alice", bio_publiee="Biographie en ligne.", brouillon="Brouillon."
+):
+    from apps.coeur.services import brouillon_de
+
+    membre = Membre.objects.create(nom=nom, visible_sur_site=True, bio=bio_publiee)
+    page = brouillon_de(membre)
+    page.bio = brouillon
+    page.save()
+    return membre
+
+
+def test_le_bureau_voit_l_apercu_d_une_page(client, db):
+    """Il accompagne les pages : relire un brouillon avant d'en parler à son
+    autrice ne doit pas demander de se connecter à sa place."""
+    membre = _artiste_avec_brouillon()
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/membres/{membre.pk}/apercu/").content.decode()
+
+    assert "Brouillon." in corps
+    assert "Biographie en ligne." not in corps
+
+
+def test_l_apercu_du_bureau_dit_de_qui_est_la_page(client, db):
+    """Dire « votre page » au bureau lui ferait croire qu'il édite la sienne."""
+    membre = _artiste_avec_brouillon(nom="Camille")
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/membres/{membre.pk}/apercu/").content.decode()
+
+    assert "le brouillon de Camille" in corps
+    assert "voici votre page" not in corps
+
+
+def test_l_apercu_du_bureau_est_refuse_hors_bureau(client, db):
+    """La deuxième porte du même aperçu, et elle ne se ferme pas comme l'autre :
+    l'espace membre n'a pas d'identifiant d'URL, celle-ci en a un et s'en remet
+    au rôle."""
+    membre = _artiste_avec_brouillon()
+    quidam = Utilisateur.objects.create_user(username="quidam", password="x")
+    client.force_login(quidam)
+
+    assert client.get(f"/bureau/membres/{membre.pk}/apercu/").status_code == 403
+
+    client.logout()
+    reponse = client.get(f"/bureau/membres/{membre.pk}/apercu/")
+    assert reponse.status_code == 302  # anonyme : vers la connexion
+
+
+def test_l_apercu_du_bureau_n_est_ni_indexable_ni_mis_en_cache_partage(client, db):
+    membre = _artiste_avec_brouillon()
+    client.force_login(_staff())
+
+    reponse = client.get(f"/bureau/membres/{membre.pk}/apercu/")
+
+    assert reponse["X-Robots-Tag"] == "noindex, nofollow"
+    assert "no-store" in reponse["Cache-Control"]
+
+
+def test_l_apercu_du_bureau_n_ecrit_rien(client, db):
+    """Ni publication, ni création de brouillon pour quelqu'un qui regarde."""
+    from apps.coeur.models import BrouillonPageArtiste
+
+    membre = Membre.objects.create(nom="Jamais", visible_sur_site=True, bio="En ligne.")
+    client.force_login(_staff())
+
+    client.get(f"/bureau/membres/{membre.pk}/apercu/")
+
+    membre.refresh_from_db()
+    assert membre.bio == "En ligne."
+    assert BrouillonPageArtiste.objects.filter(membre=membre).count() == 0
+
+
+def test_la_fiche_du_bureau_propose_l_apercu(client, db):
+    membre = _artiste_avec_brouillon()
+    client.force_login(_staff())
+
+    corps = client.get(f"/bureau/membres/{membre.pk}/").content.decode()
+
+    assert f"/bureau/membres/{membre.pk}/apercu/" in corps

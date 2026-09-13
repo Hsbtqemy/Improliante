@@ -104,6 +104,7 @@ from apps.gouvernance.services import (
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 from apps.vitrine.models import MessageContact
+from apps.vitrine.views import apercu_fiche_membre
 
 from .forms import (
     AdhesionForm,
@@ -699,6 +700,27 @@ def editer_membre(request, pk):
             "membre": membre,
             "brouillon_en_attente": coeur_services.brouillon_en_attente(membre),
         },
+    )
+
+
+@bureau_requis
+def apercu_page_artiste(request, pk):
+    """La page d'une personne telle qu'elle serait si son brouillon était publié.
+
+    Le bureau accompagne les pages : il relit un brouillon avant d'en parler à
+    son autrice, et il doit pouvoir le faire sans se connecter à sa place.
+
+    Deuxième porte du même aperçu, et elle ne se ferme pas comme l'autre :
+    l'espace membre n'a pas d'identifiant d'URL — la propriété est acquise par
+    construction —, celle-ci en a un et s'en remet au rôle. C'est la décision du
+    13 septembre : le bureau d'une association de cette taille est indivisible.
+    """
+    membre = get_object_or_404(Membre, pk=pk)
+    return apercu_fiche_membre(
+        request,
+        membre,
+        retour=reverse("backoffice:editer_membre", args=[membre.pk]),
+        titulaire=membre,
     )
 
 

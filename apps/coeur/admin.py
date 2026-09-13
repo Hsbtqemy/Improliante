@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 
 from .models import LienReseau, Lieu, Membre, ParametresAssociation, Signataire, Utilisateur
+from .services import aligner_brouillon_apres_saisie, brouillon_en_attente
 
 
 @admin.register(Utilisateur)
@@ -33,6 +34,33 @@ class MembreAdmin(admin.ModelAdmin):
     autocomplete_fields = ("user", "photo")
     readonly_fields = ("date_creation", "date_modification")
     inlines = (LienReseauInline,)
+
+    def save_model(self, request, obj, form, change):
+        """Écrire une fiche, c'est publier : elle porte la version publique.
+
+        L'admin écrivait `Membre` sans passer par l'alignement que le
+        back-office fait depuis sa relecture — c'était la porte de service, et
+        elle rouvrait le décalage : le brouillon de la personne gardait
+        l'ancien texte, son écran d'édition annonçait pour toujours des
+        modifications non publiées, et sa prochaine publication rendait la
+        fiche à sa valeur d'avant.
+
+        Le contenu d'avant est relu en base, et pas sur `obj` : le formulaire y
+        a déjà posé les valeurs reçues.
+        """
+        avant = {}
+        if change and obj.pk:
+            avant = dict(Membre.objects.get(pk=obj.pk).contenu_public)
+        super().save_model(request, obj, form, change)
+        if not change:
+            return
+        aligner_brouillon_apres_saisie(obj, avant)
+        if brouillon_en_attente(obj):
+            messages.warning(
+                request,
+                f"{obj} a des modifications non publiées sur sa page : "
+                "elles recouvriront cette saisie lorsqu'elle publiera.",
+            )
 
 
 @admin.register(Lieu)

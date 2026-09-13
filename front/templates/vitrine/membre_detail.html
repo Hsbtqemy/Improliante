@@ -9,19 +9,32 @@
 
 {% block contenu %}
   {% comment %}
-    `apercu` n'est posé QUE par l'espace membre : la page publique ne le connaît
-    pas, et rend donc exactement le même document sans ce bandeau. Un aperçu
-    rendu par un second gabarit finirait par ne plus dire la même chose.
+    `apercu` n'est posé QUE par un écran connecté : la page publique ne le
+    connaît pas, et rend donc exactement le même document sans ce bandeau. Un
+    aperçu rendu par un second gabarit finirait par ne plus dire la même chose.
+
+    Deux voix : `apercu_titulaire` est renseigné quand quelqu'un d'AUTRE
+    regarde — le bureau qui accompagne une page. Dire « votre page » au bureau
+    lui ferait croire qu'il édite la sienne.
   {% endcomment %}
   {% if apercu %}
     <p class="bandeau-apercu" role="status">
-      <strong>Aperçu</strong> — voici votre page telle qu'elle serait si vous publiiez
-      maintenant. Elle n'est visible que de vous.
-      {% if not membre.visible_sur_site %}
-        Votre page n'est pas encore publiée sur le site : la visibilité est réglée par
-        le bureau.
+      {% if apercu_titulaire %}
+        <strong>Aperçu</strong> — le brouillon de {{ apercu_titulaire }}, tel qu'il
+        serait si la page était publiée. Rien de ceci n'est en ligne.
+        {% if not membre.visible_sur_site %}
+          Sa page n'est pas visible sur le site.
+        {% endif %}
+        <a href="{{ apercu_retour }}">Retour à la fiche</a>
+      {% else %}
+        <strong>Aperçu</strong> — voici votre page telle qu'elle serait si vous publiiez
+        maintenant. Elle n'est visible que de vous et du bureau.
+        {% if not membre.visible_sur_site %}
+          Votre page n'est pas encore publiée sur le site : la visibilité est réglée par
+          le bureau.
+        {% endif %}
+        <a href="{{ apercu_retour }}">Retour à l'édition</a>
       {% endif %}
-      <a href="{% url 'espace_membre:mon_profil' %}">Retour à l'édition</a>
     </p>
   {% else %}
     <p><a href="{% url 'vitrine:association' %}">← Retour aux membres</a></p>

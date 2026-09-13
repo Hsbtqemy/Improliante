@@ -35,6 +35,7 @@ urlpatterns = [
     path("bureau/membres/", views.liste_membres, name="liste_membres"),
     path("bureau/membres/nouveau/", views.creer_membre, name="creer_membre"),
     path("bureau/membres/<int:pk>/", views.editer_membre, name="editer_membre"),
+    path("bureau/membres/<int:pk>/apercu/", views.apercu_page_artiste, name="apercu_page_artiste"),
     path(
         "bureau/membres/<int:pk>/ouvrir-acces/",
         views.ouvrir_acces_membre,

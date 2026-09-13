@@ -28,7 +28,7 @@ from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
-from apps.coeur.models import BrouillonPageArtiste, Membre
+from apps.coeur.models import BrouillonPageArtiste
 from apps.coeur.roles import est_bureau, peut_ecrire_espace_membre
 from apps.coeur.services import (
     brouillon_de,
@@ -55,7 +55,7 @@ from apps.gouvernance.models import Presence, Reunion
 from apps.medias.models import Media
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
-from apps.vitrine.views import contexte_fiche_membre
+from apps.vitrine.views import apercu_fiche_membre
 
 from .forms import (
     CoordonneesForm,
@@ -317,16 +317,7 @@ def apercu_ma_page(request):
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
         return redirect("espace_membre:tableau_de_bord")
 
-    brouillon = brouillon_de(membre, creer=False)
-    apercu = Membre.objects.get(pk=membre.pk)
-    for nom, valeur in brouillon.contenu_public.items():
-        setattr(apercu, nom, valeur)
-
-    contexte = contexte_fiche_membre(request, apercu)
-    reponse = render(request, "vitrine/membre_detail.html", {**contexte, "apercu": True})
-    reponse["Cache-Control"] = "private, no-store"
-    reponse["X-Robots-Tag"] = "noindex, nofollow"
-    return reponse
+    return apercu_fiche_membre(request, membre, retour=reverse("espace_membre:mon_profil"))
 
 
 @login_required
