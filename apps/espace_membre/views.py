@@ -28,7 +28,7 @@ from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
-from apps.coeur.models import Membre
+from apps.coeur.models import BrouillonPageArtiste, Membre
 from apps.coeur.roles import est_bureau, peut_ecrire_espace_membre
 from apps.coeur.services import (
     brouillon_de,
@@ -52,6 +52,7 @@ from apps.documents.models import Document, Dossier
 from apps.documents.services import DossierNonVide
 from apps.gouvernance import services as gouvernance_services
 from apps.gouvernance.models import Presence, Reunion
+from apps.medias.models import Media
 from apps.spectacles import services as spectacles_services
 from apps.spectacles.models import Spectacle
 from apps.vitrine.views import contexte_fiche_membre
@@ -326,6 +327,33 @@ def apercu_ma_page(request):
     reponse["Cache-Control"] = "private, no-store"
     reponse["X-Robots-Tag"] = "noindex, nofollow"
     return reponse
+
+
+@login_required
+def photo_de_brouillon(request, pk: int):
+    """Sert l'image NON PUBLIÉE d'un brouillon de page artiste.
+
+    L'identifiant est dans l'URL, donc forgeable : c'est la seule route de ce
+    chantier qui doit refuser, et elle refuse sur le **rattachement métier**.
+    Pas « qui a téléversé ce fichier » — `Media.cree_par` décrit un geste, pas
+    une propriété, et le bureau peut avoir téléversé pour quelqu'un — mais
+    « quel brouillon le référence », et ce brouillon doit être celui du
+    demandeur. Le bureau y a droit aussi : il accompagne les pages.
+
+    Refus en 404 et non en 403, comme partout dans l'espace membre : un 403
+    confirmerait l'existence du fichier.
+    """
+    media = get_object_or_404(Media, pk=pk)
+    if not media.est_prive:
+        raise Http404  # une image publiée se sert par la racine web, pas par ici
+    porteur = BrouillonPageArtiste.objects.filter(photo=media).first()
+    if porteur is None:
+        raise Http404
+    membre = _membre_connecte(request)
+    proprietaire = membre is not None and porteur.membre_id == membre.pk
+    if not (proprietaire or est_bureau(request.user)):
+        raise Http404
+    return reponse_fichier_prive(media.fichier_prive, inline=True)
 
 
 @login_required

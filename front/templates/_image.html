@@ -16,10 +16,15 @@ le texte voisin), `prioritaire` (image principale d'une fiche, visible d'emblée
 — pas de chargement différé), et `largeur_affichee` pour un aperçu dont la
 taille est fixée par le gabarit (les écrans de gestion) : les dimensions sont
 alors mises à l'échelle, pour garder le rapport sans imposer 2 000 px de large.
+
+Une image de BROUILLON n'a pas d'URL publique : elle vit hors de la racine web
+et passe par une vue qui contrôle les droits. Elle n'a pas non plus de vignette
+— une miniature dans le stockage public serait une fuite de l'image protégée —,
+donc le `srcset` ci-dessous ne la concerne pas.
 {% endcomment %}
 <img
   {% if classe %}class="{{ classe }}"{% endif %}
-  src="{{ media.fichier.url }}"
+  src="{% if media.est_prive %}{% url 'espace_membre:photo_brouillon' media.pk %}{% else %}{{ media.fichier.url }}{% endif %}"
   {% if media.vignette %}srcset="{{ media.vignette.url }} {{ media.vignette_largeur }}w, {{ media.fichier.url }} {{ media.largeur }}w"{% endif %}
   {% if media.vignette and tailles %}sizes="{{ tailles }}"{% endif %}
   alt="{% if not decoratif %}{{ media.alt }}{% endif %}"

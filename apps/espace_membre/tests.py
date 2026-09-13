@@ -246,14 +246,19 @@ def test_mes_projets_ne_liste_que_les_siens(client, db):
 # --- Projets : images (affiche + galerie) ----------------------------------
 
 
-def _image_png(nom="image.png"):
-    """Fabrique une vraie image PNG minuscule (validée par ImageField/Pillow)."""
+def _image_png(nom="image.png", taille=(2, 2)):
+    """Fabrique une vraie image PNG (validée par ImageField/Pillow).
+
+    Minuscule par défaut — la plupart des tests ne regardent que le geste. Une
+    taille explicite sert là où le TRAITEMENT est en jeu : sous 600 px de large,
+    aucune vignette n'est produite, et une assertion « pas de vignette » serait
+    alors vraie sans rien prouver."""
     from io import BytesIO
 
     from PIL import Image
 
     tampon = BytesIO()
-    Image.new("RGB", (2, 2), "red").save(tampon, "PNG")
+    Image.new("RGB", taille, "red").save(tampon, "PNG")
     return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/png")
 
 
@@ -2594,3 +2599,150 @@ def test_la_page_publique_ne_porte_pas_le_bandeau_d_apercu(client, db):
 
     assert "bandeau-apercu" not in corps
     assert "Retour aux membres" in corps
+
+
+# --- Photo d'un brouillon : privée jusqu'à publication (VIT-4) --------------
+
+
+def _photo_de_brouillon(client, membre, nom="portrait.png", taille=(1200, 800)):
+    """Téléverse un portrait dans le brouillon et rend le `Media` créé.
+
+    Assez large pour qu'une vignette SOIT due : sans quoi « le brouillon n'a pas
+    de vignette » serait vrai par la taille de l'image, pas par la règle."""
+    client.post(
+        PROFIL,
+        _donnees_profil(photo_fichier=_image_png(nom, taille), photo_alt="Portrait"),
+    )
+    return brouillon_de(membre).photo
+
+
+def test_une_photo_de_brouillon_n_est_pas_ecrite_dans_la_racine_web(client, db):
+    """Cacher une page ne rend pas son portrait confidentiel : le fichier vit
+    sous MEDIA_PRIVE_ROOT, que Nginx n'expose pas."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    media = _photo_de_brouillon(client, membre)
+
+    assert media.est_prive is True
+    assert not media.fichier
+    assert media.fichier_prive.name.startswith("brouillons/")
+    # Le traitement a bien tourné sur le fichier privé (dimensions connues)…
+    assert media.largeur == 1200
+    # …mais SANS vignette : elle irait dans le stockage PUBLIC, et une miniature
+    # d'une image qu'on protège est une fuite de cette image.
+    assert not media.vignette
+
+
+def test_une_photo_de_brouillon_ne_se_lit_pas_sans_session(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    media = _photo_de_brouillon(client, membre)
+
+    client.logout()
+    reponse = client.get(f"/espace/profil/photo/{media.pk}/")
+
+    assert reponse.status_code == 302
+    assert "/connexion" in reponse["Location"] or "login" in reponse["Location"]
+
+
+def test_une_photo_de_brouillon_ne_se_lit_pas_par_un_autre_membre(client, db):
+    """ANTI-IDOR : l'identifiant est dans l'URL, donc forgeable. Le refus porte
+    sur le rattachement métier — quel brouillon référence ce média — et non sur
+    `cree_par`, qui décrit un geste et non une propriété."""
+    alice = _membre("alice")
+    bob = _membre("bob")
+    client.force_login(alice.user)
+    media = _photo_de_brouillon(client, alice)
+
+    client.force_login(bob.user)
+    reponse = client.get(f"/espace/profil/photo/{media.pk}/")
+
+    assert reponse.status_code == 404  # 404 et non 403 : ne pas confirmer l'existence
+
+
+def test_son_proprietaire_lit_sa_photo_de_brouillon(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    media = _photo_de_brouillon(client, membre)
+
+    reponse = client.get(f"/espace/profil/photo/{media.pk}/")
+
+    assert reponse.status_code == 200
+    assert "inline" in reponse["Content-Disposition"]
+
+
+def test_le_bureau_lit_la_photo_d_un_brouillon(client, db):
+    """Il accompagne les pages : la matrice du guide lui donne la lecture."""
+    from django.contrib.auth.models import Group
+
+    alice = _membre("alice")
+    client.force_login(alice.user)
+    media = _photo_de_brouillon(client, alice)
+
+    bureau = _membre("bureau")
+    bureau.user.is_staff = True
+    bureau.user.save()
+    groupe, _ = Group.objects.get_or_create(name="Bureau")
+    bureau.user.groups.add(groupe)
+    client.force_login(bureau.user)
+
+    assert client.get(f"/espace/profil/photo/{media.pk}/").status_code == 200
+
+
+def test_la_route_privee_refuse_un_media_deja_public(client, db):
+    """Le cas qui compte n'est pas un média étranger — le rattachement le
+    refuse déjà — mais le média du demandeur APRÈS publication : le brouillon
+    le référence encore, et son fichier privé n'existe plus. Sans ce garde, la
+    route ouvrirait un fichier vide et rendrait une erreur 500.
+
+    Un lien resté ouvert dans un onglet suffit à y arriver."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    media = _photo_de_brouillon(client, membre)
+    servie = client.get(f"/espace/profil/photo/{media.pk}/")
+    assert servie.status_code == 200
+    servie.close()  # sinon le fichier reste ouvert et la publication le trouve verrouillé
+
+    client.post(PROFIL, _donnees_profil(action="publier"))
+
+    media.refresh_from_db()
+    assert media.est_prive is False
+    assert brouillon_de(membre).photo_id == media.pk  # toujours référencé
+    assert client.get(f"/espace/profil/photo/{media.pk}/").status_code == 404
+
+
+def test_publier_fait_passer_la_photo_dans_la_racine_web(client, db):
+    """Publier une page, c'est aussi publier son portrait : le fichier QUITTE
+    le stockage privé. Sans ce déplacement, la page publiée montrerait un cadre
+    vide — les gabarits publics testent `fichier`."""
+    membre = _membre("alice")
+    membre.visible_sur_site = True
+    membre.save()
+    client.force_login(membre.user)
+    media = _photo_de_brouillon(client, membre)
+    nom_prive = media.fichier_prive.name
+
+    client.post(PROFIL, _donnees_profil(action="publier"))
+
+    media.refresh_from_db()
+    assert media.est_prive is False
+    assert media.fichier.name.startswith("medias/")
+    assert not media.fichier_prive.storage.exists(nom_prive)
+
+    membre.refresh_from_db()
+    assert membre.photo_id == media.pk
+    corps = client.get(membre.get_absolute_url()).content.decode()
+    assert media.fichier.url in corps
+
+
+def test_l_apercu_sert_la_photo_du_brouillon_par_la_route_protegee(client, db):
+    membre = _membre("alice")
+    membre.visible_sur_site = True
+    membre.save()
+    client.force_login(membre.user)
+    media = _photo_de_brouillon(client, membre)
+
+    corps = client.get(APERCU).content.decode()
+
+    assert f"/espace/profil/photo/{media.pk}/" in corps

@@ -12,6 +12,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from apps.common.stockage import StockagePrive
+
 
 class Media(models.Model):
     """Image téléversée ou vidéo externe, réutilisable par les autres domaines."""
@@ -31,6 +33,21 @@ class Media(models.Model):
         upload_to="medias/%Y/%m/",
         blank=True,
         help_text="Pour un média de type image.",
+    )
+    # Une image PAS ENCORE PUBLIÉE — la photo d'un brouillon de page artiste —
+    # ne vit pas dans la racine web : elle est écrite sous `MEDIA_PRIVE_ROOT`,
+    # que Nginx n'expose pas, et servie par une vue qui contrôle les droits.
+    # Cacher la page ne rend pas son image confidentielle, et une URL difficile
+    # à deviner n'est pas un contrôle d'accès.
+    #
+    # Un média est dans l'un des deux états, jamais les deux : privé tant qu'il
+    # n'est pas publié, public ensuite. Publier DÉPLACE le fichier.
+    fichier_prive = models.ImageField(
+        "fichier image (brouillon)",
+        storage=StockagePrive,
+        upload_to="brouillons/%Y/%m/",
+        blank=True,
+        editable=False,
     )
     # Dimensions et vignette sont DÉRIVÉES du fichier (cf. `services.py`) :
     # ni saisies ni modifiables à la main. Les dimensions servent à réserver la
@@ -72,6 +89,30 @@ class Media(models.Model):
         verbose_name = "média"
         verbose_name_plural = "médias"
         ordering = ["-date_creation"]
+
+    @property
+    def est_prive(self) -> bool:
+        """Vrai si l'image n'est pas encore publiée, donc pas servie par Nginx."""
+        return bool(self.fichier_prive)
+
+    @property
+    def image(self):
+        """Le fichier image de ce média, public ou privé — celui qui existe.
+
+        Les traitements (réduction, dimensions) passent par là ; l'affichage,
+        lui, doit distinguer les deux, puisqu'un fichier privé n'a pas d'URL.
+        """
+        return self.fichier_prive if self.est_prive else self.fichier
+
+    @property
+    def a_une_image(self) -> bool:
+        """Vrai si le média porte une image, publiée ou non.
+
+        Les gabarits publics testent `media.fichier` : un média privé y est donc
+        écarté sans rien afficher, ce qui est le bon défaut. Les écrans qui ONT
+        le droit de le montrer — l'édition et l'aperçu — testent celle-ci.
+        """
+        return bool(self.image)
 
     @classmethod
     def from_db(cls, db, field_names, values):

@@ -39,7 +39,13 @@
 
     <div class="fiche-membre__corps">
       <div class="fiche-membre__col-photo">
-        {% if membre.photo and membre.photo.fichier %}
+        {% comment %}
+          `a_une_image` et non `fichier` : dans l'aperçu, la photo du brouillon
+          n'est pas encore publiée. Les autres gabarits publics gardent
+          `fichier`, qui écarte sans rien afficher — c'est le bon défaut là où
+          une image non publiée n'a rien à faire.
+        {% endcomment %}
+        {% if membre.photo and membre.photo.a_une_image %}
           {% include "_image.html" with media=membre.photo classe="fiche-membre__photo" tailles="(min-width: 48rem) 30rem, 90vw" prioritaire=1 %}
         {% endif %}
         {% if membre.site_web or membre.liens_reseaux.all %}

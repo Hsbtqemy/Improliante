@@ -56,7 +56,7 @@
 
     <fieldset class="formulaire__images">
       <legend>Photo</legend>
-      {% if brouillon.photo and brouillon.photo.fichier %}
+      {% if brouillon.photo and brouillon.photo.a_une_image %}
         <figure class="apercu-image">
           {% include "_image.html" with media=brouillon.photo largeur_affichee=160 tailles="160px" %}
         </figure>

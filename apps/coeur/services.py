@@ -14,7 +14,10 @@ recopie le second sur le premier, d'un seul coup et sous verrou.
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+
 from django.contrib.auth.tokens import default_token_generator
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.encoding import force_bytes
@@ -197,18 +200,67 @@ def definir_photo(cible, fichier, alt: str, *, cree_par=None):
     `Membre` — la page publiée, que seul le bureau écrit en direct —, soit un
     `BrouillonPageArtiste`. Une seule fonction pour les deux, sinon la version
     publiée et le brouillon finiraient par ne plus créer le même `Media`.
+
+    L'image d'un brouillon est écrite dans le stockage PRIVÉ : cacher une page
+    ne rend pas son portrait confidentiel, et une URL difficile à deviner n'est
+    pas un contrôle d'accès. La règle se déduit de la cible plutôt que d'un
+    drapeau qu'un appelant pourrait oublier — l'oubli serait une image en ligne
+    avant l'heure, et personne ne le verrait.
     """
     from apps.medias.models import Media
 
-    media = Media.objects.create(
-        type_media=Media.TypeMedia.IMAGE,
-        fichier=fichier,
-        alt=alt,
-        cree_par=cree_par,
-    )
+    media = Media(type_media=Media.TypeMedia.IMAGE, alt=alt, cree_par=cree_par)
+    if isinstance(cible, BrouillonPageArtiste):
+        media.fichier_prive = fichier
+    else:
+        media.fichier = fichier
+    media.save()
     cible.photo = media
     cible.save(update_fields=["photo", "date_modification"])
     return media
+
+
+def publier_photo_de_brouillon(media) -> bool:
+    """Fait passer l'image d'un brouillon dans le stockage public.
+
+    Publier une page, c'est aussi publier son portrait : le fichier QUITTE
+    `MEDIA_PRIVE_ROOT` pour la racine web. La copie publique est écrite AVANT
+    que l'originale ne soit supprimée — l'inverse perdrait l'image si
+    l'écriture échouait.
+
+    C'est ici, et pas au téléversement, que l'image reçoit sa vignette :
+    `Media.save()` voit un fichier public neuf et relance le traitement. Au
+    brouillon elle n'en avait pas, parce qu'une vignette part dans le stockage
+    public et qu'une miniature d'une image qu'on protège est une fuite de cette
+    image.
+
+    Un déplacement de fichier ne se défait pas avec une transaction : si celle
+    qui l'entoure échoue après coup, la base dit « privé » et une copie publique
+    reste sur le disque. C'est un fichier orphelin, pas une fuite — rien ne le
+    référence.
+    """
+    if not media.est_prive:
+        return False
+
+    ancien = media.fichier_prive
+    stockage, nom_prive = ancien.storage, ancien.name
+    with ancien.open("rb") as source:
+        octets = source.read()
+
+    media.fichier.save(PurePosixPath(nom_prive).name, ContentFile(octets), save=False)
+    media.fichier_prive = ""
+    media.save()
+
+    # La suppression de l'original est un NETTOYAGE, pas la publication : elle
+    # peut échouer (fichier encore ouvert, droits, disque distant) et ne doit
+    # alors rien empêcher. Ce qui reste est un fichier que plus rien ne
+    # référence, et que la route privée refuse désormais de servir puisque le
+    # média n'est plus privé.
+    try:
+        stockage.delete(nom_prive)
+    except OSError:
+        pass
+    return True
 
 
 def retirer_photo(cible) -> None:
@@ -311,6 +363,11 @@ def publier_page_artiste(membre: Membre, *, par=None) -> bool:
     brouillon = BrouillonPageArtiste.objects.filter(membre=courant).first()
     if brouillon is None or brouillon.contenu_public == courant.contenu_public:
         return False
+
+    # Le portrait quitte le stockage privé avant que la fiche ne le désigne :
+    # publier la page sans publier son image montrerait un cadre vide.
+    if brouillon.photo_id and brouillon.photo.est_prive:
+        publier_photo_de_brouillon(brouillon.photo)
 
     for nom, valeur in brouillon.contenu_public.items():
         setattr(courant, nom, valeur)

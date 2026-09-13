@@ -60,6 +60,7 @@ urlpatterns = [
     path("espace/", views.tableau_de_bord, name="tableau_de_bord"),
     path("espace/profil/", views.mon_profil, name="mon_profil"),
     path("espace/profil/apercu/", views.apercu_ma_page, name="apercu_ma_page"),
+    path("espace/profil/photo/<int:pk>/", views.photo_de_brouillon, name="photo_brouillon"),
     path("espace/projets/", views.mes_projets, name="mes_projets"),
     path("espace/projets/nouveau/", views.creer_projet, name="creer_projet"),
     path("espace/projets/<int:pk>/", views.voir_projet, name="voir_projet"),

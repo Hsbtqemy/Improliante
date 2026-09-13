@@ -39,10 +39,12 @@ def preparer_media(media: Media) -> bool:
     un téléversement. La validation du formulaire, elle, refuse déjà ce qui
     n'est pas une image.
     """
-    if media.type_media != Media.TypeMedia.IMAGE or not media.fichier:
+    if media.type_media != Media.TypeMedia.IMAGE or not media.image:
         return False
     if media.largeur and (media.vignette or media.largeur <= LARGEUR_VIGNETTE):
         return False  # déjà traité : on ne rouvre pas le fichier à chaque save
+    if media.est_prive and media.largeur:
+        return False  # un brouillon n'a pas de vignette à attendre (voir plus bas)
     image = _ouvrir(media)
     if image is None:
         return False
@@ -56,8 +58,15 @@ def preparer_media(media: Media) -> bool:
 
         if image.width > LARGEUR_MAX:
             image = _reduire(image, LARGEUR_MAX)
-            _reecrire_en_place(media.fichier, _encoder(image, format_source))
+            _reecrire_en_place(media.image, _encoder(image, format_source))
         media.largeur, media.hauteur = image.size
+
+        # Pas de vignette pour un brouillon : elle irait dans le stockage
+        # PUBLIC, et une miniature d'une image qu'on protège est une fuite de
+        # cette image. Elle sera produite à la publication, quand le fichier
+        # rejoindra la racine web.
+        if media.est_prive:
+            return True
 
         if image.width > LARGEUR_VIGNETTE:
             vignette = _reduire(image, LARGEUR_VIGNETTE)
@@ -73,7 +82,7 @@ def preparer_media(media: Media) -> bool:
 def _ouvrir(media: Media) -> Image.Image | None:
     """Ouvre l'image du média, ou None si le fichier est absent/illisible."""
     try:
-        with media.fichier.open("rb") as source:
+        with media.image.open("rb") as source:
             image = Image.open(source)
             image.load()
         return image
