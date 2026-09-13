@@ -132,6 +132,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.backoffice.context_processors.roles",
+                "apps.common.context_processors.confort",
                 "apps.vitrine.context_processors.seo",
             ],
         },

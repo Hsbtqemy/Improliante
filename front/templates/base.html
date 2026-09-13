@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr" class="{{ request.COOKIES.a11y|default:'' }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme '1' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}" data-titre="{% firstof request.GET.titre request.COOKIES.titre 'systeme' %}">
+<html lang="fr" class="{{ classes_confort }}" data-theme="{% firstof request.GET.theme request.COOKIES.theme '1' %}" data-fond="{% firstof request.GET.fond request.COOKIES.fond 'mesh' %}" data-titre="{% firstof request.GET.titre request.COOKIES.titre 'systeme' %}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

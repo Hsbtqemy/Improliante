@@ -3,9 +3,27 @@
  * Les préférences sont stockées dans le cookie « a11y » (liste de classes
  * séparées par des espaces). Le serveur applique déjà ces classes sur <html>
  * au chargement (pas de FOUC) ; ce script les met à jour et réécrit le cookie.
+ *
+ * Des deux côtés, la liste est FERMÉE : le serveur relit le cookie contre elle
+ * (apps/common/context_processors.py), et ce script ne touche qu'à ces
+ * classes-là — <html> en porte d'autres, qui ne lui appartiennent pas.
  */
 (function () {
   "use strict";
+
+  // Les seules classes que ce panneau pose sur <html>. Tout le reste
+  // appartient à quelqu'un d'autre — un thème, un gabarit — et doit survivre à
+  // un réglage comme à une remise à zéro. La même liste est tenue côté serveur
+  // dans apps/common/context_processors.py, et un test refuse la divergence.
+  var CLASSES_CONFORT = [
+    "txt-grand",
+    "txt-max",
+    "contraste",
+    "sombre",
+    "espacement",
+    "dyslexie",
+    "anim-reduites",
+  ];
 
   var html = document.documentElement;
   var bouton = document.getElementById("a11y-bouton");
@@ -15,13 +33,24 @@
   }
 
   function classesActuelles() {
-    return (html.getAttribute("class") || "").split(/\s+/).filter(Boolean);
+    return (html.getAttribute("class") || "").split(/\s+/).filter(function (c) {
+      return CLASSES_CONFORT.indexOf(c) >= 0;
+    });
   }
 
   function enregistrer(liste) {
-    html.setAttribute("class", liste.join(" "));
+    // Une classe à la fois, et seulement les nôtres : réécrire l'attribut
+    // entier emportait tout ce que <html> portait par ailleurs. Rien ne le
+    // montrait tant que le thème passait par `data-theme` — poser un thème en
+    // classe aurait suffi à le faire disparaître au premier réglage.
+    var retenues = CLASSES_CONFORT.filter(function (c) {
+      return liste.indexOf(c) >= 0;
+    });
+    CLASSES_CONFORT.forEach(function (c) {
+      html.classList.toggle(c, retenues.indexOf(c) >= 0);
+    });
     document.cookie =
-      "a11y=" + liste.join(" ") + "; path=/; max-age=31536000; samesite=Lax";
+      "a11y=" + retenues.join(" ") + "; path=/; max-age=31536000; samesite=Lax";
     majEtats();
   }
 

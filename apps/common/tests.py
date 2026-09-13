@@ -6,6 +6,8 @@ On teste sur un modèle concret héritant du mixin `Moderation` — ici
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -805,3 +807,45 @@ def test_un_champ_refuse_relie_ses_messages_sans_dupliquer_d_identifiant():
         assert cible in ids, f"référence dans le vide : {cible}"
 
     assert html.count('class="champ__erreur"') == 2, "les deux messages ne sont plus deux blocs"
+
+
+# --- Confort de lecture : le panneau ne touche qu'à ses classes (VIT-4) ------
+
+
+def test_le_cookie_de_confort_est_relu_contre_une_liste_fermee(client, db):
+    """Le cookie `a11y` est rendu sur `<html>` par le serveur. Il se fabrique à
+    la main : ce qu'il annonce est vérifié, pas recopié. Django échappe déjà
+    l'attribut — ce qui est en jeu ici, c'est de poser sur `<html>` une classe
+    du site que le confort n'a aucune raison de porter."""
+    client.cookies["a11y"] = "sombre classe-inventee txt-grand sombre"
+    corps = client.get("/").content.decode()
+
+    assert 'class="sombre txt-grand"' in corps  # connues, dans l'ordre, sans doublon
+    assert "classe-inventee" not in corps
+
+
+def test_les_deux_listes_de_confort_ne_divergent_pas():
+    """Le serveur rend les classes, le script les bascule : deux listes, une
+    règle. Une divergence ne se verrait pas — la page continuerait de
+    s'afficher, en perdant simplement un réglage au premier clic."""
+    import re
+
+    from apps.common.context_processors import CLASSES_CONFORT
+
+    source = pathlib.Path("front/static/js/accessibilite.js").read_text(encoding="utf-8")
+    bloc = re.search(r"var CLASSES_CONFORT = \[(.*?)\];", source, re.DOTALL)
+    assert bloc, "la liste fermée a disparu du script"
+    cote_navigateur = tuple(re.findall(r'"([^"]+)"', bloc.group(1)))
+
+    assert cote_navigateur == CLASSES_CONFORT
+
+
+def test_le_script_de_confort_ne_reecrit_jamais_l_attribut_class():
+    """Le défaut que le guide de refonte signalait : `setAttribute("class", …)`
+    écrase TOUT ce que `<html>` porte. Rien ne cassait tant que le thème passait
+    par `data-theme` et que rien d'autre ne posait de classe — poser un thème
+    artiste en classe suffisait à le faire disparaître au premier réglage.
+    L'invariant tient la porte fermée pour la suite."""
+    source = pathlib.Path("front/static/js/accessibilite.js").read_text(encoding="utf-8")
+    assert 'setAttribute("class"' not in source
+    assert "classList.toggle" in source
