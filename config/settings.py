@@ -272,6 +272,60 @@ INSTAGRAM_CACHE_TTL = int(os.environ.get("INSTAGRAM_CACHE_TTL", "1800"))  # seco
 INSTAGRAM_TIMEOUT = int(os.environ.get("INSTAGRAM_TIMEOUT", "5"))  # secondes
 
 
+# --- Formulaires publics : limitation de débit (constat PUB-01) -------------
+# Trois formulaires écrivent en base ou envoient un courriel sans compte ni
+# session. Les bornes sont des RÉGLAGES et non des constantes : ce qui protège
+# une petite association un dimanche soir n'est pas ce qu'il faut la semaine
+# d'une première. Voir `apps/common/debit.py`.
+
+# Combien de relais se tiennent devant l'application. Zéro tant que le VPS
+# n'existe pas ; UN dès qu'Nginx est en façade. Mal réglé, ce nombre est le
+# seul moyen de contourner toutes les limites ci-dessous : trop bas, on lit
+# l'en-tête que le client écrit lui-même.
+PROXIES_DE_CONFIANCE = int(os.environ.get("PROXIES_DE_CONFIANCE", "0"))
+
+# (limite, fenêtre en secondes) par origine.
+DEBIT_CONTACT = (5, 3600)
+DEBIT_RESERVATION = (10, 3600)
+DEBIT_MOT_DE_PASSE = (5, 3600)
+
+# Le « mot de passe oublié » se borne DEUX fois : par origine comme les autres,
+# et par adresse visée. C'est le seul formulaire public qui envoie un courriel
+# à un TIERS choisi par le demandeur — changer d'origine est facile, la boîte
+# noyée reste la même. Sans cette seconde borne, la première ne protège rien.
+DEBIT_MOT_DE_PASSE_PAR_ADRESSE = (3, 3600)
+
+# Total de places qu'une même adresse peut détenir sur un événement. Le plafond
+# du formulaire vaut par envoi ; sans celui-ci, dix envois saturent la jauge.
+PLACES_MAX_PAR_PERSONNE = int(os.environ.get("PLACES_MAX_PAR_PERSONNE", "10"))
+
+# Un message de contact sans borne est un champ de dépôt. La valeur est large :
+# elle arrête le versement d'un fichier, pas une longue demande.
+LONGUEUR_MAX_MESSAGE = int(os.environ.get("LONGUEUR_MAX_MESSAGE", "5000"))
+
+
+# --- Caches : deux, parce qu'ils ne promettent pas la même chose ------------
+# `default` est un cache de CONFORT : il évite de redemander le flux Instagram
+# à chaque page. En mémoire de processus, chaque worker Gunicorn a le sien ;
+# le seul coût est quelques appels d'API de plus, et rien ne se perd.
+#
+# `debit` porte une GARANTIE : « pas plus de cinq envois par heure ». Un
+# compteur par worker la multiplierait par leur nombre — sans que rien ne le
+# dise, et sans qu'aucun test puisse le voir, la suite ne tournant que dans un
+# processus. Il lui faut donc un magasin partagé. Une table de base en est un,
+# sans ajouter de service à administrer ; elle se crée par la migration
+# `apps/common/migrations/0001_cache_partage.py`.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    },
+    "debit": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "cache_partage",
+    },
+}
+
+
 # --- Durcissement en production --------------------------------------------
 # Actif uniquement hors debug. `manage.py check --deploy` doit passer en prod.
 

@@ -10,6 +10,7 @@ import calendar
 from datetime import date, timedelta
 from itertools import groupby
 
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
@@ -20,6 +21,7 @@ from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement, ImageEvenement, Inscription
 from apps.coeur.models import LienReseau, Membre, ParametresAssociation
 from apps.coeur.services import membres_en_vedette
+from apps.common import debit
 from apps.common.instagram import derniers_posts_instagram
 from apps.common.pagination import paginer
 from apps.medias.models import Media
@@ -394,21 +396,47 @@ def _medias_galerie():
     return Media.objects.filter(id__in=ids).order_by("-date_creation")
 
 
+# Le message d'un refus de débit. Il ne dit pas « vous êtes bloqué » — la
+# personne devant l'écran n'est le plus souvent pas celle qu'on arrête —, et il
+# laisse une porte : l'association a une adresse et un téléphone sur la page.
+TROP_SOUVENT = (
+    "Trop d'envois depuis cette connexion ces dernières heures. "
+    "Réessayez plus tard, ou joignez l'association directement."
+)
+
+
+def _debit_depasse(requete, quoi: str, reglage) -> bool:
+    """Compte une tentative et dit s'il faut refuser.
+
+    Appelé APRÈS la validation, donc une seule fois par envoi utile : une
+    personne qui se trompe six fois de suite dans son adresse n'épuise pas sa
+    part. Ce qu'on limite est l'EFFET — un message écrit, une place prise, un
+    courriel envoyé —, pas la maladresse.
+    """
+    limite, fenetre = reglage
+    return debit.tentative_de_trop(
+        f"{quoi}:{debit.origine(requete)}", limite=limite, fenetre=fenetre
+    )
+
+
 def contact(request):
     """Formulaire de contact : persiste le message (envoi e-mail non activé)."""
     if request.method == "POST":
         form = ContactForm(request.POST)
         if form.is_valid():
-            MessageContact.objects.create(
-                nom=form.cleaned_data["nom"],
-                email=form.cleaned_data["email"],
-                sujet=form.cleaned_data["sujet"],
-                message=form.cleaned_data["message"],
-                consentement=True,
-                date_consentement=timezone.now(),
-            )
-            # Notification e-mail au bureau : à activer plus tard (backend console).
-            return redirect("vitrine:contact_merci")
+            if _debit_depasse(request, "contact", settings.DEBIT_CONTACT):
+                form.add_error(None, TROP_SOUVENT)
+            else:
+                MessageContact.objects.create(
+                    nom=form.cleaned_data["nom"],
+                    email=form.cleaned_data["email"],
+                    sujet=form.cleaned_data["sujet"],
+                    message=form.cleaned_data["message"],
+                    consentement=True,
+                    date_consentement=timezone.now(),
+                )
+                # Notification e-mail au bureau : à activer plus tard (backend console).
+                return redirect("vitrine:contact_merci")
     else:
         form = ContactForm()
     association = ParametresAssociation.load()
@@ -464,27 +492,35 @@ def inscription_evenement(request, pk: int):
 
     form = InscriptionEvenementForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        try:
-            inscription = agenda_services.inscrire(
-                evenement,
-                nom=form.cleaned_data["nom"],
-                email=form.cleaned_data["email"],
-                places=form.cleaned_data["places"],
-            )
-        except (agenda_services.PlusAssezDePlaces, agenda_services.InscriptionFermee) as erreur:
-            # La jauge a pu se remplir entre l'affichage et l'envoi : on le dit
-            # ici plutôt que de laisser une erreur 500 sur un formulaire public.
-            form.add_error(None, str(erreur))
+        if _debit_depasse(request, "reservation", settings.DEBIT_RESERVATION):
+            form.add_error(None, TROP_SOUVENT)
+            inscription = None
         else:
-            # Sans ce message, le visiteur atterrit sur sa réservation sans
-            # savoir si elle a été prise : la page décrit un état, elle ne
-            # confirme pas un geste.
-            messages.success(
-                request,
-                f"Votre réservation est confirmée pour {inscription.places} "
-                f"place{'s' if inscription.places > 1 else ''}.",
-            )
-            return redirect("vitrine:reservation", jeton=inscription.jeton)
+            try:
+                inscription = agenda_services.inscrire(
+                    evenement,
+                    nom=form.cleaned_data["nom"],
+                    email=form.cleaned_data["email"],
+                    places=form.cleaned_data["places"],
+                )
+            except (
+                agenda_services.PlusAssezDePlaces,
+                agenda_services.InscriptionFermee,
+            ) as erreur:
+                # La jauge a pu se remplir entre l'affichage et l'envoi : on le
+                # dit ici plutôt que de laisser une erreur 500 sur un
+                # formulaire public.
+                form.add_error(None, str(erreur))
+            else:
+                # Sans ce message, le visiteur atterrit sur sa réservation sans
+                # savoir si elle a été prise : la page décrit un état, elle ne
+                # confirme pas un geste.
+                messages.success(
+                    request,
+                    f"Votre réservation est confirmée pour {inscription.places} "
+                    f"place{'s' if inscription.places > 1 else ''}.",
+                )
+                return redirect("vitrine:reservation", jeton=inscription.jeton)
 
     return render(
         request,

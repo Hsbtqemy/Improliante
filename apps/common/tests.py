@@ -237,6 +237,95 @@ def _document_pdf():
     )
 
 
+# --- Limitation de débit (PUB-01) -------------------------------------------
+
+
+def _requete(adresse="203.0.113.7", transmis=None):
+    from django.test import RequestFactory
+
+    meta = {"REMOTE_ADDR": adresse}
+    if transmis is not None:
+        meta["HTTP_X_FORWARDED_FOR"] = transmis
+    return RequestFactory().get("/", **meta)
+
+
+def test_sans_relais_l_en_tete_transmis_est_ignore():
+    """Le défaut, et le seul sûr tant que rien n'est devant l'application.
+
+    `X-Forwarded-For` est écrit par le CLIENT. Le lire sans savoir combien de
+    relais de confiance se tiennent devant revient à laisser l'attaquant
+    choisir son identité à chaque envoi — donc à n'avoir aucune limite, tout
+    en croyant en avoir une.
+    """
+    from apps.common.debit import origine
+
+    assert origine(_requete(transmis="198.51.100.1")) == "203.0.113.7"
+    assert origine(_requete()) == "203.0.113.7"
+
+
+def test_avec_un_relais_on_lit_la_derniere_entree_et_pas_la_premiere(settings):
+    """Nginx AJOUTE l'adresse qu'il voit à la fin de ce que le client a envoyé.
+
+    La première entrée est donc celle que le client a écrite lui-même, et la
+    dernière celle que notre propre relais a constatée. Lire la première —
+    l'erreur habituelle — rendrait la limite contournable par un en-tête.
+    """
+    from apps.common.debit import origine
+
+    settings.PROXIES_DE_CONFIANCE = 1
+    forge = "10.0.0.1, 10.0.0.2"
+    assert origine(_requete(transmis=f"{forge}, 198.51.100.9")) == "198.51.100.9"
+    # Deux relais (un CDN devant Nginx) : on remonte d'un cran, pas plus.
+    settings.PROXIES_DE_CONFIANCE = 2
+    assert origine(_requete(transmis=f"{forge}, 198.51.100.9")) == "10.0.0.2"
+
+
+def test_un_en_tete_trop_court_retombe_sur_l_adresse_du_relais(settings):
+    """Une requête directe alors qu'on attend un relais : on ne devine pas.
+
+    Sans ce repli, `maillons[-2]` sur une liste d'un seul élément lèverait, ou
+    pire, rendrait la mauvaise entrée.
+    """
+    from apps.common.debit import origine
+
+    settings.PROXIES_DE_CONFIANCE = 2
+    assert origine(_requete(transmis="198.51.100.9")) == "203.0.113.7"
+
+
+def test_le_compteur_laisse_passer_la_limite_puis_refuse(db):
+    from apps.common.debit import oublier, tentative_de_trop
+
+    oublier("essai")
+    passages = [tentative_de_trop("essai", limite=3, fenetre=60) for _ in range(5)]
+    assert passages == [False, False, False, True, True]
+
+
+def test_deux_cles_ne_se_partagent_pas_leur_compteur(db):
+    from apps.common.debit import tentative_de_trop
+
+    assert tentative_de_trop("a", limite=1, fenetre=60) is False
+    assert tentative_de_trop("a", limite=1, fenetre=60) is True
+    assert tentative_de_trop("b", limite=1, fenetre=60) is False
+
+
+def test_le_compteur_ne_stocke_pas_la_cle_en_clair(db):
+    """La clé porte une adresse électronique ; le cache est une table de la base.
+
+    La conserver en clair serait la conserver quand même, sous un autre nom —
+    alors qu'on n'a jamais demandé à la garder.
+    """
+    from django.db import connection
+
+    from apps.common.debit import tentative_de_trop
+
+    tentative_de_trop("motdepasse-adresse:camille@example.org", limite=9, fenetre=60)
+    with connection.cursor() as curseur:
+        curseur.execute("SELECT cache_key FROM cache_partage")
+        cles = " ".join(ligne[0] for ligne in curseur.fetchall())
+    assert "camille@example.org" not in cles
+    assert cles, "aucune entrée écrite : le contrôle ne regarde rien"
+
+
 def test_reponse_fichier_prive_sert_le_contenu_en_dev(db):
     """Mode dev (UTILISER_X_ACCEL=False) : Django sert lui-même le flux."""
     document = _document_pdf()

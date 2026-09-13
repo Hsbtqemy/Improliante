@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django import forms
+from django.conf import settings
 
 
 class ContactForm(forms.Form):
@@ -11,7 +12,14 @@ class ContactForm(forms.Form):
     nom = forms.CharField(max_length=200, label="Votre nom")
     email = forms.EmailField(label="Votre e-mail")
     sujet = forms.CharField(max_length=200, required=False, label="Sujet")
-    message = forms.CharField(widget=forms.Textarea, label="Votre message")
+    # Sans borne, le champ est une zone de dépôt — l'audit le relevait comme
+    # « pas de longueur métier explicite ». La valeur est large : elle arrête
+    # le versement d'un fichier, pas une longue demande.
+    message = forms.CharField(
+        widget=forms.Textarea,
+        label="Votre message",
+        max_length=settings.LONGUEUR_MAX_MESSAGE,
+    )
     consentement = forms.BooleanField(
         required=True,
         label="J'accepte que mes données soient traitées pour répondre à ma demande.",

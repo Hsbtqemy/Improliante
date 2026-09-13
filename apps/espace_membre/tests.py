@@ -2375,6 +2375,86 @@ def _lien_de_reinitialisation(corps):
     return trouve.group(0) if trouve else None
 
 
+# --- « Mot de passe oublié » : le seul formulaire qui écrit à un tiers (PUB-01)
+
+
+def _demande_de_lien(client, adresse="alice@example.org", origine="203.0.113.7"):
+    return client.post("/mot-de-passe/oublie/", {"email": adresse}, REMOTE_ADDR=origine)
+
+
+def _membre_joignable(nom="alice", adresse="alice@example.org"):
+    membre = _membre(nom)
+    membre.user.email = adresse
+    membre.user.save(update_fields=["email"])
+    return membre
+
+
+def test_une_boite_ne_se_noie_pas_par_repetition(client, db, mailoutbox, settings):
+    """L'abus visé : on saisit l'adresse de QUELQU'UN D'AUTRE, et c'est sa
+    boîte qui reçoit. Le lot qui a ajouté ce parcours ne l'a borné en rien."""
+    _membre_joignable()
+    settings.DEBIT_MOT_DE_PASSE = (99, 3600)  # on isole la borne par adresse
+    settings.DEBIT_MOT_DE_PASSE_PAR_ADRESSE = (2, 3600)
+
+    for _ in range(6):
+        _demande_de_lien(client)
+
+    assert len(mailoutbox) == 2
+
+
+def test_changer_d_origine_ne_rouvre_pas_la_part_d_une_adresse(client, db, mailoutbox, settings):
+    """Une limite par origine seule ne protégerait personne : changer d'origine
+    ne coûte rien, alors que la boîte noyée reste la même."""
+    _membre_joignable()
+    settings.DEBIT_MOT_DE_PASSE = (99, 3600)
+    settings.DEBIT_MOT_DE_PASSE_PAR_ADRESSE = (2, 3600)
+
+    for n in range(6):
+        _demande_de_lien(client, origine=f"203.0.113.{n}")
+
+    assert len(mailoutbox) == 2
+
+
+def test_une_origine_bloquee_n_epuise_pas_la_part_d_une_adresse(client, db, mailoutbox, settings):
+    """L'ORDRE des deux bornes, et c'est tout le sujet de ce contrôle.
+
+    Si l'on comptait l'adresse alors que l'origine est déjà refusée, un
+    attaquant depuis une origine bloquée consommerait la part de sa victime et
+    l'empêcherait, elle, de recevoir son propre lien. La borne d'origine doit
+    donc sortir SANS toucher au compteur de l'adresse.
+    """
+    _membre_joignable()
+    settings.DEBIT_MOT_DE_PASSE = (1, 3600)
+    settings.DEBIT_MOT_DE_PASSE_PAR_ADRESSE = (2, 3600)
+
+    _demande_de_lien(client, origine="203.0.113.1")  # part : origine 1, adresse 1
+    _demande_de_lien(client, origine="203.0.113.1")  # refusé sur l'origine
+    _demande_de_lien(client, origine="203.0.113.9")  # la victime, ailleurs
+
+    assert len(mailoutbox) == 2, (
+        "la tentative refusée sur l'origine a consommé la part de l'adresse"
+    )
+
+
+def test_le_refus_ne_se_voit_pas_sur_la_page(client, db, mailoutbox, settings):
+    """Refuser ne doit RIEN changer à ce que la page affiche.
+
+    Elle annonce déjà qu'un courriel est parti sans le confirmer — c'est ce qui
+    empêche d'énumérer les comptes. Un message de refus visible ici le
+    rouvrirait : il dirait « cette adresse existe assez pour valoir une limite ».
+    """
+    _membre_joignable()
+    settings.DEBIT_MOT_DE_PASSE_PAR_ADRESSE = (1, 3600)
+
+    accepte = _demande_de_lien(client)
+    refuse = _demande_de_lien(client)
+    inconnue = _demande_de_lien(client, adresse="personne@example.org")
+
+    assert len(mailoutbox) == 1
+    assert accepte.status_code == refuse.status_code == inconnue.status_code == 302
+    assert accepte.url == refuse.url == inconnue.url
+
+
 def test_la_page_de_connexion_mene_au_mot_de_passe_oublie(client, db):
     """Sans ce lien, le parcours n'existe que pour qui connaît l'adresse."""
     corps = client.get("/connexion/").content.decode()

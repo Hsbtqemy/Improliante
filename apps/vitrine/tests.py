@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 from django.test import override_settings
 from django.utils import timezone
+from django.utils.html import escape
 from django.utils.timezone import make_aware
 
 from apps.agenda import services as agenda_services
@@ -303,6 +304,88 @@ def _membre_avec_video(nom="AvecVideo", identifiant="dQw4w9WgXcQ"):
     membre.video_texte = "Trois minutes de la création 2026."
     membre.save(update_fields=["video_youtube", "video_titre", "video_texte"])
     return membre
+
+
+# --- Limitation de débit des formulaires publics (PUB-01) -------------------
+
+
+def _message_de_contact(client, **extra):
+    donnees = {
+        "nom": "Camille",
+        "email": "camille@example.org",
+        "sujet": "Bonjour",
+        "message": "Une question sur la saison.",
+        "consentement": "on",
+    }
+    donnees.update(extra)
+    return client.post("/contact/", donnees)
+
+
+def test_le_contact_refuse_au_dela_de_la_limite(client, db, settings):
+    """Le champ piège arrête un robot naïf ; il n'arrête pas la répétition."""
+    from apps.vitrine.models import MessageContact
+
+    settings.DEBIT_CONTACT = (3, 3600)
+
+    for _ in range(3):
+        assert _message_de_contact(client).status_code == 302  # accepté, redirigé
+
+    refus = _message_de_contact(client)
+
+    assert refus.status_code == 200  # réaffiché, pas redirigé
+    assert escape("Trop d'envois depuis cette connexion") in refus.content.decode()
+    assert MessageContact.objects.count() == 3
+
+
+def test_un_en_tete_forge_ne_rouvre_pas_la_limite_du_contact(client, db, settings):
+    """L'attaquant contrôle `X-Forwarded-For`. Sans relais déclaré, on l'ignore.
+
+    C'est le contrôle qui donne son sens à tous les autres : une limite qu'un
+    en-tête desserre n'est pas une limite.
+    """
+    from apps.vitrine.models import MessageContact
+
+    settings.DEBIT_CONTACT = (2, 3600)
+    settings.PROXIES_DE_CONFIANCE = 0
+
+    _message_de_contact(client)
+    _message_de_contact(client, HTTP_X_FORWARDED_FOR="198.51.100.1")
+    refus = _message_de_contact(client, HTTP_X_FORWARDED_FOR="198.51.100.2")
+
+    assert refus.status_code == 200
+    assert MessageContact.objects.count() == 2
+
+
+def test_une_saisie_ratee_ne_consomme_pas_la_part(client, db, settings):
+    """On limite l'EFFET, pas la maladresse : six erreurs d'adresse d'affilée
+    ne doivent pas fermer le formulaire à quelqu'un qui n'a rien envoyé."""
+    from apps.vitrine.models import MessageContact
+
+    settings.DEBIT_CONTACT = (2, 3600)
+
+    for _ in range(6):
+        _message_de_contact(client, email="pas-une-adresse")
+
+    assert _message_de_contact(client).status_code == 302
+    assert MessageContact.objects.count() == 1
+
+
+def test_le_message_de_contact_est_borne(client, db, settings):
+    """Un champ sans borne est une zone de dépôt (constat PUB-01)."""
+    from apps.vitrine.models import MessageContact
+
+    settings.LONGUEUR_MAX_MESSAGE = 40
+    # Le formulaire lit le réglage à la CONSTRUCTION de la classe : on éprouve
+    # donc la borne réellement posée, pas celle qu'on vient d'écrire.
+    from apps.vitrine.forms import ContactForm
+
+    borne = ContactForm().fields["message"].max_length
+    assert borne, "aucune borne posée sur le message"
+
+    reponse = _message_de_contact(client, message="x" * (borne + 1))
+
+    assert reponse.status_code == 200
+    assert MessageContact.objects.count() == 0
 
 
 def test_identifiant_youtube_reconnait_les_formes_d_adresse():
@@ -871,6 +954,32 @@ def test_un_evenement_non_publie_n_accueille_personne(client, db):
 
     assert client.get(f"/agenda/{brouillon.pk}/inscription/").status_code == 404
     assert client.get(f"/agenda/{interne.pk}/inscription/").status_code == 404
+
+
+def test_la_reservation_refuse_au_dela_de_la_limite(client, db, settings):
+    """La jauge n'est plus le seul frein à une succession de réservations.
+
+    Elle reste ce qui fait autorité — le dépôt a écarté un plafond par adresse,
+    qui se contourne en changeant d'adresse et gêne un foyer légitime. La
+    limite de débit, elle, porte sur l'origine : elle ne rend pas la saturation
+    impossible, elle la rend lente.
+    """
+    evenement = _evenement_avec_jauge(places_max=200)
+    settings.DEBIT_RESERVATION = (2, 3600)
+
+    for _ in range(2):
+        assert (
+            client.post(
+                f"/agenda/{evenement.pk}/inscription/", _reservation_valide(places=1)
+            ).status_code
+            == 302
+        )
+
+    refus = client.post(f"/agenda/{evenement.pk}/inscription/", _reservation_valide(places=1))
+
+    assert refus.status_code == 200
+    assert escape("Trop d'envois depuis cette connexion") in refus.content.decode()
+    assert Inscription.objects.count() == 2
 
 
 def test_le_public_reserve_et_recoit_son_lien(client, db):

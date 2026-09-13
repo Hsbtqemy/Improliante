@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, _unicode_ci_compare
 from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
 from apps.coeur.models import BrouillonPageArtiste, LienReseau, Membre, Utilisateur
 from apps.coeur.services import identifiant_youtube
+from apps.common import debit
 from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
@@ -459,3 +461,37 @@ class MotDePasseOublieForm(PasswordResetForm):
         # enverrait alors le lien au mauvais compte.
         actifs = Utilisateur.objects.filter(email__iexact=email, is_active=True)
         return (u for u in actifs if _unicode_ci_compare(email, u.email))
+
+    def save(self, *args, request=None, **kwargs):
+        """Envoie le lien — sauf si l'on en a déjà trop envoyé.
+
+        C'est le seul formulaire public qui expédie un courriel à un TIERS
+        choisi par le demandeur : on saisit l'adresse de quelqu'un d'autre, et
+        c'est sa boîte qui reçoit. Le lot qui l'a ajouté ne l'a borné en rien.
+
+        Deux bornes, et l'ORDRE compte. L'origine d'abord : si elle a déjà trop
+        demandé, on sort SANS toucher au compteur de l'adresse — sinon un
+        attaquant depuis une origine déjà bloquée pourrait épuiser la part
+        d'une victime et l'empêcher, elle, de recevoir son lien. L'adresse
+        ensuite, parce que changer d'origine ne coûte rien alors que la boîte
+        noyée, elle, reste la même.
+
+        Refuser ne change RIEN à ce que la page affiche : elle annonce déjà
+        qu'un courriel est parti si l'adresse est connue, sans le confirmer.
+        C'est ce qui empêche d'énumérer les comptes, et un message de refus
+        visible ici le rouvrirait — il dirait « cette adresse existe assez pour
+        valoir une limite ».
+        """
+        adresse = (self.cleaned_data.get("email") or "").strip().lower()
+
+        limite, fenetre = settings.DEBIT_MOT_DE_PASSE
+        if request is not None and debit.tentative_de_trop(
+            f"motdepasse:{debit.origine(request)}", limite=limite, fenetre=fenetre
+        ):
+            return None
+
+        limite, fenetre = settings.DEBIT_MOT_DE_PASSE_PAR_ADRESSE
+        if debit.tentative_de_trop(f"motdepasse-adresse:{adresse}", limite=limite, fenetre=fenetre):
+            return None
+
+        return super().save(*args, request=request, **kwargs)
