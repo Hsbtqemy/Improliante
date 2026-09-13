@@ -9,7 +9,7 @@ les cases `name="supprimer_image"` (lues par `appliquer_images`).
   <h2>Affiche</h2>
   {% if fiche and fiche.affiche and fiche.affiche.fichier %}
     <figure class="apercu-image">
-      <img src="{{ fiche.affiche.fichier.url }}" alt="{{ fiche.affiche.alt }}" width="160" />
+      {% include "_image.html" with media=fiche.affiche largeur_affichee=160 tailles="160px" %}
     </figure>
     <p class="champ champ--case">
       <label>{{ form.retirer_affiche }} {{ form.retirer_affiche.label }}</label>
@@ -29,7 +29,7 @@ les cases `name="supprimer_image"` (lues par `appliquer_images`).
     <ul class="galerie-edition">
       {% for image in fiche.images.all %}
         <li class="galerie-edition__item">
-          <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120" />
+          {% include "_image.html" with media=image.media largeur_affichee=120 tailles="120px" %}
           <label class="champ--case">
             <input type="checkbox" name="supprimer_image" value="{{ image.pk }}" /> Retirer
           </label>

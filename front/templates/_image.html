@@ -13,7 +13,9 @@ connues » :
 
 Paramètres : `classe`, `tailles`, `decoratif` (alt vide, image redondante avec
 le texte voisin), `prioritaire` (image principale d'une fiche, visible d'emblée
-— pas de chargement différé).
+— pas de chargement différé), et `largeur_affichee` pour un aperçu dont la
+taille est fixée par le gabarit (les écrans de gestion) : les dimensions sont
+alors mises à l'échelle, pour garder le rapport sans imposer 2 000 px de large.
 {% endcomment %}
 <img
   {% if classe %}class="{{ classe }}"{% endif %}
@@ -21,7 +23,7 @@ le texte voisin), `prioritaire` (image principale d'une fiche, visible d'emblée
   {% if media.vignette %}srcset="{{ media.vignette.url }} {{ media.vignette_largeur }}w, {{ media.fichier.url }} {{ media.largeur }}w"{% endif %}
   {% if media.vignette and tailles %}sizes="{{ tailles }}"{% endif %}
   alt="{% if not decoratif %}{{ media.alt }}{% endif %}"
-  {% if media.largeur %}width="{{ media.largeur }}" height="{{ media.hauteur }}"{% endif %}
+  {% if largeur_affichee %}width="{{ largeur_affichee }}"{% if media.largeur %} height="{% widthratio media.hauteur media.largeur largeur_affichee %}"{% endif %}{% elif media.largeur %}width="{{ media.largeur }}" height="{{ media.hauteur }}"{% endif %}
   {% if prioritaire %}fetchpriority="high"{% else %}loading="lazy"{% endif %}
   decoding="async"
 />

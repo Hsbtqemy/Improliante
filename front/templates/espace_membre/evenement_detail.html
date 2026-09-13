@@ -29,11 +29,7 @@
   <div class="fiche-spectacle__corps">
     {% if evenement.affiche and evenement.affiche.fichier %}
       <div class="fiche-spectacle__col-affiche">
-        <img
-          class="fiche-spectacle__affiche"
-          src="{{ evenement.affiche.fichier.url }}"
-          alt="{{ evenement.affiche.alt }}"
-        />
+        {% include "_image.html" with media=evenement.affiche classe="fiche-spectacle__affiche" tailles="(min-width: 48rem) 30rem, 90vw" %}
       </div>
     {% endif %}
 
@@ -61,7 +57,7 @@
         <ul class="galerie-edition">
           {% for image in evenement.images.all %}
             <li class="galerie-edition__item">
-              <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120" />
+              {% include "_image.html" with media=image.media largeur_affichee=120 tailles="120px" %}
             </li>
           {% endfor %}
         </ul>

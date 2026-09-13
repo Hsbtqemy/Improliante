@@ -31,7 +31,7 @@
       <legend>Photo</legend>
       {% if membre.photo and membre.photo.fichier %}
         <figure class="apercu-image">
-          <img src="{{ membre.photo.fichier.url }}" alt="{{ membre.photo.alt }}" width="160">
+          {% include "_image.html" with media=membre.photo largeur_affichee=160 tailles="160px" %}
         </figure>
         <p class="champ champ--case">
           <label>{{ form.retirer_photo }} {{ form.retirer_photo.label }}</label>

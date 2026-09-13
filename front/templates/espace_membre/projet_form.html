@@ -60,7 +60,7 @@
         <h2>Affiche</h2>
         {% if projet and projet.affiche and projet.affiche.fichier %}
           <figure class="apercu-image">
-            <img src="{{ projet.affiche.fichier.url }}" alt="{{ projet.affiche.alt }}" width="160">
+            {% include "_image.html" with media=projet.affiche largeur_affichee=160 tailles="160px" %}
           </figure>
           <p class="champ champ--case">
             <label>{{ form.retirer_affiche }} {{ form.retirer_affiche.label }}</label>
@@ -80,7 +80,7 @@
           <ul class="galerie-edition">
             {% for image in projet.images.all %}
               <li class="galerie-edition__item">
-                <img src="{{ image.media.fichier.url }}" alt="{{ image.media.alt }}" width="120">
+                {% include "_image.html" with media=image.media largeur_affichee=120 tailles="120px" %}
                 <label class="champ--case">
                   <input type="checkbox" name="supprimer_image" value="{{ image.pk }}">
                   Retirer
