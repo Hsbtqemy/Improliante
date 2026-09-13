@@ -87,17 +87,21 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
   décrit un geste et non une propriété
 - [x] Aucune vignette n'est produite pour un brouillon : elle irait dans le stockage
   public, et une miniature d'une image protégée est une fuite de cette image
-- [ ] Le bureau voit l'aperçu d'une page qu'il accompagne : ce serait la deuxième route
-  de ce chantier à porter un identifiant, après celle des images de brouillon — donc la
-  deuxième à devoir refuser celui d'un autre
+- [x] Le bureau voit l'aperçu d'une page qu'il accompagne, depuis la fiche de la
+  personne. Deuxième route du chantier à porter un identifiant, et elle ne se ferme pas
+  comme la première : celle des images refuse sur le rattachement, celle-ci sur le rôle —
+  le bureau est indivisible (décision du 12 septembre, SEC-04 écarté)
+- [x] Le bandeau d'aperçu dit **de qui** est la page quand ce n'est pas celle du lecteur :
+  « voici votre page » adressé au bureau lui ferait croire qu'il édite la sienne
 - [x] Une saisie du bureau sur la fiche emmène le brouillon avec elle **s'il ne portait
   aucun travail en cours** — sinon l'écran du bureau annoncerait pour toujours des
   modifications que l'artiste n'a pas faites, et la publication de l'artiste rendrait la
   fiche à sa valeur d'avant
 - [x] Les champs recopiés par « Publier » se déduisent du jeu partagé : en ajouter un
   n'oblige personne à se souvenir d'une liste
-- [ ] L'admin Django écrit `Membre` sans passer par l'alignement du brouillon : c'est la
-  porte de service, et elle rouvre le décalage que le back-office referme
+- [x] L'admin Django ne contourne plus l'alignement du brouillon : `save_model` aligne
+  comme le back-office, et avertit quand il ne peut pas — c'est-à-dire quand il y a
+  vraiment du travail en cours
 - [ ] Les réseaux sociaux et le téléphone entrent dans le brouillon, ou l'écran continue
   de dire pourquoi ils n'y sont pas — aujourd'hui il le dit, à côté du geste
 
@@ -138,6 +142,12 @@ Ce qui ne passe **pas** par le brouillon, et que l'écran dit là où le geste s
 téléphone, qui n'est pas public et n'a donc pas de version publique à protéger, et les
 réseaux sociaux, qui sont une liste et non une présentation. La ligne est arbitraire ;
 elle est au moins écrite à l'écran plutôt que devinée.
+
+**Ce qui reste ouvert, et pourquoi.** Quatre cases sur les sept restantes attendent
+VIT-3 ou une décision : les deux compositions et la couleur d'accent se jugent avec le
+fond et la police en place, et la ligne entre ce qui se publie et ce qui part tout de
+suite est un choix de produit, pas une tâche. La cinquième — le lecteur YouTube au clic —
+ne dépend de rien : c'est le prochain lot possible sans rien décider.
 
 **Ce que la relecture du lot brouillon a trouvé.** Un commentaire qui mentait — la
 liste des champs recopiés par « Publier » était tenue à la main alors que le texte

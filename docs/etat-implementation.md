@@ -59,6 +59,12 @@ privé, jamais les deux : publier déplace le fichier, puis `Media.save()`
 relance le traitement et produit enfin la vignette (au brouillon elle serait
 partie dans le stockage public). La location `internal` de Nginx couvre déjà la
 racine privée entière : rien à changer au déploiement.
+
+**Aperçu** : `vitrine/views.py::apercu_fiche_membre` rend la fiche avec les
+valeurs du brouillon, sur une instance non enregistrée, sans cache partagé ni
+indexation — et ne décide de rien sur les droits. Deux portes s'en servent et
+ne se ferment pas pareil : l'espace membre (aucun identifiant d'URL, donc rien à
+forger) et le back-office (`@bureau_requis`, identifiant dans l'URL).
 Tableau de bord (à traiter, prochaines dates, projets), **proposer son projet**
 (spectacle) et **son événement**, chacun présenté d'abord en **fiche lecture**
 (`voir_projet` / `voir_evenement`, URL `.../<pk>/`) avec bouton **Modifier**
