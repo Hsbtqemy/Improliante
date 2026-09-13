@@ -697,6 +697,23 @@ def _tailles_de_classe_declarees():
     return tailles
 
 
+def _plancher_du_h2_global():
+    """Le plancher du `clamp()` que porte la règle `h2` nue du CSS.
+
+    Un h2 sans classe dimensionnée n'est pas une inconnue : il vaut au moins ce
+    plancher, à toute largeur de fenêtre. Le lire ici plutôt que l'écrire en dur
+    fait suivre la mesure si l'échelle des titres bouge.
+    """
+    import re
+
+    from django.contrib.staticfiles import finders
+
+    css = pathlib.Path(finders.find("css/site.css")).read_text(encoding="utf-8")
+    regle = re.search(r"^h2\s*\{[^}]*?font-size:\s*clamp\(\s*([\d.]+)rem", css, re.M)
+    assert regle, "la règle `h2 { font-size: clamp(...) }` ne se lit plus dans le CSS"
+    return float(regle.group(1))
+
+
 def test_aucun_titre_de_section_n_est_plus_petit_que_ce_qu_il_groupe(client, db):
     """Le mois de l'agenda était en 1.05rem, les titres d'événements qu'il
     groupe en 1.15rem : le contenu pesait plus lourd que son intitulé.
@@ -714,40 +731,72 @@ def test_aucun_titre_de_section_n_est_plus_petit_que_ce_qu_il_groupe(client, db)
 
     tailles = _tailles_de_classe_declarees()
     assert len(tailles) >= 40, f"{len(tailles)} classes dimensionnées : le CSS se lit mal"
+    plancher = _plancher_du_h2_global()
 
     def mesure(attributs):
+        """(libellé, taille) d'un titre — `None` quand on ne peut pas trancher."""
         classes = re.search(r'class="([^"]*)"', attributs)
-        if not classes:
+        noms = classes.group(1).split() if classes else []
+        dimensionnees = [nom for nom in noms if nom in tailles]
+        # Deux classes dimensionnées sur le même titre : la cascade départage
+        # par spécificité puis par ordre DANS LA FEUILLE, que cette lecture ne
+        # porte pas. Prendre la dernière de l'attribut serait deviner — et une
+        # mesure qui devine juste par hasard ne prouve rien. Aucun titre du site
+        # n'est dans ce cas aujourd'hui ; le jour où ça arrive, on veut l'entendre.
+        assert len(dimensionnees) <= 1, (
+            f"titre portant deux classes dimensionnées ({' '.join(dimensionnees)}) : "
+            "la mesure ne peut pas départager, il faut lui apprendre la cascade"
+        )
+        if not dimensionnees:
             return None, None
-        for classe in reversed(classes.group(1).split()):
-            if classe in tailles:
-                return classe, tailles[classe]
-        return None, None
+        return f".{dimensionnees[0]}", tailles[dimensionnees[0]]
 
-    fautives, compares = [], set()
+    fautives, compares, comparaisons = [], set(), 0
     for url, html in _pages_sans_parametre(client):
         corps = html.split('<main id="contenu"', 1)[-1].split("</main>", 1)[0]
         ouvert = (None, None)
         for balise, attributs in re.findall(r"<h([23])\b([^>]*)>", corps):
-            classe, taille = mesure(attributs)
+            libelle, taille = mesure(attributs)
             if balise == "2":
-                # Un h2 sans taille déclarée ferme quand même la section
-                # précédente : la laisser ouverte comparerait un h3 au h2 d'un
-                # autre bloc de la page.
-                ouvert = (classe, taille)
+                # Un h2 sans classe dimensionnée n'est pas une inconnue : la
+                # règle globale lui donne au moins le plancher de son `clamp()`,
+                # à toute largeur. Sans ce repli, soixante sections sur soixante
+                # et une n'étaient pas mesurées — et la mesure ne comparait
+                # qu'une seule paire sur tout le site, celle qu'elle venait de
+                # faire corriger.
+                #
+                # Angle mort assumé : deux règles contextuelles rapetissent des
+                # h2 sans classe — `.bloc-form > h2` (1.05rem) et
+                # `.espace-grille--avec-nav h2` (plancher 1.15rem). Les lire
+                # demanderait de résoudre le DOM, pas des expressions
+                # régulières. L'erreur va donc toujours dans le même sens : on
+                # surestime ces h2-là, donc on peut MANQUER une inversion,
+                # jamais en inventer une.
+                ouvert = (libelle or "h2", taille if taille is not None else plancher)
                 continue
-            if ouvert[1] is None or taille is None:
+            if taille is None or ouvert[1] is None:
+                # `ouvert[1]` est None tant qu'aucun h2 n'a ouvert de section :
+                # un h3 placé avant le premier h2 ne se compare à rien. Le plan
+                # des titres l'interdit déjà, mais l'interdit d'un autre test
+                # n'est pas une garantie ici — sans ce garde, on planterait.
                 continue
+            comparaisons += 1
             compares.add(ouvert[0])
             if taille > ouvert[1]:
                 fautives.append(
-                    f"{url} → h3 .{classe} ({taille}rem) > h2 .{ouvert[0]} ({ouvert[1]}rem)"
+                    f"{url} → h3 {libelle} ({taille}rem) > h2 {ouvert[0]} ({ouvert[1]}rem)"
                 )
 
-    # Le témoin nommé : sans lui, une mesure qui ne compare plus rien passerait.
-    assert "agenda-mois__titre" in compares, (
+    # Deux témoins, parce qu'ils ne disent pas la même chose : le nom garde le
+    # cas qui a motivé la mesure, le nombre garde le reste du site. Le nom
+    # d'abord : quand les deux tombent, c'est lui qui nomme ce qui a bougé.
+    assert ".agenda-mois__titre" in compares, (
         "la paire mois / carte de l'agenda n'est plus comparée — le contrôle "
-        f"passerait en ne regardant rien (comparé : {sorted(compares)})"
+        f"passerait à côté du cas qui l'a motivé (comparé : {sorted(compares)})"
+    )
+    assert comparaisons >= 8, (
+        f"{comparaisons} paire(s) comparée(s) : la mesure ne regarde presque plus "
+        "rien du reste du site"
     )
     assert not fautives, "titre de section plus petit que son contenu :\n  " + "\n  ".join(
         sorted(set(fautives))
