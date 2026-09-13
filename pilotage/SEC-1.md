@@ -58,7 +58,7 @@ constats sur trente sont clos.
 - [x] Décidé, pour une adhésion portant un reçu émis : **refus** (association, 13 septembre). Le service refuse, l'écran n'offre plus le bouton et la colonne voisine dit pourquoi, l'admin applique la même règle ; les transactions restent détachées — point 6, et l'inventaire ARCH-01 se clôt avec lui
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
 - [x] PERF-01, les requêtes : le nombre de requêtes d'une page publique ne suit plus le nombre d'objets affichés — liste des spectacles (le N+1 mesuré par l'audit), accueil, liens de la page association. Trois tests portent sur la croissance, pas sur un total. Galerie paginée, et le flux Instagram sert sa dernière réponse valide quand l'API tombe
-- [ ] PERF-01, les images : servies à la taille affichée et non en pleine résolution, avec des dimensions connues (pas de saut de mise en page) — aujourd'hui une photo de 5 Mio peut habiller une vignette
+- [x] PERF-01, les images : réduites à 2 000 px au téléversement, flanquées d'une vignette de 600 px proposée en `srcset` (avec `sizes`, sans quoi le navigateur reprend la grande), et dimensions stockées pour que la place soit réservée. Le stock déjà en base se reprend par `manage.py preparer_medias` — case portée par DEP-1
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
 - [ ] FRONT-04 et FRONT-05 sont portés par VIT-4, à venir : cette case tombe quand VIT-4 les cite dans son propre `Reste`. GED-02 et GED-03 restent en v2 assumée, sans case ici
 
@@ -123,6 +123,30 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 17 — les images, décidées par l'association.** Trois niveaux étaient possibles ;
+le choix s'est porté sur le plus complet, celui que l'audit demandait au mot près :
+réduction à l'envoi, vignette, `srcset`. Une photo de téléphone de 3 000 px descend à
+2 000 et perd les trois quarts de son poids ; une vignette de 600 px l'accompagne, et
+c'est elle que le téléphone télécharge.
+
+Deux détails ont demandé un choix. Le **format d'origine est conservé** — réencoder un
+PNG en JPEG « pour gagner des octets » aplatirait une transparence et obligerait à
+renommer le fichier, donc à changer son URL. Et le fichier réduit est réécrit **sous le
+même nom**, par le stockage plutôt que par le champ : `save()` aurait laissé l'original
+à côté, Django suffixant un nom déjà pris.
+
+Le traitement vit dans `Media.save()`, pas dans les cinq services qui créent des médias
+ni dans l'admin : c'est le seul endroit que tous les chemins traversent. Il est
+idempotent — sans quoi chaque enregistrement réencoderait l'image, qui perdrait un peu
+de qualité à chaque passage — et silencieux sur un fichier absent ou illisible : un
+confort ne doit pas faire tomber un téléversement. Remplacer le fichier d'un média jette
+les dimensions et la vignette d'avant, qui ne décrivent plus rien.
+
+Côté gabarits, un seul fragment (`_image.html`) porte `srcset`, `sizes`, les dimensions
+et le chargement différé, pour les dix images publiques. `sizes` n'est pas un détail :
+sans lui, le navigateur suppose toute la largeur de l'écran et reprend la grande image —
+le `srcset` n'aurait servi à rien.
 
 **Le lot 16 — PERF-01, mesuré avant d'être corrigé.** L'audit annonçait « un N+1 mesuré » ;
 la sonde en a trouvé trois, et pas ceux qu'on croyait. La liste des spectacles passait de

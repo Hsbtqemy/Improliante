@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~660 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~670 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---
@@ -156,6 +156,25 @@ Trois invariants de balayage tiennent tout ça sur les 64 pages rendues
 identifiant rendu deux fois, un nom accessible pour chaque champ, bouton et lien.
 Un formulaire rendu plusieurs fois sur une page doit porter un `auto_id` distinct
 par copie (cf. `_form_dossier` dans `apps/espace_membre/views.py`).
+
+### Images téléversées
+Tout `Media` image est préparé à l'enregistrement (`medias/services.py`, appelé
+par `Media.save()` — le seul point que tous les chemins traversent, admin
+compris) : réduction à **2 000 px**, **vignette de 600 px**, dimensions
+stockées. Le **format d'origine est conservé** (une transparence ne s'aplatit
+pas, l'URL ne change pas) et le fichier réduit est réécrit **sous le même nom**,
+par le stockage — `champ.save()` laisserait l'original à côté.
+
+Le traitement est **idempotent** (sinon chaque `save` réencoderait) et
+**silencieux** sur un fichier absent ou illisible : c'est un confort, il ne doit
+pas faire échouer un téléversement. Remplacer le fichier d'un média jette les
+dimensions et la vignette d'avant. Le stock antérieur se reprend par
+`manage.py preparer_medias`.
+
+Côté gabarits, un seul fragment — `front/templates/_image.html` — porte
+`srcset` (vignette + image), `sizes`, `width`/`height` et le chargement différé.
+`sizes` est indispensable : sans lui le navigateur suppose 100 % de la largeur
+et reprend la grande image.
 
 ### Budget de requêtes
 Une page publique ne doit pas voir son nombre de requêtes SQL suivre le nombre

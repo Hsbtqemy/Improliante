@@ -22,6 +22,7 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] `/srv/asso/app.env` porte `DJANGO_SECRET_KEY` et les `DB_*`, en mode 0600, hors dépôt — règle 3 de CLAUDE.md, vérifiée par un `git check-ignore` et un `stat`
 - [ ] `DEBUG` vaut False en production et `manage.py check --deploy` sort sans avertissement — règle 6 de CLAUDE.md
 - [ ] `manage.py migrate` puis `collectstatic --noinput` passent sur le VPS, et Nginx sert bien le `STATIC_ROOT` produit
+- [ ] `manage.py preparer_medias` a été lancé UNE FOIS après la première mise en ligne : les images déposées avant le lot 17 n'ont ni dimensions ni vignette, et le traitement ne se déclenche qu'à l'enregistrement — la commande dit combien de médias elle a traités
 - [ ] `TEST_POSTGRES=1 pytest` passe contre la base du VPS avant la première mise en ligne — la suite a été éprouvée sur un PostgreSQL local, pas encore sur celui-ci ; pytest ne s'installe plus avec `requirements.txt`, il faut `pip install -r requirements-dev.txt` sur la machine
 - [ ] `systemctl enable --now asso` laisse le service `active (running)` et le socket `/srv/asso/run/gunicorn.sock` présent
 
