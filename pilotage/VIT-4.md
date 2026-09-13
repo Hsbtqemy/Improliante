@@ -133,10 +133,12 @@ identifiant validé au serveur, façade qui ne demande rien au fournisseur, `f8c
   de dire pourquoi ils n'y sont pas — aujourd'hui il le dit, à côté du geste
 
 ### Constats d'audit portés
-- [x] **FRONT-05** — « donner plus d'autonomie aux auteurs » : l'artiste édite sa page,
-  la relit en aperçu et la publie sans passer par le bureau. Le circuit retenu est un
-  brouillon séparé sans historique — le cycle de modération existant ne pouvait pas le
-  tenir, une fiche publiée y partant en ligne à chaque retouche
+- [ ] **FRONT-05** — « donner plus d'autonomie aux auteurs » porte sur la fiche de
+  PROJET, pas sur la page artiste : ses preuves pointent `ProjetMembreForm` et
+  `common/moderation.py`. Le circuit brouillon → aperçu → publication construit ici vaut
+  pour la page artiste et montre la forme à reprendre, mais le projet n'a ni aperçu, ni
+  parcours de coporteurs, ni diff pour le bureau sur une fiche déjà publiée — aujourd'hui
+  seul le drapeau `modifie_apres_publication` dit que quelque chose a changé, sans dire quoi
 - [ ] **FRONT-04** — « transformer la fiche en vraie page de présentation » : la moitié
   données est faite (participations strictes, vidéo au clic, couverture) ; la moitié
   identité attend VIT-3, qui porte le même constat
