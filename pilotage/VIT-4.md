@@ -64,22 +64,30 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
   geste que le flux Bluesky de la fiche membre, qui ne charge rien avant le clic
 
 ### Brouillon et publication
-- [ ] La page publique lit le contenu **publié** ; le brouillon n'est lu que par son
-  propriétaire et par le bureau, dans l'aperçu
-- [ ] Les points d'écriture des champs publics de `Membre` passent tous par le même
-  chemin de publication : `espace_membre/forms.py`, `backoffice/forms.py` et sa vue, les
-  deux constructeurs de `coeur/services.py`, le geste photo, et `MembreAdmin` qui n'a
-  aujourd'hui aucun `fields` restreint
-- [ ] Le JSON-LD de `vitrine/seo.py` lit la même source que la page artiste : il ne
-  publie pas une biographie que la page n'affiche pas
+- [x] La page publique lit le contenu **publié** ; le brouillon n'est lu que dans
+  l'aperçu de son propriétaire
+- [x] Les points d'écriture des champs publics de `Membre` passent tous par le même
+  chemin : `Membre` PORTE la version publiée, donc écrire la fiche — bureau, admin,
+  constructeurs de `coeur/services.py` — c'est publier, et seul l'espace membre écrit le
+  brouillon. Il n'y avait pas de contournement à refermer : il n'y en a pas
+- [x] Le JSON-LD de `vitrine/seo.py` lit la même source que la page artiste : tous deux
+  lisent `Membre`, donc la version publiée
+- [x] L'aperçu est authentifié, réservé à son propriétaire — aucun identifiant dans
+  l'URL, donc rien à forger — et servi en `private, no-store` avec un `X-Robots-Tag`
+  qui l'exclut de l'index
+- [x] Un échec de publication laisse la version publique précédente intacte : la copie
+  tient dans une transaction, et la fiche est relue sous verrou avant décision
+- [x] Publier deux fois n'est pas une erreur : le second geste dit qu'il n'y avait rien
+  de neuf, il ne lève pas
 - [ ] Une image de brouillon n'est pas lisible sans session : elle vit sous
   `MEDIA_PRIVE_ROOT` et se sert par une vue qui contrôle les droits, comme les reçus et
-  les documents
-- [ ] L'aperçu est authentifié, réservé au propriétaire et au bureau, et servi avec des
-  en-têtes qui interdisent l'indexation et la mise en cache partagée — un `noindex` seul
-  ne protège pas un accès
-- [ ] Un échec de publication laisse la version publique précédente intacte, et une
-  publication change tous les contenus éditoriaux d'un coup ou aucun
+  les documents. **C'est le reste du lot** : le fichier d'une photo de brouillon est
+  écrit dans le stockage public, et rien ne l'y référence — mais une URL difficile à
+  deviner n'est pas un contrôle d'accès
+- [ ] Le bureau voit l'aperçu d'une page qu'il accompagne : ce serait la première route
+  d'aperçu portant un identifiant, donc la première à devoir refuser celui d'un autre
+- [ ] Les réseaux sociaux et le téléphone entrent dans le brouillon, ou l'écran continue
+  de dire pourquoi ils n'y sont pas — aujourd'hui il le dit, à côté du geste
 
 ### Confort de lecture
 - [x] Un réglage du panneau de confort ne fait plus disparaître les autres classes de
@@ -105,6 +113,19 @@ police, donc pas de VIT-3. Deux lots le 13 septembre :
   construction plutôt que par la recette.
 - **Le confort de lecture**, dont le défaut latent est corrigé avant qu'un thème posé en
   classe ne le réveille.
+
+**Le brouillon existe** (13 septembre, troisième lot). Le choix de structure a évité
+une reprise de données : `Membre` porte déjà la version publiée — c'est là que le site
+la lit —, il n'y avait donc pas de version publique à fabriquer, seulement un brouillon
+à ajouter. Une migration, un modèle, aucune donnée déplacée, et aucune fenêtre pendant
+laquelle le site aurait lu une table à moitié remplie. Conséquence heureuse : le bureau
+et l'admin, qui écrivent `Membre` en direct, **publient** — ce qui est la règle décidée,
+sans contournement à refermer.
+
+Ce qui ne passe **pas** par le brouillon, et que l'écran dit là où le geste se fait : le
+téléphone, qui n'est pas public et n'a donc pas de version publique à protéger, et les
+réseaux sociaux, qui sont une liste et non une présentation. La ligne est arbitraire ;
+elle est au moins écrite à l'écran plutôt que devinée.
 
 **Ce que la relecture a trouvé.** Le même défaut que le lot venait de fermer sur la
 fiche d'un artiste vivait sur la fiche d'un **spectacle** : « Prochaines dates » listait

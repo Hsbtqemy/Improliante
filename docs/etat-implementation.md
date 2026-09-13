@@ -37,6 +37,19 @@ relit le cookie `a11y`, `front/static/js/accessibilite.js` ne bascule que
 celles-là, et un test refuse que les deux listes divergent.
 
 ### Espace membre (`apps/espace_membre`) — connecté
+
+**Page artiste : brouillon et publication** (VIT-4). `Membre` porte la version
+**publiée** — celle que le site sert —, `BrouillonPageArtiste` le travail en
+cours ; les champs éditoriaux vivent dans un jeu abstrait partagé
+(`ContenuPublicArtiste`), pour qu'un champ ajouté d'un côté ne soit pas un champ
+que « Publier » oublie. `apps/coeur/services.py::publier_page_artiste` relit la
+fiche sous verrou et recopie tout d'un coup ; il RECOPIE (une biographie effacée
+s'efface en ligne) et rend `False` quand il n'y avait rien de neuf. L'aperçu
+(`apercu_ma_page`) sert le gabarit ET le contexte publics
+(`vitrine/views.py::contexte_fiche_membre`) à partir d'une instance non
+enregistrée : pas de seconde maquette à tenir à jour. Écrire `Membre` — bureau,
+admin, services — c'est publier ; l'écran du bureau signale un brouillon en
+attente, qui recouvrira sa saisie.
 Tableau de bord (à traiter, prochaines dates, projets), **proposer son projet**
 (spectacle) et **son événement**, chacun présenté d'abord en **fiche lecture**
 (`voir_projet` / `voir_evenement`, URL `.../<pk>/`) avec bouton **Modifier**
