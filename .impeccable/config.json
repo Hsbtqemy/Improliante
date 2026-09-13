@@ -1,0 +1,12 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "front/templates/facture/**",
+      "front/templates/devis/**",
+      "front/templates/pv/**",
+      "front/templates/recu/**"
+    ],
+    "ignoreValues": []
+  }
+}
