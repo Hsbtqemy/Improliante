@@ -115,6 +115,12 @@ Application web à deux faces partageant une même base de données :
 - **Export CSV / Excel** pour le trésorier / l'expert-comptable.
 - **Bilan financier annuel** par catégorie (PDF et/ou Excel), pour l'AG.
 - **Reçus fiscaux** pour les dons (Cerfa 11580) si l'association est d'intérêt général.
+- **Règle arrêtée (13 septembre 2026)** : une **adhésion dont un reçu fiscal a
+  été émis ne se supprime pas**. Le reçu est une pièce légale ; l'effacer de son
+  rattachement change ce que le registre raconte, alors même que le document
+  reste entre les mains de son destinataire. Une erreur se corrige en éditant
+  l'adhésion. Les **écritures budgétaires** liées, elles, restent simplement
+  détachées : internes à l'association, elles ne sont parties chez personne.
 
 ---
 

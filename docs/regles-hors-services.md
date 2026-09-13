@@ -269,6 +269,25 @@ silencieusement.
 suppression d'une adhésion dont un reçu a été émis (cohérent avec le traitement
 des factures), ou l'assumer et le dire à l'écran. L'état actuel ne dit rien.
 
+> **Tranché le 13 septembre 2026 par l'association : refus** (lot 15). Un
+> élément a emporté la décision, et il était déjà dans le dépôt —
+> `RecuFiscalAdmin` dit noir sur blanc qu'un reçu émis ne se retouche pas,
+> « pas même ses rattachements comptables, qui changent ce que le registre
+> raconte ». Supprimer l'adhésion faisait exactement cela par l'autre bout.
+>
+> Le refus vit dans un service (`budget.services.supprimer_adhesion`), l'écran
+> n'offre plus le bouton quand un reçu existe — la colonne d'à côté en donne la
+> raison, avec le numéro de la pièce —, et l'admin applique la même règle. Le
+> message de refus nomme le reçu.
+>
+> **Les transactions restent détachées**, comme avant : une écriture budgétaire
+> est interne à l'association, elle n'est partie chez personne. C'est la moitié
+> de ce point qui reste volontairement souple.
+>
+> Au passage : le seul garde-fou était un `confirm()` de navigateur qui ne
+> parlait pas des reçus — une règle qui ne vivait que dans le navigateur, ce que
+> FRONT-01 relevait ailleurs.
+
 ## 7. Un membre ne peut pas estampiller son projet « production de l'association »
 
 **Où** : `apps/espace_membre/forms.py::ProjetMembreForm.__init__`, qui restreint
@@ -314,7 +333,13 @@ légitime.
    n'était pas trois lignes : fermer l'inline supprimait le seul moyen de
    retirer un pouvoir, qu'il a fallu rendre à l'écran du bureau. GOU-01 est clos
    avec lui.*
-5. **Le point 6** — quand la question sera posée par l'usage. Seul point encore
-   ouvert de cet inventaire, et c'est une décision, pas du code.
+5. ✅ **Le point 6** — *tranché le 13 septembre par l'association (lot 15) :
+   refus dès qu'un reçu a été émis, transactions détachées comme avant.*
+
+**Cet inventaire est clos.** Six points corrigés, le septième laissé tel quel à
+dessein (la règle y est au bon endroit). Ce qu'il a coûté de plus que prévu tient
+en une phrase : trois fois sur six, fermer un chemin d'écriture supprimait le
+seul moyen de défaire le geste, et il a fallu rendre ce moyen à l'écran avant de
+fermer.
 
 Les points 5 (seul) et 7 ne valent pas d'être remontés.

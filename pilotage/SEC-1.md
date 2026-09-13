@@ -55,7 +55,7 @@ constats sur trente sont clos.
 - [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée — une seule lecture (`devis_deja_facture`), partagée par le service, l'écran d'édition du bureau, son changement de statut et l'admin, qui fige en plus le statut. Un devis dont la facture a été supprimée redevient pilotable À L'ÉCRAN au lieu de rester dans une impasse — les deux directions sont testées
 - [x] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1. Et la réunion sert la version COURANTE de son PV : un PV corrigé depuis la GED laissait sa fiche et la convocation du membre sur celui d'avant
 - [x] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4, et GOU-01 se clôt avec lui. L'inline est en lecture seule ; le retrait d'un pouvoir, qui n'existait que là, est rendu à la fiche de la réunion et remet le mandant « absent »
-- [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)
+- [x] Décidé, pour une adhésion portant un reçu émis : **refus** (association, 13 septembre). Le service refuse, l'écran n'offre plus le bouton et la colonne voisine dit pourquoi, l'admin applique la même règle ; les transactions restent détachées — point 6, et l'inventaire ARCH-01 se clôt avec lui
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
 - [ ] PERF-01 : la galerie et les listes d'affiches ne dégradent plus avec le contenu — N+1 mesuré supprimé, pagination posée, images servies à la taille affichée et non en pleine résolution
 - [ ] SEC-03 et OPS-02 sont portés explicitement par DEP-1, où le report a été décidé — cette case tombe quand les cases de DEP-1 les citent
@@ -122,6 +122,25 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 15 — la dernière question de l'inventaire, qui n'était pas technique.** Une
+adhésion dont un reçu fiscal a été émis se supprimait sans un mot : les liens sont en
+`SET_NULL`, donc le reçu survivait, son PDF restait reproductible, mais il cessait de
+dire quelle cotisation il couvrait. Le seul garde-fou était un `confirm()` de
+navigateur qui ne parlait pas des reçus — une règle qui ne vit que dans le navigateur,
+ce que FRONT-01 relevait ailleurs.
+
+La décision revenait à l'association, et un élément du dépôt l'a presque tranchée seul :
+`RecuFiscalAdmin` refuse déjà qu'on touche à un reçu émis, « pas même ses rattachements
+comptables, qui changent ce que le registre raconte ». Supprimer l'adhésion faisait
+exactement cela par l'autre bout. Refus, donc, décidé le 13 septembre — avec sa moitié
+souple assumée : les écritures budgétaires restent détachées, elles ne sont parties chez
+personne.
+
+L'inventaire ARCH-01 est clos. Ce qu'il aura coûté de plus que prévu tient en une
+phrase : trois fois sur six, fermer un chemin d'écriture supprimait le seul moyen de
+défaire le geste — le devis bloqué, le pouvoir sans retrait, la réunion sans réouverture
+—, et il a fallu rendre ce moyen avant de fermer.
 
 **Le lot 14 — le plafond de pouvoirs, et ce que « trois lignes » cachait.** L'inline
 d'admin écrivait des pouvoirs sans passer par `donner_pouvoir` : sans le plafond

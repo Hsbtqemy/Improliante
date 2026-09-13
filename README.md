@@ -8,7 +8,7 @@ association de spectacle vivant. Priorité : **sur-mesure et flexible**.
 - Règles de travail : [CLAUDE.md](CLAUDE.md)
 
 > **État : v1 fonctionnelle implémentée** (front public, espace membre,
-> back-office). ~650 tests pytest verts. Reste le déploiement VPS.
+> back-office). ~660 tests pytest verts. Reste le déploiement VPS.
 
 ## Stack
 

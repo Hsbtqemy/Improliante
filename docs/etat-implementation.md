@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~650 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~660 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---
@@ -247,6 +247,15 @@ contenu scellé ; le refuser enfermerait une séance sans son PV), et la réunio
 **se rouvre par son statut** (une clôture par erreur doit se défaire). Son
 en-tête reste figé, la réouverture s'annonce à l'écran, et les règles figées à la
 clôture ne se refigent pas.
+
+### Pièce émise et rattachements
+Un reçu fiscal ne se retouche pas, ne se supprime pas, et **ne change pas de
+rattachement** — l'admin le dit et le tient. Conséquence tirée au lot 15 : une
+**adhésion dont un reçu a été émis ne se supprime plus** (`budget.services.
+supprimer_adhesion`), sans quoi la pièce survivait en cessant de dire quelle
+cotisation elle couvre. L'écran n'offre plus le bouton, l'admin refuse aussi, et
+le message nomme le reçu. Les **transactions** liées restent détachées : une
+écriture budgétaire est interne, elle n'est partie chez personne.
 
 ### Invariants d'une pièce émise
 `valider_facture` refuse : une pièce déjà émise, une pièce sans ligne, un avoir
