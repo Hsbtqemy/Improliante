@@ -79,6 +79,10 @@ identifiant validé au serveur, façade qui ne demande rien au fournisseur, `f8c
 - [x] Le second média n'a rien fait réciter : pose, retrait, publication et route des
   droits parcourent `champs_images_artiste()`, déduit du modèle. Seule la correspondance
   avec l'écran reste nommée, en un endroit, et un test vérifie qu'elle couvre le jeu
+- [ ] Une couverture déposée SANS adresse de vidéo est enregistrée et publiée, mais
+  n'est jamais affichée — la façade ne se rend que s'il y a une vidéo. Rien n'est perdu
+  ni trompé, mais l'artiste n'a aucun retour ; décider si l'écran le dit ou si la saisie
+  le refuse
 - [x] La déduction refuse d'être vide : interrogée sur la classe abstraite elle rendait
   `()` — une relation déclarée par chaîne n'y est jamais résolue — et tous les contrôles
   existants seraient restés verts, puisqu'ils parlent du portrait
