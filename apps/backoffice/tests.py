@@ -1502,6 +1502,14 @@ def test_le_bureau_retire_un_pouvoir_depuis_l_ecran_de_la_reunion(client, db):
     assert reunion.pouvoirs.count() == 0
     assert reunion.presences.get(membre=mandant).statut == Presence.Statut.ABSENT
 
+    # Second clic : ni page d'erreur, ni message annonçant un retrait qui n'a
+    # pas eu lieu. Le service dit ce qu'il a fait, l'écran le répète.
+    reponse = client.post(
+        f"/bureau/gouvernance/reunion/{reunion.pk}/pouvoir/{mandant.pk}/retirer/", follow=True
+    )
+    assert reponse.status_code == 200
+    assert "avait déjà été retiré" in reponse.content.decode()
+
 
 def test_resolution_adoptee_affichee(client, db):
     reunion = _reunion()

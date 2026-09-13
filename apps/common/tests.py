@@ -440,11 +440,13 @@ def _ecrans_a_identifiant(membre):
 
     from apps.agenda.models import Evenement
     from apps.budget.models import Adhesion, Saison
+    from apps.coeur.models import Membre
     from apps.common.models import Moderation
     from apps.documents.models import Dossier
     from apps.facturation.models import Client as ClientFacturation
     from apps.facturation.models import Devis, Facture
     from apps.gouvernance.models import BlocCompteRendu, Reunion, Sujet
+    from apps.gouvernance.services import donner_pouvoir
     from apps.spectacles.models import Spectacle
 
     publie = Moderation.StatutModeration.PUBLIE
@@ -467,9 +469,16 @@ def _ecrans_a_identifiant(membre):
     )
     # La fiche d'une réunion porte un champ PAR point d'ordre du jour et trois
     # par bloc de récit : sans un point et un bloc, le balayage passerait sur
-    # l'écran le plus dense du bureau sans en voir les champs.
+    # l'écran le plus dense du bureau sans en voir les champs. Un pouvoir, de
+    # même, pour que sa ligne et son bouton de retrait existent.
     Sujet.objects.create(titre="Point témoin", reunion=reunion, statut=Sujet.Statut.ORDRE_DU_JOUR)
     BlocCompteRendu.objects.create(reunion=reunion, texte="Récit témoin")
+    donner_pouvoir(
+        reunion,
+        Membre.objects.create(user=Utilisateur.objects.create(username="mandant-temoin")),
+        membre,
+        par_le_bureau=True,
+    )
     client_fact = ClientFacturation.objects.create(nom="Client témoin")
     facture = Facture.objects.create(client=client_fact, date=aujourdhui.date())
     devis = Devis.objects.create(client=client_fact, date=aujourdhui.date())

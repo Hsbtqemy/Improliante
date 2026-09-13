@@ -2060,15 +2060,24 @@ def gouvernance_retirer_pouvoir(request, pk, mandant_pk):
     d'inline — qui laissait le mandant « représenté » sans personne pour porter
     sa voix, donc comptant dans le quorum. L'inline est passé en lecture seule
     (le plafond statutaire ne s'y appliquait pas) : sans cet écran, un pouvoir
-    saisi par erreur n'aurait plus eu de sortie."""
+    saisi par erreur n'aurait plus eu de sortie.
+
+    On résout le MANDANT, pas son pouvoir : chercher le pouvoir répondrait 404 au
+    second clic d'un double clic, alors que le geste a simplement déjà eu lieu.
+    C'est le service qui dit s'il a retiré quelque chose, et le message suit."""
     reunion = get_object_or_404(Reunion, pk=pk)
-    pouvoir = get_object_or_404(reunion.pouvoirs, mandant_id=mandant_pk)
+    mandant = get_object_or_404(Membre, pk=mandant_pk)
     try:
-        retirer_pouvoir(reunion, pouvoir.mandant)
+        retire = retirer_pouvoir(reunion, mandant)
     except ReunionClose as exc:
         messages.error(request, str(exc))
     else:
-        messages.success(request, "Pouvoir retiré ; le mandant est de nouveau noté absent.")
+        messages.success(
+            request,
+            "Pouvoir retiré ; le mandant est de nouveau noté absent."
+            if retire
+            else "Ce pouvoir avait déjà été retiré.",
+        )
     return _vers_reunion(reunion.pk, "#t-participants")
 
 
