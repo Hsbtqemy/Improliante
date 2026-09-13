@@ -20,6 +20,7 @@ auto-hébergées, commit `7b37df3`, 28 août 2026.
 ### Échelle des titres
 - [x] Le mois de l'agenda passait SOUS les titres d'événements qu'il groupe — `.agenda-mois__titre` en 1.05rem contre 1.15rem pour `.agenda-carte__titre` : remis à 1.4rem, plancher du `clamp()` global des h2, comme le h2 sans classe sous lequel la même carte vit déjà sur la fiche artiste
 - [x] La mesure compare, sur les 67 pages rendues, chaque h3 au h2 qui ouvre sa section, et porte son témoin nommé : si la paire mois / carte cesse d'être comparable, elle refuse de passer plutôt que de ne rien regarder
+- [ ] Sur les écrans à rail, `.espace-grille--avec-nav h2` est en `clamp(1.15rem, 2vw, 1.4rem)` : sous 920 px de large son plancher rejoint exactement le `1.15rem` des `h3`, donc le titre de section et ce qu'il groupe font la même taille. Pas une inversion — une hiérarchie plate, qui se tranche à l'écran
 - [ ] Les étiquettes de groupe du rail sont à `0.68rem`, soit 10,88 px : décider si elles passent à `0.7rem` (11,2 px). Le contraste a déjà été arbitré (voir le commentaire de `--rail-titre`), la taille non
 
 ### Retrait du panneau DEV
