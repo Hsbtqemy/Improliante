@@ -144,9 +144,11 @@ confort ne doit pas faire tomber un téléversement. Remplacer le fichier d'un m
 les dimensions et la vignette d'avant, qui ne décrivent plus rien.
 
 Côté gabarits, un seul fragment (`_image.html`) porte `srcset`, `sizes`, les dimensions
-et le chargement différé, pour les dix images publiques. `sizes` n'est pas un détail :
-sans lui, le navigateur suppose toute la largeur de l'écran et reprend la grande image —
-le `srcset` n'aurait servi à rien.
+et le chargement différé. `sizes` n'est pas un détail : sans lui, le navigateur suppose
+toute la largeur de l'écran et reprend la grande image — le `srcset` n'aurait servi à
+rien. La relecture a étendu le fragment aux ONZE aperçus des écrans de gestion, oubliés
+au premier passage : ils affichaient l'image entière dans 120 px, et une galerie
+d'édition en aligne huit.
 
 **Le lot 16 — PERF-01, mesuré avant d'être corrigé.** L'audit annonçait « un N+1 mesuré » ;
 la sonde en a trouvé trois, et pas ceux qu'on croyait. La liste des spectacles passait de

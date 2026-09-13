@@ -174,7 +174,12 @@ dimensions et la vignette d'avant. Le stock antérieur se reprend par
 Côté gabarits, un seul fragment — `front/templates/_image.html` — porte
 `srcset` (vignette + image), `sizes`, `width`/`height` et le chargement différé.
 `sizes` est indispensable : sans lui le navigateur suppose 100 % de la largeur
-et reprend la grande image.
+et reprend la grande image. **Toute** image d'un `Media` passe par ce fragment,
+y compris les aperçus des écrans de gestion : ils indiquent leur taille
+d'affichage (`largeur_affichee`), et les dimensions sont mises à l'échelle pour
+garder le rapport. Un invariant de balayage vérifie que chaque `<img>` rendu
+porte un attribut `alt` (règle 2), ce qui n'a de sens que parce que les objets
+témoins portent de vraies images.
 
 ### Budget de requêtes
 Une page publique ne doit pas voir son nombre de requêtes SQL suivre le nombre
