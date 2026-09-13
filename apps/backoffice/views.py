@@ -14,7 +14,6 @@ from pathlib import PurePosixPath
 
 from django.contrib import messages
 from django.contrib.auth.models import Group
-from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
@@ -59,6 +58,7 @@ from apps.common.moderation import (
     refuser,
     valider,
 )
+from apps.common.pagination import paginer
 from apps.common.pdf import RenduPDFIndisponible
 from apps.documents.models import Document, Dossier
 from apps.documents.services import VersionPerimee
@@ -140,14 +140,6 @@ from .forms import (
 
 Propose = Spectacle.StatutModeration.PROPOSE  # même énum via le mixin Moderation
 Publie = Spectacle.StatutModeration.PUBLIE
-
-
-def paginer(request, objets, par_page=20):
-    """Retourne la page demandée (`?page=N`) d'un queryset.
-
-    `get_page` tolère un numéro absent, non numérique ou hors bornes (renvoie
-    la 1re ou la dernière page) — pas d'erreur 500 sur `?page=abc`."""
-    return Paginator(objets, par_page).get_page(request.GET.get("page"))
 
 
 def appliquer_tri(request, queryset, tris, defaut_order):

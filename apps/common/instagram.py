@@ -21,6 +21,11 @@ from django.conf import settings
 from django.core.cache import cache
 
 CLE_CACHE = "instagram_feed_asso"
+# Dernière réponse VALIDE, gardée bien plus longtemps que le cache courant : si
+# l'API tombe ou traîne, la page d'accueil montre le flux d'hier plutôt qu'un
+# trou. Sans elle, une panne de Meta vidait la section pour tout le monde.
+CLE_SECOURS = "instagram_feed_asso_secours"
+TTL_SECOURS = 7 * 24 * 3600
 # Champs demandés à l'API (Instagram Graph / Instagram Login).
 CHAMPS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp"
 
@@ -33,7 +38,14 @@ def derniers_posts_instagram(limite: int = 8) -> list[dict]:
         return []
     en_cache = cache.get(CLE_CACHE)
     if en_cache is None:
-        en_cache = _recuperer()
+        # Un appel réseau dans le fil de la requête : il est borné par
+        # `INSTAGRAM_TIMEOUT`, et n'a lieu qu'une fois par TTL — l'échec est
+        # mis en cache comme le succès, sans quoi chaque visiteur reprendrait
+        # l'attente pendant toute la panne.
+        posts = _recuperer()
+        if posts:
+            cache.set(CLE_SECOURS, posts, TTL_SECOURS)
+        en_cache = posts or cache.get(CLE_SECOURS) or []
         cache.set(CLE_CACHE, en_cache, settings.INSTAGRAM_CACHE_TTL)
     return en_cache[:limite]
 

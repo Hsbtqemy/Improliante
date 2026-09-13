@@ -54,7 +54,13 @@ def membres_en_vedette(nombre: int = NB_VEDETTE) -> list[Membre]:
     membres visibles jusqu'à `nombre`, pour garder la vedette pleine et
     changeante même si peu de membres sont explicitement mis en avant. Bornée à
     `nombre` (l'accordéon ne scale pas au-delà de ~6-8)."""
-    visibles = Membre.objects.filter(visible_sur_site=True).select_related("user", "photo")
+    # La vedette affiche les liens de réseaux de chaque membre : sans le
+    # préchargement, l'accordéon en demandait un par personne.
+    visibles = (
+        Membre.objects.filter(visible_sur_site=True)
+        .select_related("user", "photo")
+        .prefetch_related("liens_reseaux")
+    )
     vedette = list(visibles.filter(mis_en_avant=True).order_by("?")[:nombre])
     manque = nombre - len(vedette)
     if manque > 0:

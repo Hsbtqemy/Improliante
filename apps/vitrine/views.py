@@ -21,6 +21,7 @@ from apps.agenda.models import Evenement, ImageEvenement, Inscription
 from apps.coeur.models import LienReseau, Membre, ParametresAssociation
 from apps.coeur.services import membres_en_vedette
 from apps.common.instagram import derniers_posts_instagram
+from apps.common.pagination import paginer
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
 
@@ -37,7 +38,10 @@ _EVT_PUBLIC = Evenement.Visibilite.PUBLIC
 
 def accueil(request):
     """Page d'accueil : à l'affiche + créations en cours."""
-    publies = Spectacle.objects.filter(statut_moderation=_PUBLIE)
+    # `select_related` : les cartes montrent l'affiche, donc sans lui chaque
+    # spectacle allait chercher son média — six requêtes pour six cartes, à
+    # chaque visite de la page la plus vue du site.
+    publies = Spectacle.objects.filter(statut_moderation=_PUBLIE).select_related("affiche")
     contexte = {
         "association": ParametresAssociation.load(),
         "a_l_affiche": publies.filter(statut_projet=Spectacle.StatutProjet.A_L_AFFICHE)[:6],
@@ -53,8 +57,12 @@ def accueil(request):
 
 
 def liste_spectacles(request):
-    """Liste filtrable des spectacles publiés (par statut de projet et portage)."""
-    spectacles = Spectacle.objects.filter(statut_moderation=_PUBLIE)
+    """Liste filtrable des spectacles publiés (par statut de projet et portage).
+
+    Le nombre de requêtes ne dépend PAS du nombre de spectacles affichés : sans
+    `select_related`, la liste en produisait une par affiche — le N+1 que
+    l'audit avait mesuré (huit spectacles, neuf requêtes)."""
+    spectacles = Spectacle.objects.filter(statut_moderation=_PUBLIE).select_related("affiche")
 
     statut = request.GET.get("statut", "")
     portage = request.GET.get("portage", "")
@@ -293,8 +301,13 @@ def detail_membre(request, slug: str):
 
 
 def galerie(request):
-    """Galerie : médias des galeries des spectacles et événements publiés."""
-    return render(request, "vitrine/galerie.html", {"medias": _medias_galerie()})
+    """Galerie : médias des galeries des spectacles et événements publiés.
+
+    Paginée : elle rassemble les images de TOUS les spectacles et événements
+    publiés, donc elle ne cesse de grandir — une saison de plus, et la page
+    servait quelques centaines d'images d'un coup."""
+    page = paginer(request, _medias_galerie(), par_page=24)
+    return render(request, "vitrine/galerie.html", {"medias": page, "page": page})
 
 
 def _medias_galerie():

@@ -59,6 +59,36 @@ def test_instagram_renvoie_les_posts_en_cache():
     assert mock.call_count == 1  # une seule requête réseau
 
 
+def test_instagram_sert_le_dernier_flux_connu_quand_l_api_tombe():
+    """Le flux est récupéré dans le fil de la requête : quand Meta ne répond
+    plus, la section d'accueil se vidait pour tout le monde jusqu'au retour de
+    l'API. Une copie de la dernière réponse valide, gardée bien plus longtemps
+    que le cache courant, fait qu'on montre le flux d'hier plutôt qu'un trou."""
+    from unittest.mock import patch
+
+    from django.core.cache import cache
+    from django.test import override_settings
+
+    from apps.common.instagram import CLE_CACHE, derniers_posts_instagram
+
+    cache.clear()
+    faux = [{"id": "1", "image": "https://cdn/x.jpg", "permalink": "https://insta/p/1"}]
+    with override_settings(INSTAGRAM_TOKEN="jeton-factice"):
+        with patch("apps.common.instagram._recuperer", return_value=faux):
+            assert derniers_posts_instagram(8) == faux
+
+        cache.delete(CLE_CACHE)  # le cache courant expire ; l'API, elle, est tombée
+        with patch("apps.common.instagram._recuperer", return_value=[]) as panne:
+            assert derniers_posts_instagram(8) == faux
+
+        # Et la panne ne se redemande pas à chaque visiteur : elle est en cache.
+        with patch("apps.common.instagram._recuperer", return_value=[]) as encore:
+            assert derniers_posts_instagram(8) == faux
+
+    assert panne.call_count == 1
+    assert encore.call_count == 0
+
+
 def test_instagram_normalise_video_utilise_thumbnail():
     from apps.common.instagram import _normaliser
 

@@ -330,6 +330,110 @@ def test_galerie_montre_medias_des_spectacles_publies(client, db):
     assert "VideoBrouillon" not in corps
 
 
+# --- Budget de requêtes et volume des pages (PERF-01) ----------------------
+#
+# L'assertion porte sur la CROISSANCE, jamais sur un total : un total se périme
+# au premier `select_related` ajouté ailleurs et ne dirait plus rien, alors que
+# « le nombre de requêtes ne suit pas le nombre de spectacles » reste vrai quoi
+# qu'on ajoute autour.
+
+
+def _requetes(client, url) -> int:
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    with CaptureQueriesContext(connection) as capture:
+        client.get(url)
+    return len(capture.captured_queries)
+
+
+def _spectacles_affiches(nombre, debut=0):
+    """`nombre` spectacles publiés, chacun avec son affiche (une carte = une image)."""
+    for i in range(debut, debut + nombre):
+        Spectacle.objects.create(
+            titre=f"Spectacle {i}",
+            statut_moderation=Spectacle.StatutModeration.PUBLIE,
+            statut_projet=Spectacle.StatutProjet.A_L_AFFICHE,
+            affiche=Media.objects.create(fichier=f"medias/aff{i}.jpg", alt=f"Affiche {i}"),
+        )
+
+
+def test_la_liste_des_spectacles_ne_suit_pas_le_nombre_d_affiches(client, db):
+    """Le N+1 que l'audit avait mesuré : huit spectacles, neuf requêtes SQL —
+    une pour la liste, une par affiche, parce que la carte montre l'image."""
+    _spectacles_affiches(3)
+    client.get("/spectacles/")  # 1re passe : cache des gabarits
+
+    trois = _requetes(client, "/spectacles/")
+    _spectacles_affiches(9, debut=3)
+    douze = _requetes(client, "/spectacles/")
+
+    assert douze == trois, f"{trois} requêtes pour 3 spectacles, {douze} pour 12"
+
+
+def test_l_accueil_ne_suit_pas_le_nombre_de_spectacles(client, db):
+    """Même motif sur la page la plus vue du site. Les deux listes y sont
+    bornées à six, donc le défaut ne grossissait pas à l'infini — il coûtait
+    quand même douze requêtes inutiles à chaque visite."""
+    with patch("apps.vitrine.views.derniers_posts_instagram", return_value=[]):
+        _spectacles_affiches(3)
+        client.get("/")
+
+        trois = _requetes(client, "/")
+        _spectacles_affiches(9, debut=3)
+        douze = _requetes(client, "/")
+
+    assert douze <= trois, f"{trois} requêtes pour 3 spectacles, {douze} pour 12"
+
+
+def test_la_page_association_ne_suit_pas_le_nombre_de_membres(client, db):
+    """La vedette affiche les liens de réseaux de chaque membre : sans
+    préchargement, l'accordéon en demandait un par personne."""
+    for i in range(3):
+        LienReseau.objects.create(
+            membre=_membre(f"Membre{i}"),
+            reseau=LienReseau.Reseau.INSTAGRAM,
+            url="https://instagram.com/x",
+        )
+    client.get("/association/")
+
+    trois = _requetes(client, "/association/")
+    for i in range(3, 12):
+        LienReseau.objects.create(
+            membre=_membre(f"Membre{i}"),
+            reseau=LienReseau.Reseau.INSTAGRAM,
+            url="https://instagram.com/x",
+        )
+    douze = _requetes(client, "/association/")
+
+    assert douze == trois, f"{trois} requêtes pour 3 membres, {douze} pour 12"
+
+
+def test_la_galerie_est_paginee(client, db):
+    """Elle rassemble les images de TOUS les spectacles et événements publiés :
+    sans pagination, une saison de plus et la page servait quelques centaines
+    d'images d'un coup."""
+    spectacle = Spectacle.objects.create(
+        titre="SpecPub", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    for i in range(30):
+        ImageSpectacle.objects.create(
+            spectacle=spectacle,
+            media=Media.objects.create(fichier=f"medias/g{i}.jpg", alt=f"Image {i}"),
+            ordre=i,
+        )
+
+    premiere = client.get("/galerie/")
+    corps = premiere.content.decode()
+
+    assert premiere.context["page"].paginator.num_pages == 2
+    assert corps.count("<img") == 24
+    assert 'class="pagination"' in corps
+    assert client.get("/galerie/?page=2").content.decode().count("<img") == 6
+    # Un numéro de page absurde ne doit pas casser la page publique.
+    assert client.get("/galerie/?page=abc").status_code == 200
+
+
 # --- Contact --------------------------------------------------------------
 
 
