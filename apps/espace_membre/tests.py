@@ -2842,6 +2842,40 @@ def test_publier_fait_passer_la_photo_dans_la_racine_web(client, db):
     assert f"/espace/profil/image/{media.pk}/" not in corps
 
 
+def test_l_apercu_sert_la_couverture_du_brouillon_par_la_route_protegee(client, db):
+    """Le chemin où la couverture est PRIVÉE, et le seul où la façade la rend.
+
+    Les autres contrôles de couverture regardent soit la route seule, soit une
+    page publiée — donc une image publique. Ici l'artiste relit sa page avant de
+    la publier : c'est le moment où un `src` vers la racine web servirait une
+    image que personne ne devrait encore voir, et où un `src` vide donnerait un
+    cadre noir sans que rien ne tombe.
+    """
+    membre = _membre("alice")
+    membre.visible_sur_site = True
+    membre.save()
+    client.force_login(membre.user)
+    # Un SEUL envoi : le formulaire porte tous les champs du brouillon, donc un
+    # second POST sans la vidéo la viderait — c'est le comportement voulu d'un
+    # ModelForm, et c'est un piège pour qui enchaîne deux envois partiels.
+    client.post(
+        PROFIL,
+        _donnees_profil(
+            video_youtube="https://youtu.be/dQw4w9WgXcQ",
+            couverture_fichier=_image_png("couv.png", (1200, 800)),
+            couverture_alt="Couverture",
+        ),
+    )
+    media = brouillon_de(membre).video_couverture
+    assert media is not None and media.est_prive is True
+
+    corps = client.get(APERCU).content.decode()
+
+    assert "video-clic__facade--couverte" in corps, "la façade rend sa variante nue"
+    assert f'src="/espace/profil/image/{media.pk}/"' in corps
+    assert "Couverture" in corps  # le texte alternatif est bien posé
+
+
 def test_l_apercu_sert_la_photo_du_brouillon_par_la_route_protegee(client, db):
     membre = _membre("alice")
     membre.visible_sur_site = True

@@ -402,7 +402,6 @@ def test_la_facade_video_porte_la_couverture_quand_il_y_en_a_une(client, db):
     officielle : celle-ci vit sur `i.ytimg.com` et serait la requête que ce
     bloc existe pour refuser.
     """
-    from apps.coeur.services import definir_image
     from apps.medias.models import Media
 
     membre = _membre_avec_video("AvecCouverture")
@@ -410,7 +409,6 @@ def test_la_facade_video_porte_la_couverture_quand_il_y_en_a_une(client, db):
         fichier=_image_temoin_vitrine("couv.jpg"), alt="Couverture témoin"
     )
     membre.save(update_fields=["video_couverture"])
-    assert definir_image  # le service existe pour le brouillon ; ici la page publiée
 
     corps = client.get(membre.get_absolute_url()).content.decode()
 
