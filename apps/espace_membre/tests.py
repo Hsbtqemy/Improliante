@@ -14,11 +14,12 @@ from django.utils.timezone import make_aware
 from apps.agenda.models import Evenement, ImageEvenement
 from apps.budget.models import Adhesion, RecuFiscal, Saison
 from apps.budget.services import emettre_recu
-from apps.coeur.models import LienReseau, Membre, Utilisateur
+from apps.coeur.models import LienReseau, Membre, Utilisateur, champs_images_artiste
 from apps.coeur.services import brouillon_de, brouillon_en_attente
 from apps.common.models import Moderation
 from apps.documents import services as doc_services
 from apps.documents.models import Document, Dossier
+from apps.espace_membre.forms import PageArtisteForm
 from apps.gouvernance.models import Pouvoir, Presence, Reunion, Sujet
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, Spectacle
@@ -2654,6 +2655,63 @@ def _photo_de_brouillon(client, membre, nom="portrait.png", taille=(1200, 800)):
     return brouillon_de(membre).photo
 
 
+def _couverture_de_brouillon(client, membre, nom="couverture.png", taille=(1200, 800)):
+    """Téléverse une couverture de vidéo dans le brouillon et rend le `Media`."""
+    client.post(
+        PROFIL,
+        _donnees_profil(couverture_fichier=_image_png(nom, taille), couverture_alt="Couverture"),
+    )
+    return brouillon_de(membre).video_couverture
+
+
+def test_l_ecran_offre_chaque_image_du_jeu_partage(db):
+    """La correspondance modèle ↔ écran est le seul point récité de ce lot.
+
+    Ajouter une image au modèle sans l'offrir ici donnerait un champ que rien
+    n'atteint — et personne ne saurait qu'il manque, puisque le modèle, lui,
+    serait complet. Ce contrôle est ce qui le dit.
+    """
+    assert set(PageArtisteForm.IMAGES) == set(champs_images_artiste())
+    for prefixe in PageArtisteForm.IMAGES.values():
+        for suffixe in ("_fichier", "_alt"):
+            assert f"{prefixe}{suffixe}" in PageArtisteForm().fields
+        assert f"retirer_{prefixe}" in PageArtisteForm().fields
+
+
+def test_une_couverture_de_brouillon_se_sert_par_la_route_protegee(client, db):
+    """Même garde que le portrait, sans qu'on ait eu à l'écrire deux fois.
+
+    La route cherche le rattachement sur TOUTES les images du jeu : nommer
+    `photo` l'aurait laissée sans porteur, donc refusée à son propriétaire — et
+    « réparer » ça en retirant le garde l'aurait ouverte à tout le monde.
+    """
+    alice = _membre("alice")
+    client.force_login(alice.user)
+    media = _couverture_de_brouillon(client, alice)
+
+    assert media is not None and media.est_prive is True
+    assert client.get(f"/espace/profil/image/{media.pk}/").status_code == 200
+
+    bob = _membre("bob")
+    client.force_login(bob.user)
+    assert client.get(f"/espace/profil/image/{media.pk}/").status_code == 404
+
+
+def test_une_couverture_sans_texte_alternatif_est_refusee(client, db):
+    """Règle 2 du dépôt : pas de média sans `alt`. Le contrôle porte sur le jeu
+    des images, la couverture en a donc hérité sans qu'on y pense."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    reponse = client.post(
+        PROFIL, _donnees_profil(couverture_fichier=_image_png("c.png", (600, 400)))
+    )
+
+    assert reponse.status_code == 200
+    assert escape("La description de l'image est obligatoire.") in reponse.content.decode()
+    assert brouillon_de(membre, creer=False).video_couverture_id is None
+
+
 def test_une_photo_de_brouillon_n_est_pas_ecrite_dans_la_racine_web(client, db):
     """Cacher une page ne rend pas son portrait confidentiel : le fichier vit
     sous MEDIA_PRIVE_ROOT, que Nginx n'expose pas."""
@@ -2678,7 +2736,7 @@ def test_une_photo_de_brouillon_ne_se_lit_pas_sans_session(client, db):
     media = _photo_de_brouillon(client, membre)
 
     client.logout()
-    reponse = client.get(f"/espace/profil/photo/{media.pk}/")
+    reponse = client.get(f"/espace/profil/image/{media.pk}/")
 
     assert reponse.status_code == 302
     assert "/connexion" in reponse["Location"] or "login" in reponse["Location"]
@@ -2694,7 +2752,7 @@ def test_une_photo_de_brouillon_ne_se_lit_pas_par_un_autre_membre(client, db):
     media = _photo_de_brouillon(client, alice)
 
     client.force_login(bob.user)
-    reponse = client.get(f"/espace/profil/photo/{media.pk}/")
+    reponse = client.get(f"/espace/profil/image/{media.pk}/")
 
     assert reponse.status_code == 404  # 404 et non 403 : ne pas confirmer l'existence
 
@@ -2704,7 +2762,7 @@ def test_son_proprietaire_lit_sa_photo_de_brouillon(client, db):
     client.force_login(membre.user)
     media = _photo_de_brouillon(client, membre)
 
-    reponse = client.get(f"/espace/profil/photo/{media.pk}/")
+    reponse = client.get(f"/espace/profil/image/{media.pk}/")
 
     assert reponse.status_code == 200
     assert "inline" in reponse["Content-Disposition"]
@@ -2725,7 +2783,7 @@ def test_le_bureau_lit_la_photo_d_un_brouillon(client, db):
     bureau.user.groups.add(groupe)
     client.force_login(bureau.user)
 
-    assert client.get(f"/espace/profil/photo/{media.pk}/").status_code == 200
+    assert client.get(f"/espace/profil/image/{media.pk}/").status_code == 200
 
 
 def test_la_route_privee_refuse_un_media_deja_public(client, db):
@@ -2738,7 +2796,7 @@ def test_la_route_privee_refuse_un_media_deja_public(client, db):
     membre = _membre("alice")
     client.force_login(membre.user)
     media = _photo_de_brouillon(client, membre)
-    servie = client.get(f"/espace/profil/photo/{media.pk}/")
+    servie = client.get(f"/espace/profil/image/{media.pk}/")
     assert servie.status_code == 200
     # On relâche le FICHIER, pas la réponse : `close()` sur une réponse émet
     # `request_finished`, donc ferme la connexion à la base sous PostgreSQL et
@@ -2754,7 +2812,7 @@ def test_la_route_privee_refuse_un_media_deja_public(client, db):
     media.refresh_from_db()
     assert media.est_prive is False
     assert brouillon_de(membre).photo_id == media.pk  # toujours référencé
-    assert client.get(f"/espace/profil/photo/{media.pk}/").status_code == 404
+    assert client.get(f"/espace/profil/image/{media.pk}/").status_code == 404
 
 
 def test_publier_fait_passer_la_photo_dans_la_racine_web(client, db):
@@ -2781,7 +2839,7 @@ def test_publier_fait_passer_la_photo_dans_la_racine_web(client, db):
     assert media.fichier.url in corps
     # Et plus par la route protégée : sur la page publique, elle renverrait un
     # visiteur anonyme vers la connexion au lieu d'une image.
-    assert f"/espace/profil/photo/{media.pk}/" not in corps
+    assert f"/espace/profil/image/{media.pk}/" not in corps
 
 
 def test_l_apercu_sert_la_photo_du_brouillon_par_la_route_protegee(client, db):
@@ -2793,7 +2851,7 @@ def test_l_apercu_sert_la_photo_du_brouillon_par_la_route_protegee(client, db):
 
     corps = client.get(APERCU).content.decode()
 
-    assert f"/espace/profil/photo/{media.pk}/" in corps
+    assert f"/espace/profil/image/{media.pk}/" in corps
 
 
 # --- Abandonner un brouillon (VIT-4) ----------------------------------------

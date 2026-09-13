@@ -75,6 +75,34 @@
     </fieldset>
 
     <fieldset class="formulaire__images">
+      <legend>Vidéo</legend>
+      {% for champ in form.champs_video %}
+        <p class="champ">
+          <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+          {{ champ }}
+          {% if champ.help_text %}<span class="champ__aide" id="{{ champ.auto_id }}_helptext">{{ champ.help_text }}</span>{% endif %}
+          {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+      {% if brouillon.video_couverture and brouillon.video_couverture.a_une_image %}
+        <figure class="apercu-image">
+          {% include "_image.html" with media=brouillon.video_couverture largeur_affichee=160 tailles="160px" %}
+        </figure>
+        <p class="champ champ--case">
+          <label>{{ form.retirer_couverture }} {{ form.retirer_couverture.label }}</label>
+        </p>
+      {% endif %}
+      {% for champ in form.champ_couverture %}
+        <p class="champ">
+          <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+          {{ champ }}
+          {% if champ.help_text %}<span class="champ__aide" id="{{ champ.auto_id }}_helptext">{{ champ.help_text }}</span>{% endif %}
+          {% for erreur in champ.errors %}<span class="champ__erreur" role="alert">{{ erreur }}</span>{% endfor %}
+        </p>
+      {% endfor %}
+    </fieldset>
+
+    <fieldset class="formulaire__images">
       <legend>Mes coordonnées</legend>
       <p class="champ__aide">
         Le téléphone n'apparaît pas sur le site : il est enregistré tout de suite,

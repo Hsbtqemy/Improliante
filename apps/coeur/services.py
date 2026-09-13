@@ -31,6 +31,7 @@ from .models import (
     BrouillonPageArtiste,
     Membre,
     Utilisateur,
+    champs_images_artiste,
 )
 
 # Taille de la vedette (accordéon) sur la page association. L'accordéon ne scale
@@ -195,13 +196,15 @@ def jeton_activation(user: Utilisateur) -> tuple[str, str]:
     return uidb64, default_token_generator.make_token(user)
 
 
-def definir_photo(cible, fichier, alt: str, *, cree_par=None):
-    """Crée un `Media` image et le pose comme portrait de `cible`.
+def definir_image(cible, champ: str, fichier, alt: str, *, cree_par=None):
+    """Crée un `Media` image et le pose sur `champ` de `cible`.
 
     `cible` porte le jeu de champs `ContenuPublicArtiste` : c'est soit un
     `Membre` — la page publiée, que seul le bureau écrit en direct —, soit un
     `BrouillonPageArtiste`. Une seule fonction pour les deux, sinon la version
-    publiée et le brouillon finiraient par ne plus créer le même `Media`.
+    publiée et le brouillon finiraient par ne plus créer le même `Media`. Et une
+    seule pour toutes les images du jeu — portrait, couverture de vidéo —,
+    sinon la seconde n'hériterait pas des précautions de la première.
 
     L'image d'un brouillon est écrite dans le stockage PRIVÉ : cacher une page
     ne rend pas son portrait confidentiel, et une URL difficile à deviner n'est
@@ -211,21 +214,24 @@ def definir_photo(cible, fichier, alt: str, *, cree_par=None):
     """
     from apps.medias.models import Media
 
+    if champ not in champs_images_artiste():
+        raise ValueError(f"{champ} n'est pas une image du jeu partagé")
+
     media = Media(type_media=Media.TypeMedia.IMAGE, alt=alt, cree_par=cree_par)
     if isinstance(cible, BrouillonPageArtiste):
         media.fichier_prive = fichier
     else:
         media.fichier = fichier
     media.save()
-    cible.photo = media
-    cible.save(update_fields=["photo", "date_modification"])
+    setattr(cible, champ, media)
+    cible.save(update_fields=[champ, "date_modification"])
     return media
 
 
-def publier_photo_de_brouillon(media) -> bool:
-    """Fait passer l'image d'un brouillon dans le stockage public.
+def publier_image_de_brouillon(media) -> bool:
+    """Fait passer une image de brouillon dans le stockage public.
 
-    Publier une page, c'est aussi publier son portrait : le fichier QUITTE
+    Publier une page, c'est aussi publier ses images : le fichier QUITTE
     `MEDIA_PRIVE_ROOT` pour la racine web. La copie publique est écrite AVANT
     que l'originale ne soit supprimée — l'inverse perdrait l'image si
     l'écriture échouait.
@@ -265,12 +271,14 @@ def publier_photo_de_brouillon(media) -> bool:
     return True
 
 
-def retirer_photo(cible) -> None:
-    """Détache le portrait de `cible` (le `Media` reste dans le socle)."""
-    if cible.photo_id is None:
+def retirer_image(cible, champ: str) -> None:
+    """Détache l'image `champ` de `cible` (le `Media` reste dans le socle)."""
+    if champ not in champs_images_artiste():
+        raise ValueError(f"{champ} n'est pas une image du jeu partagé")
+    if getattr(cible, f"{champ}_id") is None:
         return
-    cible.photo = None
-    cible.save(update_fields=["photo", "date_modification"])
+    setattr(cible, champ, None)
+    cible.save(update_fields=[champ, "date_modification"])
 
 
 _HOTES_YOUTUBE = frozenset(
@@ -447,10 +455,14 @@ def publier_page_artiste(membre: Membre, *, par=None) -> bool:
     if brouillon is None or brouillon.contenu_public == courant.contenu_public:
         return False
 
-    # Le portrait quitte le stockage privé avant que la fiche ne le désigne :
-    # publier la page sans publier son image montrerait un cadre vide.
-    if brouillon.photo_id and brouillon.photo.est_prive:
-        publier_photo_de_brouillon(brouillon.photo)
+    # Les images quittent le stockage privé AVANT que la fiche ne les désigne :
+    # publier la page sans publier ses images montrerait des cadres vides. On
+    # parcourt le jeu déduit plutôt que de nommer le portrait — la couverture de
+    # vidéo est arrivée sans qu'on ait eu à revenir ici, et la prochaine non plus.
+    for champ in champs_images_artiste():
+        media = getattr(brouillon, champ)
+        if media is not None and media.est_prive:
+            publier_image_de_brouillon(media)
 
     for nom, valeur in brouillon.contenu_public.items():
         setattr(courant, nom, valeur)

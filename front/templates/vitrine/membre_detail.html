@@ -152,9 +152,12 @@
             {% if membre.video_texte %}
               <p class="video-clic__texte">{{ membre.video_texte }}</p>
             {% endif %}
-            <a class="video-clic__facade"
+            <a class="video-clic__facade{% if membre.video_couverture.a_une_image %} video-clic__facade--couverte{% endif %}"
                href="https://www.youtube.com/watch?v={{ membre.video_youtube }}"
                rel="noopener">
+              {% if membre.video_couverture.a_une_image %}
+                {% include "_image.html" with media=membre.video_couverture largeur_affichee=736 tailles="(max-width: 46rem) 100vw, 736px" %}
+              {% endif %}
               <span class="video-clic__marque" aria-hidden="true"></span>
               <span class="video-clic__libelle">
                 Lire la vidéo{% if membre.video_titre %} : {{ membre.video_titre }}{% endif %}

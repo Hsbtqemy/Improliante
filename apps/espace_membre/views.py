@@ -28,15 +28,15 @@ from apps.agenda import services as agenda_services
 from apps.agenda.models import Evenement
 from apps.budget.models import RecuFiscal
 from apps.budget.services import assurer_pdf_recu
-from apps.coeur.models import BrouillonPageArtiste
+from apps.coeur.models import BrouillonPageArtiste, champs_images_artiste
 from apps.coeur.roles import est_bureau, peut_ecrire_espace_membre
 from apps.coeur.services import (
     abandonner_brouillon,
     brouillon_de,
     brouillon_en_attente,
-    definir_photo,
+    definir_image,
     publier_page_artiste,
-    retirer_photo,
+    retirer_image,
     utilisateur_depuis_uidb64,
 )
 from apps.common.fiches import appliquer_images
@@ -257,12 +257,19 @@ def mon_profil(request):
             form.save()
             coordonnees.save()
             donnees = form.cleaned_data
-            if donnees.get("photo_fichier"):
-                definir_photo(
-                    brouillon, donnees["photo_fichier"], donnees["photo_alt"], cree_par=request.user
-                )
-            elif donnees.get("retirer_photo"):
-                retirer_photo(brouillon)
+            # Un seul passage pour toutes les images du jeu : deux blocs
+            # jumeaux auraient divergé au premier correctif porté sur un seul.
+            for champ, prefixe in PageArtisteForm.IMAGES.items():
+                if donnees.get(f"{prefixe}_fichier"):
+                    definir_image(
+                        brouillon,
+                        champ,
+                        donnees[f"{prefixe}_fichier"],
+                        donnees[f"{prefixe}_alt"],
+                        cree_par=request.user,
+                    )
+                elif donnees.get(f"retirer_{prefixe}"):
+                    retirer_image(brouillon, champ)
             formset.save()
 
             if request.POST.get("action") == "publier":
@@ -346,8 +353,8 @@ def apercu_ma_page(request):
 
 
 @login_required
-def photo_de_brouillon(request, pk: int):
-    """Sert l'image NON PUBLIÉE d'un brouillon de page artiste.
+def image_de_brouillon(request, pk: int):
+    """Sert une image NON PUBLIÉE d'un brouillon de page artiste.
 
     L'identifiant est dans l'URL, donc forgeable : c'est la seule route de ce
     chantier qui doit refuser, et elle refuse sur le **rattachement métier**.
@@ -362,7 +369,15 @@ def photo_de_brouillon(request, pk: int):
     media = get_object_or_404(Media, pk=pk)
     if not media.est_prive:
         raise Http404  # une image publiée se sert par la racine web, pas par ici
-    porteur = BrouillonPageArtiste.objects.filter(photo=media).first()
+    # Le rattachement se cherche sur TOUTES les images du jeu déduit. Nommer
+    # `photo` ici aurait laissé la couverture de vidéo sans porteur : refusée à
+    # son propriétaire, donc invisible dans son propre aperçu — et le jour où
+    # quelqu'un aurait « réparé » ça en retirant le garde, elle serait devenue
+    # lisible par n'importe qui.
+    rattachement = Q()
+    for champ in champs_images_artiste():
+        rattachement |= Q(**{champ: media})
+    porteur = BrouillonPageArtiste.objects.filter(rattachement).first()
     if porteur is None:
         raise Http404
     membre = _membre_connecte(request)

@@ -24,7 +24,7 @@ donc le `srcset` ci-dessous ne la concerne pas.
 {% endcomment %}
 <img
   {% if classe %}class="{{ classe }}"{% endif %}
-  src="{% if media.est_prive %}{% url 'espace_membre:photo_brouillon' media.pk %}{% else %}{{ media.fichier.url }}{% endif %}"
+  src="{% if media.est_prive %}{% url 'espace_membre:image_brouillon' media.pk %}{% else %}{{ media.fichier.url }}{% endif %}"
   {% if media.vignette %}srcset="{{ media.vignette.url }} {{ media.vignette_largeur }}w, {{ media.fichier.url }} {{ media.largeur }}w"{% endif %}
   {% if media.vignette and tailles %}sizes="{{ tailles }}"{% endif %}
   alt="{% if not decoratif %}{{ media.alt }}{% endif %}"

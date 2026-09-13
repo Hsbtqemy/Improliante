@@ -383,6 +383,54 @@ def test_la_facade_video_reste_un_lien_quand_le_script_ne_tourne_pas(client, db)
     assert "Lire la vidéo : Extrait du spectacle" in corps
 
 
+def _image_temoin_vitrine(nom: str):
+    """Une vraie image, assez large pour qu'une vignette et un `srcset` existent."""
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    tampon = io.BytesIO()
+    Image.new("RGB", (1200, 800), (60, 90, 120)).save(tampon, "JPEG")
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/jpeg")
+
+
+def test_la_facade_video_porte_la_couverture_quand_il_y_en_a_une(client, db):
+    """Et elle reste une façade : l'image est la NÔTRE, servie par nous.
+
+    C'est tout l'intérêt d'une couverture choisie plutôt que de la vignette
+    officielle : celle-ci vit sur `i.ytimg.com` et serait la requête que ce
+    bloc existe pour refuser.
+    """
+    from apps.coeur.services import definir_image
+    from apps.medias.models import Media
+
+    membre = _membre_avec_video("AvecCouverture")
+    membre.video_couverture = Media.objects.create(
+        fichier=_image_temoin_vitrine("couv.jpg"), alt="Couverture témoin"
+    )
+    membre.save(update_fields=["video_couverture"])
+    assert definir_image  # le service existe pour le brouillon ; ici la page publiée
+
+    corps = client.get(membre.get_absolute_url()).content.decode()
+
+    assert "video-clic__facade--couverte" in corps
+    assert "Couverture témoin" in corps
+    fautives = [
+        adresse
+        for adresse in _ressources_distantes(corps)
+        if any(hote in adresse for hote in _HOTES_DU_FOURNISSEUR)
+    ]
+    assert not fautives, "la couverture a fait revenir une requête au fournisseur"
+
+
+def test_sans_couverture_la_facade_reste_typographique(client, db):
+    membre = _membre_avec_video("SansCouverture")
+    corps = client.get(membre.get_absolute_url()).content.decode()
+    assert "video-clic__facade" in corps
+    assert "video-clic__facade--couverte" not in corps
+
+
 def test_sans_video_la_fiche_ne_porte_pas_la_facade(client, db):
     membre = _membre("SansVideo", visible=True)
     corps = client.get(membre.get_absolute_url()).content.decode()

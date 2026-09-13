@@ -12,6 +12,7 @@ from apps.coeur.models import (
     Membre,
     Signataire,
     Utilisateur,
+    champs_images_artiste,
 )
 from apps.coeur.roles import NOM_GROUPE_BUREAU, est_bureau
 from apps.coeur.services import (
@@ -20,9 +21,11 @@ from apps.coeur.services import (
     brouillon_de,
     brouillon_en_attente,
     creer_membre,
+    definir_image,
     membres_en_vedette,
     ouvrir_compte,
     publier_page_artiste,
+    retirer_image,
     synchroniser_compte,
 )
 from apps.medias.models import Media
@@ -220,6 +223,67 @@ def _artiste(nom="Camille", **champs):
     champs.setdefault("bio", "Biographie publiée.")
     champs.setdefault("role_public", "Comédienne")
     return Membre.objects.create(nom=nom, visible_sur_site=True, **champs)
+
+
+def _fichier_image(nom: str):
+    """Une vraie image PNG, minimale : ces contrôles portent sur le stockage et
+    la publication, pas sur le traitement d'image."""
+    import io
+
+    from PIL import Image
+
+    tampon = io.BytesIO()
+    Image.new("RGB", (60, 40), (120, 40, 60)).save(tampon, "PNG")
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/png")
+
+
+def test_le_jeu_des_images_se_deduit_et_n_est_pas_vide(db):
+    """Trois endroits parcourent ce tuple ; vide, ils ne feraient plus rien.
+
+    Il l'a été : interrogée sur la classe ABSTRAITE, la déduction rendait `()`.
+    Une relation déclarée par chaîne n'y est jamais résolue — le modèle abstrait
+    n'entre pas dans le registre des applications. La publication n'aurait plus
+    publié aucune image, la route n'aurait plus couvert aucun rattachement, et
+    tous les contrôles existants seraient restés verts : ils parlent du
+    portrait, que le gabarit nomme encore.
+    """
+    champs = champs_images_artiste()
+    assert champs, "le jeu des images est vide : plus rien n'est publié ni couvert"
+    assert set(champs) == {"photo", "video_couverture"}
+    # Et rien d'autre : `modifie_par` ou `publie_par` ne sont pas des images.
+    assert all(nom in CHAMPS_PUBLICS_ARTISTE for nom in (f"{c}_id" for c in champs))
+
+
+def test_publier_sort_la_couverture_du_stockage_prive_comme_le_portrait(db):
+    """Publier une page, c'est publier TOUTES ses images.
+
+    Le contrôle ne vise pas la couverture pour elle-même : il vise le fait que
+    la publication parcoure le jeu déduit. Nommer le portrait ici aurait laissé
+    la couverture privée sur une page publiée — un cadre vide que seul un
+    visiteur aurait vu.
+    """
+    membre = _artiste()
+    brouillon = brouillon_de(membre)
+    portrait = definir_image(brouillon, "photo", _fichier_image("p.png"), "Portrait")
+    couverture = definir_image(brouillon, "video_couverture", _fichier_image("c.png"), "Couverture")
+    assert portrait.est_prive and couverture.est_prive
+
+    assert publier_page_artiste(membre) is True
+
+    portrait.refresh_from_db()
+    couverture.refresh_from_db()
+    assert portrait.est_prive is False
+    assert couverture.est_prive is False
+
+
+def test_definir_une_image_hors_du_jeu_partage_est_refuse(db):
+    """Un nom de champ arrive ici depuis l'écran : il se vérifie contre le jeu
+    déduit plutôt que d'être posé par `setattr` sur ce qu'il désigne."""
+    brouillon = brouillon_de(_artiste())
+    with pytest.raises(ValueError):
+        definir_image(brouillon, "bio", _fichier_image("x.png"), "alt")
+    with pytest.raises(ValueError):
+        retirer_image(brouillon, "membre")
 
 
 def test_publier_emporte_la_video_sans_qu_on_ait_eu_a_la_reciter(db):

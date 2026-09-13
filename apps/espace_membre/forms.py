@@ -129,6 +129,29 @@ class PageArtisteForm(forms.ModelForm):
         help_text="Obligatoire si vous ajoutez une photo (accessibilité).",
     )
     retirer_photo = forms.BooleanField(label="Retirer la photo actuelle", required=False)
+    couverture_fichier = forms.ImageField(
+        label="Couverture de la vidéo",
+        required=False,
+        help_text="Affichée avant le clic. Sans elle, le bloc reste typographique.",
+    )
+    couverture_alt = forms.CharField(
+        label="Description de la couverture",
+        required=False,
+        max_length=255,
+        help_text="Obligatoire si vous ajoutez une couverture (accessibilité).",
+    )
+    retirer_couverture = forms.BooleanField(label="Retirer la couverture actuelle", required=False)
+
+    # Chaque image du jeu partagé, et le préfixe de ses champs à l'écran. Le jeu
+    # des images se DÉDUIT du modèle ; la correspondance avec l'écran, elle, ne
+    # peut pas se déduire — mais elle tient en un seul endroit, et un test
+    # vérifie qu'elle les couvre toutes. Ajouter une image au modèle sans
+    # l'offrir ici ferait tomber ce test plutôt que de laisser un champ
+    # inatteignable dont personne ne saurait qu'il manque.
+    IMAGES = {"photo": "photo", "video_couverture": "couverture"}
+
+    CHAMPS_PRESENTATION = ("role_public", "bio", "site_web")
+    CHAMPS_VIDEO = ("video_youtube", "video_titre", "video_texte")
 
     # Déclaré ICI plutôt que laissé à `ModelForm` : le champ du modèle fait onze
     # caractères — la longueur d'un identifiant —, si bien qu'une adresse collée
@@ -145,7 +168,14 @@ class PageArtisteForm(forms.ModelForm):
 
     class Meta:
         model = BrouillonPageArtiste
-        fields = ["role_public", "bio", "site_web", "video_youtube", "video_titre", "video_texte"]
+        fields = [
+            "role_public",
+            "bio",
+            "site_web",
+            "video_youtube",
+            "video_titre",
+            "video_texte",
+        ]
         widgets = {"bio": forms.Textarea(attrs={"rows": 5})}
 
     def clean_video_youtube(self) -> str:
@@ -167,23 +197,44 @@ class PageArtisteForm(forms.ModelForm):
         return identifiant
 
     def clean_photo_fichier(self):
-        fichier = self.cleaned_data.get("photo_fichier")
+        return self._image_pas_trop_lourde("photo_fichier")
+
+    def clean_couverture_fichier(self):
+        return self._image_pas_trop_lourde("couverture_fichier")
+
+    def _image_pas_trop_lourde(self, nom: str):
+        fichier = self.cleaned_data.get(nom)
         if fichier and fichier.size > TAILLE_MAX_IMAGE:
             raise forms.ValidationError("Image trop volumineuse (5 Mio maximum).")
         return fichier
 
     def clean(self):
+        """Une image déposée sans texte alternatif est refusée — règle 2 du dépôt.
+
+        La boucle porte sur `IMAGES` : la couverture a hérité du contrôle sans
+        qu'on ait eu à l'y penser, et la prochaine aussi.
+        """
         cleaned = super().clean()
-        if cleaned.get("photo_fichier") and not (cleaned.get("photo_alt") or "").strip():
-            self.add_error("photo_alt", "La description de la photo est obligatoire.")
+        for prefixe in self.IMAGES.values():
+            if (
+                cleaned.get(f"{prefixe}_fichier")
+                and not (cleaned.get(f"{prefixe}_alt") or "").strip()
+            ):
+                self.add_error(f"{prefixe}_alt", "La description de l'image est obligatoire.")
         return cleaned
 
     def champs_profil(self):
-        """Champs texte du modèle, pour un rendu séparé des champs photo."""
-        return [self[nom] for nom in self.Meta.fields]
+        """Champs de présentation, pour un rendu séparé des images et de la vidéo."""
+        return [self[nom] for nom in self.CHAMPS_PRESENTATION]
+
+    def champs_video(self):
+        return [self[nom] for nom in self.CHAMPS_VIDEO]
 
     def champ_photo(self):
         return [self["photo_fichier"], self["photo_alt"]]
+
+    def champ_couverture(self):
+        return [self["couverture_fichier"], self["couverture_alt"]]
 
 
 class CoordonneesForm(forms.ModelForm):

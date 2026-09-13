@@ -576,7 +576,12 @@ def _ecrans_a_identifiant(membre):
     # rien passe toujours.
     membre.video_youtube = "dQw4w9WgXcQ"
     membre.video_titre = "Extrait témoin"
-    membre.save(update_fields=["photo", "video_youtube", "video_titre"])
+    # Et sa couverture : sans elle, la façade rend sa variante TYPOGRAPHIQUE, et
+    # l'image de couverture — son `alt`, son `srcset` — n'est balayée nulle part.
+    membre.video_couverture = Media.objects.create(
+        fichier=_image_temoin("couverture.jpg"), alt="Couverture témoin"
+    )
+    membre.save(update_fields=["photo", "video_youtube", "video_titre", "video_couverture"])
     evenement = Evenement.objects.create(
         titre="Événement témoin",
         date_debut=aujourdhui + timedelta(days=5),

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import base64
+import functools
 import mimetypes
 
 from django.conf import settings
@@ -94,6 +95,15 @@ class ContenuPublicArtiste(models.Model):
         blank=True,
         help_text="Quelques lignes pour situer l'extrait (facultatif).",
     )
+    video_couverture = models.ForeignKey(
+        "medias.Media",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="couverture de la vidéo",
+        help_text="Image affichée avant le clic. À défaut, le bloc reste typographique.",
+    )
 
     class Meta:
         abstract = True
@@ -110,6 +120,42 @@ class ContenuPublicArtiste(models.Model):
 # comparer deux `Media` chargés séparément comparerait des objets et non des
 # identités.
 CHAMPS_PUBLICS_ARTISTE = tuple(f.attname for f in ContenuPublicArtiste._meta.fields)
+
+
+@functools.cache
+def champs_images_artiste() -> tuple[str, ...]:
+    """Les champs du jeu partagé qui désignent un `Media`.
+
+    Déduits, comme `CHAMPS_PUBLICS_ARTISTE`, et pour la même raison : trois
+    endroits doivent traiter CHAQUE image d'un brouillon — la publication, qui
+    la fait passer dans le stockage public ; la route qui la sert, qui décide
+    des droits sur le rattachement ; et l'écran d'édition. Une liste tenue à la
+    main serait une consigne, et une consigne s'oublie. Le champ oublié serait
+    ici une image qui reste privée sur une page publiée — un cadre vide — ou,
+    pire, une image qu'aucun rattachement ne couvre plus.
+
+    On lit le modèle CONCRET et non la classe abstraite : sur un modèle
+    abstrait, une relation déclarée par chaîne n'est jamais résolue — il n'entre
+    pas dans le registre des applications, si bien que `related_model` reste
+    littéralement « medias.Media ». Interrogée là, la déduction rendait un tuple
+    VIDE : la publication n'aurait plus rien publié, la route n'aurait plus rien
+    couvert, et rien ne l'aurait dit.
+
+    L'intersection avec le jeu partagé garde la déduction honnête : un `Media`
+    attaché plus tard au seul `Membre`, hors du jeu, n'entrerait pas ici.
+
+    Une fonction et non une constante : la résolution demande que les
+    applications soient chargées. Le résultat est mis en cache — les champs d'un
+    modèle ne changent pas en cours d'exécution.
+    """
+    from apps.medias.models import Media
+
+    partages = {champ.name for champ in ContenuPublicArtiste._meta.fields}
+    return tuple(
+        champ.name
+        for champ in BrouillonPageArtiste._meta.fields
+        if champ.name in partages and champ.many_to_one and champ.related_model is Media
+    )
 
 
 class Membre(ContenuPublicArtiste):

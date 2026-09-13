@@ -65,7 +65,7 @@ urlpatterns = [
         views.abandonner_mon_brouillon,
         name="abandonner_mon_brouillon",
     ),
-    path("espace/profil/photo/<int:pk>/", views.photo_de_brouillon, name="photo_brouillon"),
+    path("espace/profil/image/<int:pk>/", views.image_de_brouillon, name="image_brouillon"),
     path("espace/projets/", views.mes_projets, name="mes_projets"),
     path("espace/projets/nouveau/", views.creer_projet, name="creer_projet"),
     path("espace/projets/<int:pk>/", views.voir_projet, name="voir_projet"),
