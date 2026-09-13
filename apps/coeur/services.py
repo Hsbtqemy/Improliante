@@ -307,6 +307,35 @@ def brouillon_en_attente(membre: Membre) -> bool:
     return brouillon.contenu_public != membre.contenu_public
 
 
+def abandonner_brouillon(membre: Membre) -> bool:
+    """Ramène le brouillon à ce qui est en ligne, et jette le travail en cours.
+
+    Le geste qui manque en face d'« Enregistrer le brouillon ». Sans lui, une
+    retouche malheureuse ne se défait pas : il n'y a pas d'historique — c'est la
+    décision du chantier — et l'artiste devrait recopier à la main, depuis sa
+    propre page publique, le texte qu'il vient de remplacer.
+
+    Recopie la fiche sur le brouillon plutôt que de supprimer la ligne : la
+    trace de la dernière publication (`publie_le`) décrit la PAGE, pas le
+    brouillon, et la perdre ferait dire à l'écran que rien n'a jamais été
+    publié.
+
+    `date_modification` reste hors de la liste : elle porte « votre dernier
+    enregistrement » à l'écran, et abandonner n'est pas enregistrer.
+
+    Retourne `False` s'il n'y avait rien à jeter — un double-clic n'est pas une
+    erreur.
+    """
+    brouillon = BrouillonPageArtiste.objects.filter(membre=membre).first()
+    if brouillon is None or brouillon.contenu_public == membre.contenu_public:
+        return False
+
+    for nom, valeur in membre.contenu_public.items():
+        setattr(brouillon, nom, valeur)
+    brouillon.save(update_fields=list(CHAMPS_PUBLICS_ARTISTE))
+    return True
+
+
 def aligner_brouillon_apres_saisie(membre: Membre, contenu_avant: dict) -> bool:
     """Fait suivre le brouillon après une saisie du bureau sur la fiche.
 

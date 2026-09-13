@@ -2749,3 +2749,90 @@ def test_l_apercu_sert_la_photo_du_brouillon_par_la_route_protegee(client, db):
     corps = client.get(APERCU).content.decode()
 
     assert f"/espace/profil/photo/{media.pk}/" in corps
+
+
+# --- Abandonner un brouillon (VIT-4) ----------------------------------------
+
+ABANDON = "/espace/profil/abandonner/"
+
+
+def test_abandonner_ramene_le_brouillon_a_la_page_en_ligne(client, db):
+    """Le geste qui manquait en face d'« Enregistrer le brouillon » : sans
+    historique, une retouche malheureuse ne se défaisait pas, et il fallait
+    recopier à la main depuis sa propre page publique."""
+    membre = _membre("alice")
+    membre.bio = "Biographie en ligne."
+    membre.save()
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(bio="Retouche regrettée."))
+    assert brouillon_en_attente(membre) is True
+
+    reponse = client.post(ABANDON, follow=True)
+
+    assert brouillon_de(membre).bio == "Biographie en ligne."
+    assert brouillon_en_attente(membre) is False
+    assert "Modifications abandonnées" in reponse.content.decode()
+
+
+def test_abandonner_ne_touche_pas_a_la_page_publique(client, db):
+    membre = _membre("alice")
+    membre.bio = "Biographie en ligne."
+    membre.save()
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(bio="Retouche."))
+
+    client.post(ABANDON)
+
+    membre.refresh_from_db()
+    assert membre.bio == "Biographie en ligne."
+
+
+def test_abandonner_deux_fois_n_est_pas_une_erreur(client, db):
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(bio="Retouche."))
+    client.post(ABANDON)
+
+    reponse = client.post(ABANDON, follow=True)
+
+    assert reponse.status_code == 200
+    assert "rien à abandonner" in reponse.content.decode()
+
+
+def test_le_bouton_d_abandon_n_est_offert_que_s_il_y_a_de_quoi(client, db):
+    """Un bouton qui ne fait rien se clique quand même, et laisse croire qu'il
+    a fait quelque chose."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    assert "Abandonner mes modifications" not in client.get(PROFIL).content.decode()
+
+    client.post(PROFIL, _donnees_profil(bio="Retouche."))
+    assert "Abandonner mes modifications" in client.get(PROFIL).content.decode()
+
+
+def test_abandonner_ne_se_fait_pas_en_GET(client, db):
+    """Un geste destructeur ne s'exécute pas sur une simple visite d'URL."""
+    membre = _membre("alice")
+    client.force_login(membre.user)
+    client.post(PROFIL, _donnees_profil(bio="Retouche."))
+
+    assert client.get(ABANDON).status_code == 405
+    assert brouillon_en_attente(membre) is True
+
+
+def test_abandonner_ne_touche_pas_au_brouillon_d_un_autre(client, db):
+    """ANTI-IDOR par construction : aucun identifiant d'URL. Reste à le tenir."""
+    alice = _membre("alice")
+    bob = _membre("bob")
+    bob.bio = "En ligne chez Bob."
+    bob.save()
+    client.force_login(bob.user)
+    client.post(PROFIL, _donnees_profil(bio="Brouillon de Bob."))
+
+    client.force_login(alice.user)
+    client.post(PROFIL, _donnees_profil(bio="Brouillon d'Alice."))
+    client.post(ABANDON)
+
+    assert brouillon_de(bob).bio == "Brouillon de Bob."
+    assert brouillon_en_attente(bob) is True

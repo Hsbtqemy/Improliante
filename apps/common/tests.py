@@ -582,6 +582,7 @@ def _ecrans_a_identifiant(membre):
         f"/bureau/factures/{facture.pk}/",
         f"/bureau/devis/{devis.pk}/",
         f"/bureau/membres/{membre.pk}/",
+        f"/bureau/membres/{membre.pk}/apercu/",
         f"/bureau/adhesions/{adhesion.pk}/",
         f"/bureau/evenements/{evenement.pk}/inscriptions/",
         # La page d'erreur est vue par de vrais visiteurs et n'était mesurée par

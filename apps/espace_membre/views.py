@@ -31,6 +31,7 @@ from apps.budget.services import assurer_pdf_recu
 from apps.coeur.models import BrouillonPageArtiste
 from apps.coeur.roles import est_bureau, peut_ecrire_espace_membre
 from apps.coeur.services import (
+    abandonner_brouillon,
     brouillon_de,
     brouillon_en_attente,
     definir_photo,
@@ -293,6 +294,30 @@ def mon_profil(request):
             "en_attente": brouillon_en_attente(membre),
         },
     )
+
+
+@page_d_ecriture
+@require_POST
+def abandonner_mon_brouillon(request):
+    """Jette le travail en cours et repart de la version en ligne.
+
+    Le pendant d'« Enregistrer le brouillon » : sans lui, une retouche
+    malheureuse ne se défait pas. Le geste est destructeur mais borné — il ne
+    perd que du non-publié —, et le libellé du bouton dit exactement cela,
+    comme les autres suppressions de l'espace membre.
+    """
+    membre = _membre_connecte(request)
+    if membre is None:
+        messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
+        return redirect("espace_membre:tableau_de_bord")
+
+    if abandonner_brouillon(membre):
+        messages.success(
+            request, "Modifications abandonnées : vous repartez de votre page en ligne."
+        )
+    else:
+        messages.info(request, "Il n'y avait rien à abandonner.")
+    return redirect("espace_membre:mon_profil")
 
 
 @login_required

@@ -152,5 +152,20 @@
     </div>
   </form>
 
+  {% comment %}
+    Un formulaire à part : on n'imbrique pas deux `<form>`. Offert seulement
+    quand il y a quelque chose à jeter — un bouton qui ne fait rien se clique
+    quand même, et laisse croire qu'il a fait quelque chose.
+  {% endcomment %}
+  {% if en_attente %}
+    <form method="post" action="{% url 'espace_membre:abandonner_mon_brouillon' %}"
+          class="formulaire__actions">
+      {% csrf_token %}
+      <button type="submit" class="lien-bouton lien-bouton--ghost">
+        Abandonner mes modifications et repartir de ma page en ligne
+      </button>
+    </form>
+  {% endif %}
+
   <p><a href="{% url 'espace_membre:tableau_de_bord' %}">← Retour à mon espace</a></p>
 {% endblock %}
