@@ -245,6 +245,23 @@ def test_reponse_fichier_prive_sert_le_contenu_en_dev(db):
     assert reponse["Content-Type"] == "application/pdf"
 
 
+def test_un_fichier_prive_ne_se_met_pas_en_cache_partage(db, settings):
+    """Le contrôle des droits a lieu à CHAQUE requête ; un proxy qui garderait
+    la réponse la servirait ensuite sans repasser par ce contrôle.
+
+    Les deux chemins sont vérifiés : en production la réponse est vide et c'est
+    Nginx qui sert le fichier, mais l'en-tête part quand même de Django."""
+    document = _document_pdf()
+
+    reponse = reponse_fichier_prive(document.fichier)
+    assert reponse["Cache-Control"] == "private, no-store"
+    reponse.close()
+
+    settings.UTILISER_X_ACCEL = True
+    settings.X_ACCEL_PREFIXE = "/media-prive/"
+    assert reponse_fichier_prive(document.fichier)["Cache-Control"] == "private, no-store"
+
+
 def test_reponse_fichier_prive_delegue_a_nginx_en_prod(db, settings):
     """Mode prod : réponse vide + en-tête X-Accel-Redirect, le fichier ne
     transite pas par Python (c'est Nginx qui le sert)."""

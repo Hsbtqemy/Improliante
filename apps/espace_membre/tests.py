@@ -2734,6 +2734,9 @@ def test_publier_fait_passer_la_photo_dans_la_racine_web(client, db):
     assert membre.photo_id == media.pk
     corps = client.get(membre.get_absolute_url()).content.decode()
     assert media.fichier.url in corps
+    # Et plus par la route protégée : sur la page publique, elle renverrait un
+    # visiteur anonyme vers la connexion au lieu d'une image.
+    assert f"/espace/profil/photo/{media.pk}/" not in corps
 
 
 def test_l_apercu_sert_la_photo_du_brouillon_par_la_route_protegee(client, db):

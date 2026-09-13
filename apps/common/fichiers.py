@@ -47,8 +47,21 @@ def reponse_fichier_prive(
         # `internal` pointant vers MEDIA_PRIVE_ROOT.
         reponse["X-Accel-Redirect"] = settings.X_ACCEL_PREFIXE + quote(fichier.name)
         reponse["Content-Disposition"] = entete_disposition
-        return reponse
+        return _sans_cache_partage(reponse)
 
     reponse = FileResponse(fichier.open("rb"), content_type=type_mime)
     reponse["Content-Disposition"] = entete_disposition
+    return _sans_cache_partage(reponse)
+
+
+def _sans_cache_partage(reponse):
+    """Interdit la mise en cache d'un fichier privé par un intermédiaire.
+
+    Le contrôle des droits a lieu à chaque requête ; un proxy qui garderait la
+    réponse la servirait à la requête suivante sans repasser par ce contrôle.
+    Vaut pour un reçu comme pour l'image d'une page pas encore publiée — celle-ci
+    est affichée `inline` dans une page, donc c'est une requête d'image
+    ordinaire, exactement le genre qu'un cache retient.
+    """
+    reponse["Cache-Control"] = "private, no-store"
     return reponse

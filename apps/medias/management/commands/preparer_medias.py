@@ -27,7 +27,12 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        medias = Media.objects.filter(type_media=Media.TypeMedia.IMAGE).exclude(fichier="")
+        # `exclude(fichier="", fichier_prive="")` : un média de brouillon porte
+        # bien une image, simplement pas dans la racine web. L'exclure sur le
+        # seul `fichier` aurait rendu la reprise aveugle à ces médias-là.
+        medias = Media.objects.filter(type_media=Media.TypeMedia.IMAGE).exclude(
+            fichier="", fichier_prive=""
+        )
         if not options["tout"]:
             medias = medias.filter(largeur__isnull=True)
         traites = ignores = 0

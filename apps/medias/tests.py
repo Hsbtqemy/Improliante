@@ -146,3 +146,36 @@ def test_la_commande_traite_les_medias_deja_en_base(db):
     media.refresh_from_db()
     assert media.largeur == LARGEUR_MAX
     assert media.vignette
+
+
+def test_une_image_de_brouillon_est_reduite_mais_sans_vignette(db):
+    """Une image pas encore publiée est traitée comme les autres — l'aperçu ne
+    doit pas télécharger l'original de 5 Mio — mais SANS vignette : celle-ci
+    irait dans le stockage public, et une miniature d'une image qu'on protège
+    est une fuite de cette image."""
+    media = Media.objects.create(
+        fichier_prive=SimpleUploadedFile("brouillon.jpg", _octets(3000, 4000)),
+        alt="Portrait de brouillon",
+    )
+
+    assert media.est_prive is True
+    assert media.largeur == LARGEUR_MAX
+    assert not media.vignette
+
+
+def test_la_commande_reprend_aussi_les_images_de_brouillon(db):
+    """Elle écartait les médias sur le seul `fichier` : un média de brouillon
+    porte bien une image, simplement pas dans la racine web. Le filtre aveugle
+    les aurait laissés sans dimensions pour toujours — donc sans place réservée
+    dans l'écran d'édition."""
+    media = Media.objects.create(
+        fichier_prive=SimpleUploadedFile("repris.jpg", _octets(1200, 900)),
+        alt="Portrait de brouillon",
+    )
+    Media.objects.filter(pk=media.pk).update(largeur=None, hauteur=None)
+
+    call_command("preparer_medias")
+
+    media.refresh_from_db()
+    assert media.largeur == 1200
+    assert not media.vignette  # toujours pas : le média n'est pas publié
