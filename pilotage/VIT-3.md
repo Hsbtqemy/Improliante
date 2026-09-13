@@ -5,8 +5,10 @@ statut: interrompu
 
 # VIT-3 — identité visuelle de la vitrine : palette, fond, titres
 
-**Arrêté sur** — sélecteur de police de titre ajouté au panneau DEV, quatre
-candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
+**Arrêté sur** — échelle des titres : le mois de l'agenda repassé au-dessus des
+titres qu'il groupe, avec la mesure qui le tient, commit `4bda993`, 13 septembre 2026.
+Avant cela : sélecteur de police de titre ajouté au panneau DEV, quatre candidates
+auto-hébergées, commit `7b37df3`, 28 août 2026.
 
 ## Reste
 
@@ -14,6 +16,11 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 - [x] Arrêter la palette parmi les dix-huit — **sans objet depuis le 12 septembre 2026** : les dix-huit restent offertes au visiteur, le choix n'a plus lieu d'être (voir « Décision du 12 septembre » plus bas)
 - [ ] Arrêter le fond parmi les trois (plat teinté, mesh animé, grain)
 - [ ] Arrêter la police de titre parmi les cinq (système, Fraunces, Playfair, Instrument, Bricolage)
+
+### Échelle des titres
+- [x] Le mois de l'agenda passait SOUS les titres d'événements qu'il groupe — `.agenda-mois__titre` en 1.05rem contre 1.15rem pour `.agenda-carte__titre` : remis à 1.4rem, plancher du `clamp()` global des h2, comme le h2 sans classe sous lequel la même carte vit déjà sur la fiche artiste
+- [x] La mesure compare, sur les 67 pages rendues, chaque h3 au h2 qui ouvre sa section, et porte son témoin nommé : si la paire mois / carte cesse d'être comparable, elle refuse de passer plutôt que de ne rien regarder
+- [ ] Les étiquettes de groupe du rail sont à `0.68rem`, soit 10,88 px : décider si elles passent à `0.7rem` (11,2 px). Le contraste a déjà été arbitré (voir le commentaire de `--rail-titre`), la taille non
 
 ### Retrait du panneau DEV
 - [ ] Le sélecteur de palette RESTE, les deux autres partent : le bloc `.theme-switch` se réduit au choix de palette, et son script ne pilote plus que `data-theme`
@@ -32,6 +39,19 @@ candidates auto-hébergées, commit `7b37df3`, 28 août 2026.
 - [ ] Regarder à l'écran les dix-huit palettes en mode sombre : le test les mesure, mais il mesure la couleur, pas la lisibilité d'ensemble
 
 ## Contexte
+
+**Ce qu'un détecteur externe verse aux deux arbitrages restants (13 septembre
+2026).** `impeccable`, installé dans le harnais (`docs/outils-agent.md`), a un avis
+sur les DEUX moitiés qui restent à trancher ici :
+
+- le **fond** : il signale `--canvas: #ece5d8` comme un crème/beige devenu générique ;
+- la **police** : sur les quatre candidates, il juge **Fraunces et Instrument Serif**
+  surexposées, et ne dit rien de **Playfair Display** ni de **Bricolage Grotesque**.
+
+C'est un élément versé au dossier, pas une décision : l'outil a un avis, le cahier
+des charges et CLAUDE.md ont autorité. Il se trompe par ailleurs assez souvent pour
+qu'on ne le suive pas les yeux fermés — le tri de ses constats, avec les preuves de
+ce qui est faux, est dans `docs/outils-agent.md`.
 
 **Décision du 28 août 2026** : le panneau DEV reste en place tant que les trois
 choix ne sont pas arrêtés. Il n'est donc **pas** conditionné à `settings.DEBUG` —
