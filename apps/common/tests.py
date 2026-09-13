@@ -661,6 +661,99 @@ def test_aucune_page_ne_saute_un_niveau_de_titre(client, db):
     assert not fautives, "plan de titres troué :\n  " + "\n  ".join(fautives)
 
 
+def _tailles_de_classe_declarees():
+    """`font-size` en rem de chaque classe qui en déclare une, règles de base.
+
+    On ne lit QUE le premier niveau du fichier : ce qui vit sous `@media` ou
+    sous `html[data-theme=N]` dépend d'un contexte que cette lecture ne porte
+    pas, et le comparer reviendrait à mesurer deux règles qui ne s'appliquent
+    jamais ensemble. `clamp()`, `em` et `%` sont ignorés de même — non
+    comparables sans le parent ni la largeur de la fenêtre.
+    """
+    import re
+
+    from django.contrib.staticfiles import finders
+
+    css = pathlib.Path(finders.find("css/site.css")).read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    tailles = {}
+    i = 0
+    while (ouvre := css.find("{", i)) != -1:
+        selecteur = css[i:ouvre].strip()
+        profondeur, j = 1, ouvre + 1
+        while j < len(css) and profondeur:
+            profondeur += {"{": 1, "}": -1}.get(css[j], 0)
+            j += 1
+        corps, i = css[ouvre + 1 : j - 1], j
+        if selecteur.startswith("@"):
+            continue
+        declaree = re.search(r"font-size:\s*([\d.]+)rem\s*;", corps)
+        if not declaree:
+            continue
+        for sel in selecteur.split(","):
+            if re.fullmatch(r"\.[A-Za-z0-9_-]+", sel.strip()):
+                tailles[sel.strip()[1:]] = float(declaree.group(1))
+    return tailles
+
+
+def test_aucun_titre_de_section_n_est_plus_petit_que_ce_qu_il_groupe(client, db):
+    """Le mois de l'agenda était en 1.05rem, les titres d'événements qu'il
+    groupe en 1.15rem : le contenu pesait plus lourd que son intitulé.
+
+    Le contrôle du plan des titres ne pouvait pas le voir — la suite h2, h3 est
+    régulière, c'est la TAILLE qui contredit le niveau. Un lecteur d'écran s'y
+    retrouve ; un lecteur à l'œil balaie la page par corps de texte et lit
+    d'abord le titre le plus gros, donc l'événement avant son mois.
+
+    Le h2 et le h3 vivaient dans deux fichiers différents — `agenda_liste.html`
+    et l'inclusion `_carte_agenda.html` —, ce qu'aucune lecture de gabarit pris
+    isolément ne rapproche. On mesure donc sur les pages rendues.
+    """
+    import re
+
+    tailles = _tailles_de_classe_declarees()
+    assert len(tailles) >= 40, f"{len(tailles)} classes dimensionnées : le CSS se lit mal"
+
+    def mesure(attributs):
+        classes = re.search(r'class="([^"]*)"', attributs)
+        if not classes:
+            return None, None
+        for classe in reversed(classes.group(1).split()):
+            if classe in tailles:
+                return classe, tailles[classe]
+        return None, None
+
+    fautives, compares = [], set()
+    for url, html in _pages_sans_parametre(client):
+        corps = html.split('<main id="contenu"', 1)[-1].split("</main>", 1)[0]
+        ouvert = (None, None)
+        for balise, attributs in re.findall(r"<h([23])\b([^>]*)>", corps):
+            classe, taille = mesure(attributs)
+            if balise == "2":
+                # Un h2 sans taille déclarée ferme quand même la section
+                # précédente : la laisser ouverte comparerait un h3 au h2 d'un
+                # autre bloc de la page.
+                ouvert = (classe, taille)
+                continue
+            if ouvert[1] is None or taille is None:
+                continue
+            compares.add(ouvert[0])
+            if taille > ouvert[1]:
+                fautives.append(
+                    f"{url} → h3 .{classe} ({taille}rem) > h2 .{ouvert[0]} ({ouvert[1]}rem)"
+                )
+
+    # Le témoin nommé : sans lui, une mesure qui ne compare plus rien passerait.
+    assert "agenda-mois__titre" in compares, (
+        "la paire mois / carte de l'agenda n'est plus comparée — le contrôle "
+        f"passerait en ne regardant rien (comparé : {sorted(compares)})"
+    )
+    assert not fautives, "titre de section plus petit que son contenu :\n  " + "\n  ".join(
+        sorted(set(fautives))
+    )
+
+
 def test_chaque_champ_de_formulaire_a_un_nom_accessible(client, db):
     """Un champ sans label s'annonce « zone de saisie, vide ».
 

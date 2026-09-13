@@ -1398,7 +1398,12 @@ th.montant {
   margin-top: 1.75rem;
 }
 .agenda-mois__titre {
-  font-size: 1.05rem;
+  /* Le plancher du `clamp()` global des h2 : le mois groupe des titres
+     d'événements en 1.15rem, il ne peut pas leur passer dessous. À 1.05rem il
+     le faisait, et le plan des titres — qui ne regarde que les NIVEAUX — ne
+     pouvait pas le voir. La même carte, sur la fiche artiste, vit déjà sous un
+     h2 sans classe, donc sous ce clamp : l'agenda rejoint son voisin. */
+  font-size: 1.4rem;
   text-transform: capitalize;
   color: var(--couleur-primaire);
   border-bottom: 2px solid var(--couleur-primaire-clair);
