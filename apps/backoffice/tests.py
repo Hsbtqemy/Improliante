@@ -3233,3 +3233,29 @@ def test_le_tableau_de_bord_signale_les_cotisations_et_les_messages(client, db):
 
     assert par_label["cotisation(s) en attente de paiement"] == 1
     assert par_label["message(s) reçu(s) à traiter"] == 1
+
+
+def test_l_encart_du_bureau_s_eteint_apres_sa_propre_saisie(client, db):
+    """Sans quoi il s'allume à la première saisie du bureau et ne s'éteint plus
+    jamais : une alarme permanente cesse d'être lue, et celle-ci accuserait
+    l'artiste de modifications qu'il n'a pas faites."""
+    from apps.coeur.services import brouillon_de
+
+    membre = Membre.objects.create(prenom="Alice", nom="Zed", role_public="Comédienne")
+    brouillon_de(membre)  # l'artiste a ouvert son écran, sans rien changer
+    client.force_login(_staff())
+
+    client.post(
+        f"/bureau/membres/{membre.pk}/",
+        {
+            "prenom": "Alice",
+            "nom": "Zed",
+            "email": "",
+            "telephone": "",
+            "role_public": "Comédienne, mise en scène",
+        },
+    )
+
+    corps = client.get(f"/bureau/membres/{membre.pk}/").content.decode()
+    assert "modifications non publiées" not in corps
+    assert brouillon_de(membre).role_public == "Comédienne, mise en scène"

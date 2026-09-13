@@ -219,18 +219,28 @@ def retirer_photo(cible) -> None:
     cible.save(update_fields=["photo", "date_modification"])
 
 
-def brouillon_de(membre: Membre) -> BrouillonPageArtiste:
-    """Le brouillon de page de ce membre, créé au besoin.
+def brouillon_de(membre: Membre, *, creer: bool = True) -> BrouillonPageArtiste:
+    """Le brouillon de page de ce membre.
 
     Un premier brouillon **vide** effacerait la page en le publiant : il part
-    donc de ce que le public voit déjà, et l'artiste retouche. `get_or_create`
-    plutôt qu'un `filter` suivi d'un `create` : deux onglets ouverts en même
-    temps sur l'écran d'édition passent tous les deux par ici.
+    donc de ce que le public voit déjà, et l'artiste retouche. C'est la seule
+    définition de ce contenu de départ, et elle sert aux deux chemins ci-dessous.
+
+    `creer=False` rend une instance NON enregistrée quand il n'y a rien en base :
+    afficher un écran ou un aperçu ne doit pas écrire une ligne. Un GET qui écrit
+    se paie plus tard, le jour où l'on compte « qui a commencé à éditer » et où
+    l'on compte en fait « qui a ouvert la page ».
+
+    Sur le chemin qui crée, `get_or_create` plutôt qu'un `filter` suivi d'un
+    `create` : deux onglets ouverts sur le même écran passent tous les deux ici.
     """
-    brouillon, _ = BrouillonPageArtiste.objects.get_or_create(
-        membre=membre, defaults=dict(membre.contenu_public)
-    )
-    return brouillon
+    if creer:
+        brouillon, _ = BrouillonPageArtiste.objects.get_or_create(
+            membre=membre, defaults=dict(membre.contenu_public)
+        )
+        return brouillon
+    existant = BrouillonPageArtiste.objects.filter(membre=membre).first()
+    return existant or BrouillonPageArtiste(membre=membre, **membre.contenu_public)
 
 
 def brouillon_en_attente(membre: Membre) -> bool:
@@ -243,6 +253,40 @@ def brouillon_en_attente(membre: Membre) -> bool:
     if brouillon is None:
         return False
     return brouillon.contenu_public != membre.contenu_public
+
+
+def aligner_brouillon_apres_saisie(membre: Membre, contenu_avant: dict) -> bool:
+    """Fait suivre le brouillon après une saisie du bureau sur la fiche.
+
+    Écrire la fiche, c'est publier : elle PORTE la version publique. Mais le
+    brouillon, lui, ne bouge pas — et il garde alors l'ancien texte. Deux
+    conséquences, toutes deux mauvaises et silencieuses : l'écran du bureau
+    annonce pour toujours « des modifications non publiées » que l'artiste n'a
+    jamais faites, et la prochaine publication de l'artiste rend la fiche à sa
+    valeur d'avant.
+
+    La règle : si le brouillon disait exactement ce que la fiche disait AVANT la
+    saisie, il ne portait aucun travail en cours, et il suit. S'il en portait, on
+    n'y touche pas — et l'avertissement du bureau devient vrai, puisque cette
+    publication-là recouvrira bien la saisie.
+
+    `contenu_avant` ne peut venir que de l'appelant : lui seul a vu la fiche
+    avant de l'écrire. Retourne `True` si le brouillon a suivi.
+
+    Ne couvre PAS l'admin Django, qui écrit `Membre` sans passer par ici : c'est
+    la porte de service, et elle rouvre le décalage.
+    """
+    brouillon = BrouillonPageArtiste.objects.filter(membre=membre).first()
+    if brouillon is None or brouillon.contenu_public != contenu_avant:
+        return False
+
+    for nom, valeur in membre.contenu_public.items():
+        setattr(brouillon, nom, valeur)
+    # `date_modification` volontairement hors de la liste : elle porte « votre
+    # dernier enregistrement » sur l'écran du membre, et ce n'est pas lui qui
+    # vient d'écrire.
+    brouillon.save(update_fields=list(CHAMPS_PUBLICS_ARTISTE))
+    return True
 
 
 @transaction.atomic

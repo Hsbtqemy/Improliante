@@ -6,10 +6,11 @@ import pytest
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from apps.coeur.models import Membre, Signataire, Utilisateur
+from apps.coeur.models import BrouillonPageArtiste, Membre, Signataire, Utilisateur
 from apps.coeur.roles import NOM_GROUPE_BUREAU, est_bureau
 from apps.coeur.services import (
     OuvertureCompteImpossible,
+    aligner_brouillon_apres_saisie,
     brouillon_de,
     brouillon_en_attente,
     creer_membre,
@@ -333,3 +334,70 @@ def test_la_publication_trace_son_auteur(db):
     brouillon.refresh_from_db()
     assert brouillon.publie_le is not None
     assert brouillon.publie_par == user
+
+
+def test_la_publication_recopie_tous_les_champs_du_jeu_partage(db):
+    """Le garde-fou de la promesse : la liste des champs recopiés se déduit du
+    jeu partagé. La remplacer un jour par une liste écrite à la main ferait
+    tomber ce test — sans quoi le champ oublié serait un champ que « Publier »
+    ne recopie pas, en silence."""
+    from apps.coeur.models import CHAMPS_PUBLICS_ARTISTE, ContenuPublicArtiste
+
+    declares = {champ.attname for champ in ContenuPublicArtiste._meta.fields}
+
+    assert declares == set(CHAMPS_PUBLICS_ARTISTE)
+    assert declares, "le jeu partagé ne déclare plus aucun champ éditorial"
+
+
+def test_une_saisie_du_bureau_emmene_un_brouillon_qui_n_attendait_rien(db):
+    """Écrire la fiche, c'est publier. Si le brouillon ne portait aucun travail
+    en cours, il suit — sinon il garderait l'ancien texte et le rendrait à la
+    fiche à la prochaine publication de l'artiste."""
+    membre = _artiste(role_public="Comédienne")
+    brouillon_de(membre)  # l'artiste a ouvert son écran, sans rien changer
+    contenu_avant = dict(membre.contenu_public)
+
+    membre.role_public = "Comédienne, mise en scène"
+    membre.save()
+    assert aligner_brouillon_apres_saisie(membre, contenu_avant) is True
+
+    assert brouillon_de(membre).role_public == "Comédienne, mise en scène"
+    assert brouillon_en_attente(membre) is False
+
+
+def test_une_saisie_du_bureau_ne_touche_pas_un_travail_en_cours(db):
+    """Le revers : un brouillon qui dit autre chose porte du travail, et il
+    n'est pas écrasé. L'avertissement du bureau devient alors vrai — cette
+    publication-là recouvrira bien sa saisie."""
+    membre = _artiste(role_public="Comédienne")
+    brouillon = brouillon_de(membre)
+    brouillon.role_public = "En cours de réécriture"
+    brouillon.save()
+    contenu_avant = dict(membre.contenu_public)
+
+    membre.role_public = "Comédienne, mise en scène"
+    membre.save()
+    assert aligner_brouillon_apres_saisie(membre, contenu_avant) is False
+
+    assert brouillon_de(membre).role_public == "En cours de réécriture"
+    assert brouillon_en_attente(membre) is True
+
+
+def test_l_alignement_ne_fabrique_pas_un_brouillon(db):
+    """Une personne sans compte n'en a jamais eu : le bureau écrit sa fiche,
+    point."""
+    membre = _artiste()
+    assert aligner_brouillon_apres_saisie(membre, dict(membre.contenu_public)) is False
+    assert BrouillonPageArtiste.objects.filter(membre=membre).count() == 0
+
+
+def test_lire_le_brouillon_sans_le_creer(db):
+    """`creer=False` rend le contenu publié, sans écrire : afficher un écran ou
+    un aperçu ne laisse pas de ligne en base."""
+    membre = _artiste(bio="Biographie publiée.")
+
+    lu = brouillon_de(membre, creer=False)
+
+    assert lu.pk is None
+    assert lu.bio == "Biographie publiée."
+    assert BrouillonPageArtiste.objects.filter(membre=membre).count() == 0

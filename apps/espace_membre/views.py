@@ -242,7 +242,9 @@ def mon_profil(request):
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
         return redirect("espace_membre:tableau_de_bord")
 
-    brouillon = brouillon_de(membre)
+    # Créé seulement quand on écrit : afficher l'écran ne doit pas laisser une
+    # ligne en base pour quelqu'un qui n'a fait que regarder.
+    brouillon = brouillon_de(membre, creer=request.method == "POST")
 
     if request.method == "POST":
         form = PageArtisteForm(request.POST, request.FILES, instance=brouillon)
@@ -314,7 +316,7 @@ def apercu_ma_page(request):
         messages.error(request, "Votre compte n'est pas rattaché à une fiche membre.")
         return redirect("espace_membre:tableau_de_bord")
 
-    brouillon = brouillon_de(membre)
+    brouillon = brouillon_de(membre, creer=False)
     apercu = Membre.objects.get(pk=membre.pk)
     for nom, valeur in brouillon.contenu_public.items():
         setattr(apercu, nom, valeur)

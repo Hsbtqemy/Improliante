@@ -680,10 +680,15 @@ def editer_membre(request, pk):
     la surprise arriver des semaines plus tard.
     """
     membre = get_object_or_404(Membre, pk=pk)
+    # Capturé ici, et pas après `is_valid()` : la validation d'un ModelForm POSE
+    # déjà les valeurs reçues sur l'instance. Lire plus bas, c'était lire
+    # l'après en croyant lire l'avant — et le brouillon ne suivait jamais.
+    contenu_avant = dict(membre.contenu_public)
     form = MembreForm(request.POST or None, instance=membre, edition=True)
     if request.method == "POST" and form.is_valid():
         form.save()
         coeur_services.synchroniser_compte(membre)
+        coeur_services.aligner_brouillon_apres_saisie(membre, contenu_avant)
         messages.success(request, "Fiche mise à jour.")
         return redirect("backoffice:liste_membres")
     return render(

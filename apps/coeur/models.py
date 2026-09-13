@@ -48,8 +48,10 @@ class ContenuPublicArtiste(models.Model):
 
     Le jeu est abstrait pour que les deux ne puissent pas diverger : ajouter un
     champ éditorial ici l'ajoute des deux côtés, et le service de publication le
-    recopie sans qu'on ait à y penser. Un champ ajouté d'un seul côté serait un
-    champ que « Publier » oublierait, en silence.
+    recopie sans qu'on ait à y penser — la liste des champs recopiés se DÉDUIT
+    de cette classe, elle ne se tient pas à la main. Une liste tenue à la main
+    aurait été une consigne, et une consigne s'oublie : le champ oublié serait
+    alors un champ que « Publier » ne recopierait pas, sans que rien ne le dise.
     """
 
     role_public = models.CharField(
@@ -79,10 +81,12 @@ class ContenuPublicArtiste(models.Model):
         return {nom: getattr(self, nom) for nom in CHAMPS_PUBLICS_ARTISTE}
 
 
-# Nommés une fois, lus par la comparaison et par la publication. `photo_id`
-# plutôt que `photo` : comparer deux `Media` chargés séparément compare des
-# objets, pas des identités.
-CHAMPS_PUBLICS_ARTISTE = ("role_public", "bio", "site_web", "photo_id")
+# Déduits du jeu partagé, pas récités : ajouter un champ éditorial à
+# `ContenuPublicArtiste` suffit à ce que la comparaison et la publication le
+# prennent en compte. `attname` plutôt que `name` — donc `photo_id` — parce que
+# comparer deux `Media` chargés séparément comparerait des objets et non des
+# identités.
+CHAMPS_PUBLICS_ARTISTE = tuple(f.attname for f in ContenuPublicArtiste._meta.fields)
 
 
 class Membre(ContenuPublicArtiste):

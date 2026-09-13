@@ -2564,3 +2564,33 @@ def test_un_profil_jamais_enregistre_n_annonce_pas_d_enregistrement(client, db):
 
     client.post(PROFIL, _donnees_profil(bio="Un début."))
     assert "Dernier enregistrement" in client.get(PROFIL).content.decode()
+
+
+def test_regarder_son_profil_n_ecrit_rien_en_base(client, db):
+    """Un GET qui crée se paie le jour où l'on compte « qui a commencé à
+    éditer » et où l'on compte en fait « qui a ouvert la page »."""
+    from apps.coeur.models import BrouillonPageArtiste
+
+    membre = _membre("alice")
+    client.force_login(membre.user)
+
+    client.get(PROFIL)
+    client.get(APERCU)
+    assert BrouillonPageArtiste.objects.filter(membre=membre).count() == 0
+
+    client.post(PROFIL, _donnees_profil(bio="Un début."))
+    assert BrouillonPageArtiste.objects.filter(membre=membre).count() == 1
+
+
+def test_la_page_publique_ne_porte_pas_le_bandeau_d_apercu(client, db):
+    """Le drapeau `apercu` n'est posé que par l'espace membre : un jour où il
+    fuirait dans le contexte public, la page annoncerait à tout le monde
+    qu'elle n'est visible que de lui."""
+    membre = _membre("alice")
+    membre.visible_sur_site = True
+    membre.save()
+
+    corps = client.get(membre.get_absolute_url()).content.decode()
+
+    assert "bandeau-apercu" not in corps
+    assert "Retour aux membres" in corps
