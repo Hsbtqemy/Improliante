@@ -82,11 +82,19 @@ def liste_spectacles(request):
 
 
 def detail_spectacle(request, pk: int):
-    """Fiche d'un spectacle publié (404 sinon), avec ses représentations publiques."""
+    """Fiche d'un spectacle publié (404 sinon), avec ses représentations à venir.
+
+    « Prochaines » borne aussi le temps : la liste montrait toutes les dates
+    publiques, passées comprises, sous ce titre-là — une tournée finie en
+    février s'annonçait encore. Même convention que l'agenda et que les
+    participations d'un artiste : une date est passée dès son début franchi.
+    L'historique des représentations est une autre page, avec son propre titre,
+    et il n'existe pas encore (FRONT-04)."""
     spectacle = get_object_or_404(Spectacle.objects.filter(statut_moderation=_PUBLIE), pk=pk)
     prochaines_dates = spectacle.representations.filter(
         statut_moderation=Evenement.StatutModeration.PUBLIE,
         visibilite=Evenement.Visibilite.PUBLIC,
+        date_debut__gte=timezone.now(),
     ).order_by("date_debut")
     contexte = {
         "spectacle": spectacle,

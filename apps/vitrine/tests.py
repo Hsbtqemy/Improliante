@@ -1361,3 +1361,40 @@ def test_une_date_publique_montre_un_spectacle_publie(client, db):
     assert "OeuvrePubliee" in corps
     assert f"/spectacles/{spectacle.pk}/" in corps
     assert _bloc_json_ld(corps)["workPerformed"]["name"] == "OeuvrePubliee"
+
+
+def test_la_fiche_d_un_membre_ne_suit_pas_le_nombre_de_participations(client, db):
+    """La carte de date montre le lieu, l'affiche et le spectacle rattaché :
+    sans préchargement, chaque date en réclamait trois de plus. Le contrôle
+    porte sur la CROISSANCE, pas sur un total — un total se périme au premier
+    préchargement ajouté ailleurs."""
+    membre = _membre("Mesuree", visible=True)
+
+    def poser(debut, nombre):
+        for i in range(debut, debut + nombre):
+            evenement = _date_publique(dans_jours=i + 1, titre=f"Date{i}")
+            Intervention.objects.create(evenement=evenement, membre=membre, role="Jeu")
+
+    poser(0, 3)
+    client.get(membre.get_absolute_url())  # amorce (gabarits, session)
+    trois = _requetes(client, membre.get_absolute_url())
+    poser(3, 9)
+    douze = _requetes(client, membre.get_absolute_url())
+
+    assert douze == trois, f"{trois} requêtes pour 3 participations, {douze} pour 12"
+
+
+def test_la_fiche_d_un_spectacle_n_annonce_pas_une_date_passee(client, db):
+    """« Prochaines dates » borne aussi le temps. La liste montrait toutes les
+    représentations publiques, passées comprises : une tournée finie en février
+    s'annonçait encore en septembre, sous ce titre-là."""
+    spectacle = Spectacle.objects.create(
+        titre="TourneeFinie", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    for dans_jours, titre in ((-200, "DateDeLaSaisonDerniere"), (10, "DateAVenir")):
+        _date_publique(dans_jours=dans_jours, titre=titre, spectacle=spectacle)
+
+    corps = client.get(f"/spectacles/{spectacle.pk}/").content.decode()
+
+    assert "DateAVenir" in corps
+    assert "DateDeLaSaisonDerniere" not in corps

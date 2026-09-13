@@ -482,7 +482,7 @@ def _ecrans_a_identifiant(membre):
 
     from django.utils import timezone
 
-    from apps.agenda.models import Evenement
+    from apps.agenda.models import Evenement, Intervention
     from apps.budget.models import Adhesion, Saison
     from apps.coeur.models import Membre
     from apps.common.models import Moderation
@@ -520,6 +520,11 @@ def _ecrans_a_identifiant(membre):
         places_max=20,  # sans jauge, la feuille d'inscription publique n'existe pas
         affiche=Media.objects.create(fichier=_image_temoin("evt.jpg"), alt="Affiche d'événement"),
     )
+    # Sans cette intervention, la fiche publique du membre rend l'ÉTAT VIDE de
+    # ses prochaines participations : la carte de date, elle, n'y paraît jamais.
+    # Elle est balayée sur l'agenda, mais pas dans son second emploi — et c'est
+    # exactement la façon dont un invariant passe en ne regardant rien.
+    Intervention.objects.create(evenement=evenement, membre=membre, role="Comédienne")
     reunion = Reunion.objects.create(
         titre="AG témoin",
         date=aujourdhui,

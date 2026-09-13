@@ -30,7 +30,11 @@
       {% endif %}
     </p>
     {% if role %}
-      <p class="agenda-carte__role">{{ role }}</p>
+      {% comment %}
+        Sans le préfixe, le lecteur d'écran lit « Comédienne » après un titre et
+        une date, sans dire de quoi il s'agit — on l'entend comme un nom.
+      {% endcomment %}
+      <p class="agenda-carte__role"><span class="sr-only">Rôle : </span>{{ role }}</p>
     {% endif %}
     {% if e.spectacle_public and e.spectacle_public.titre != e.titre %}
       <p class="agenda-carte__spectacle">↳ {{ e.spectacle_public.titre }}</p>
