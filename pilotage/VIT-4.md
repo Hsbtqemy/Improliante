@@ -13,6 +13,9 @@ références au code ont été vérifiées une à une — mais il ignore quatre 
 place, et deux de ses préconditions ont été construites ailleurs depuis. Le périmètre
 retenu est plus étroit que le guide, et c'est écrit ci-dessous.
 
+**Arrêté sur** — la vidéo au clic : identifiant validé au serveur, façade qui ne demande
+rien au fournisseur, commit `f8c42aa`, 13 septembre 2026.
+
 ## Reste
 
 ### Arbitrages
@@ -60,8 +63,19 @@ retenu est plus étroit que le guide, et c'est écrit ci-dessous.
 - [ ] La couleur d'accent d'un artiste est validée côté serveur (`#RRGGBB` opaque) et le
   serveur en dérive les couples lisibles — une teinte inutilisable est corrigée ou
   refusée avant publication, pas rendue telle quelle
-- [ ] Aucune requête ne part vers YouTube avant que le visiteur ait cliqué — le même
-  geste que le flux Bluesky de la fiche membre, qui ne charge rien avant le clic
+- [x] Aucune requête ne part vers YouTube avant que le visiteur ait cliqué. Le contrôle
+  regarde les attributs qui DÉCLENCHENT une requête (`src`, `srcset`, `poster`, les
+  `<link>` qui préconnectent) et non la présence du mot : un `<a href>` vers YouTube ne
+  demande rien, et l'interdire retirerait son seul recours à qui n'a pas JavaScript
+- [x] La façade est un lien, pas un bouton : sans JavaScript elle ouvre la vidéo chez
+  YouTube au lieu d'être un geste mort que rien ne signale
+- [x] Ce qui est stocké est l'identifiant, pas l'adresse collée — et l'hôte se compare
+  en entier à une liste fermée : ni `youtube.com.ailleurs.test`, ni `javascript:`. Une
+  adresse d'un autre hébergeur est REFUSÉE en le disant, jamais vidée en silence
+- [ ] La vidéo a une couverture choisie par l'artiste. Écartée de ce lot exprès : la
+  vignette officielle (`i.ytimg.com`) est précisément la requête que le lot refuse, et
+  une couverture propre demande de généraliser `definir_photo` à un second média de
+  brouillon. Aujourd'hui la façade est typographique
 
 ### Brouillon et publication
 - [x] La page publique lit le contenu **publié** ; le brouillon n'est lu que dans
