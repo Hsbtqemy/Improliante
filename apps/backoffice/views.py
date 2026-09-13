@@ -35,6 +35,7 @@ from apps.budget.models import (
     Transaction,
 )
 from apps.budget.services import (
+    AdhesionAvecRecu,
     RecuDejaEmis,
     assurer_pdf_recu,
     bilan_par_categorie,
@@ -43,6 +44,7 @@ from apps.budget.services import (
     emettre_recu,
     pdf_de_recu,
     resume_cotisations,
+    supprimer_adhesion,
     tresorerie,
 )
 from apps.coeur import services as coeur_services
@@ -1665,11 +1667,19 @@ def editer_adhesion(request, pk):
 
 @bureau_requis
 @require_POST
-def supprimer_adhesion(request, pk):
-    """Supprime une adhésion (les reçus/transactions liés sont simplement détachés)."""
+def supprimer_adhesion_vue(request, pk):
+    """Supprime une adhésion — refus si un reçu fiscal en est issu.
+
+    Nommée `_vue` parce que le service porte le même nom, comme
+    `valider_facture_vue`. L'écran n'offre plus le bouton quand un reçu existe ;
+    ce refus-ci ferme l'adresse, que le bouton retiré laisse ouverte."""
     adhesion = get_object_or_404(Adhesion, pk=pk)
-    adhesion.delete()
-    messages.success(request, "Adhésion supprimée.")
+    try:
+        supprimer_adhesion(adhesion)
+    except AdhesionAvecRecu as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Adhésion supprimée.")
     return redirect("backoffice:liste_adhesions")
 
 

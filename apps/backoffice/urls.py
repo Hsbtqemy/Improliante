@@ -56,7 +56,7 @@ urlpatterns = [
     path("bureau/adhesions/<int:pk>/", views.editer_adhesion, name="editer_adhesion"),
     path(
         "bureau/adhesions/<int:pk>/supprimer/",
-        views.supprimer_adhesion,
+        views.supprimer_adhesion_vue,
         name="supprimer_adhesion",
     ),
     path("bureau/moderation/", views.file_moderation, name="file_moderation"),

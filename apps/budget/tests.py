@@ -22,12 +22,14 @@ from apps.budget.models import (
     Transaction,
 )
 from apps.budget.services import (
+    AdhesionAvecRecu,
     assurer_pdf_recu,
     bilan_par_categorie,
     classeur_bilan,
     donnees_depuis_adhesion,
     emettre_recu,
     pdf_de_recu,
+    supprimer_adhesion,
     tresorerie,
 )
 from apps.coeur.models import Membre, Signataire, Utilisateur
@@ -68,6 +70,80 @@ def test_emettre_recu_fige_le_snapshot(db):
     assert recu.montant == Decimal("120.00")
     assert recu.donateur_nom == "Marie Martin"
     assert recu.type_versement == RecuFiscal.TypeVersement.DON
+
+
+# --- Suppression d'une adhésion (point 6 de l'inventaire ARCH-01) -----------
+#
+# Décision de l'association, 13 septembre 2026 : une adhésion qui porte un reçu
+# fiscal émis ne se supprime pas. Le reçu survivait à la suppression — les liens
+# sont en SET_NULL — mais il cessait de dire quelle cotisation il couvre, et rien
+# ne le signalait : le seul garde-fou était un `confirm()` de navigateur qui ne
+# parlait pas des reçus.
+
+
+def _adhesion_payee(montant="30.00", username="alice"):
+    return Adhesion.objects.create(
+        membre=_membre(username),
+        saison=Saison.objects.create(nom=f"saison-{username}"),
+        statut=Adhesion.Statut.PAYEE,
+        montant_verse=Decimal(montant),
+    )
+
+
+def test_une_adhesion_dont_un_recu_est_issu_ne_se_supprime_pas(db):
+    """`RecuFiscalAdmin` refuse déjà qu'on touche aux rattachements d'un reçu ;
+    la suppression de l'adhésion le faisait par l'autre bout."""
+    adhesion = _adhesion_payee()
+    recu = _emettre(adhesion=adhesion, membre=adhesion.membre)
+
+    with pytest.raises(AdhesionAvecRecu) as refus:
+        supprimer_adhesion(adhesion)
+
+    assert recu.numero in str(refus.value)  # le message nomme la pièce
+    assert Adhesion.objects.filter(pk=adhesion.pk).exists()
+
+
+def test_une_adhesion_sans_recu_se_supprime(db):
+    adhesion = _adhesion_payee()
+
+    supprimer_adhesion(adhesion)
+
+    assert not Adhesion.objects.filter(pk=adhesion.pk).exists()
+
+
+def test_une_transaction_liee_n_empeche_pas_la_suppression(db):
+    """Décision assumée : une écriture budgétaire est interne à l'association,
+    elle n'est partie chez personne. Elle est détachée, comme avant."""
+    adhesion = _adhesion_payee()
+    categorie = Categorie.objects.create(nom="Cotisations")
+    ecriture = Transaction.objects.create(
+        libelle="Cotisation Alice",
+        type_flux=Transaction.TypeFlux.RECETTE,
+        montant=Decimal("30.00"),
+        date=date(2026, 3, 1),
+        categorie=categorie,
+        adhesion=adhesion,
+    )
+
+    supprimer_adhesion(adhesion)
+
+    ecriture.refresh_from_db()
+    assert ecriture.adhesion_id is None
+
+
+def test_admin_une_adhesion_avec_recu_ne_se_supprime_pas(db, rf):
+    from django.contrib import admin as django_admin
+
+    adhesion = _adhesion_payee()
+    modele = django_admin.site.get_model_admin(Adhesion)
+    requete = rf.get("/admin/")
+    requete.user = Utilisateur.objects.create_superuser(username="root", password="x")
+
+    assert modele.has_delete_permission(requete, adhesion) is True
+
+    _emettre(adhesion=adhesion, membre=adhesion.membre)
+
+    assert modele.has_delete_permission(requete, adhesion) is False
 
 
 def test_donnees_depuis_adhesion(db):

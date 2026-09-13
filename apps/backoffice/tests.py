@@ -1632,6 +1632,40 @@ def test_editer_adhesion_change_le_statut(client, db):
     assert adhesion.statut == Adhesion.Statut.PAYEE
 
 
+def test_l_ecran_n_offre_pas_de_supprimer_une_adhesion_qui_porte_un_recu(client, db):
+    """Le geste retiré ET l'adresse fermée : l'un sans l'autre fait remplir un
+    écran pour rien, ou laisse passer un lien gardé en signet."""
+    membre = _membre("cotisant").membre
+    saison = Saison.objects.create(nom="2026")
+    adhesion = Adhesion.objects.create(
+        membre=membre,
+        saison=saison,
+        statut=Adhesion.Statut.PAYEE,
+        montant_verse=Decimal("30.00"),
+    )
+    client.force_login(_staff())
+    corps = client.get("/bureau/adhesions/").content.decode()
+    assert f"/bureau/adhesions/{adhesion.pk}/supprimer/" in corps
+
+    recu = emettre_recu(
+        type_versement=RecuFiscal.TypeVersement.COTISATION,
+        montant=Decimal("30.00"),
+        date_versement=date(2026, 3, 1),
+        donateur_nom="Cotisant",
+        adhesion=adhesion,
+        membre=membre,
+    )
+
+    corps = client.get("/bureau/adhesions/").content.decode()
+    assert f"/bureau/adhesions/{adhesion.pk}/supprimer/" not in corps
+    assert recu.numero in corps  # la colonne d'à côté dit pourquoi
+
+    reponse = client.post(f"/bureau/adhesions/{adhesion.pk}/supprimer/", follow=True)
+
+    assert Adhesion.objects.filter(pk=adhesion.pk).exists()
+    assert recu.numero in reponse.content.decode()  # le refus nomme la pièce
+
+
 def test_supprimer_adhesion(client, db):
     membre = _membre("alice").membre
     saison = Saison.objects.create(nom="2025-2026")

@@ -31,6 +31,16 @@ class AdhesionAdmin(admin.ModelAdmin):
     search_fields = ("membre__nom", "membre__prenom", "membre__email")
     autocomplete_fields = ("membre", "saison")
 
+    def has_delete_permission(self, request, obj=None) -> bool:
+        """Même règle que l'écran du bureau : une adhésion dont un reçu a été
+        émis ne se supprime pas — la pièce survivrait sans dire quelle
+        cotisation elle couvre, et `RecuFiscalAdmin` ci-dessous refuse déjà
+        qu'on touche à ses rattachements. Vaut aussi pour l'action groupée
+        « Supprimer », contrôlée objet par objet."""
+        if obj is not None and obj.recus_fiscaux.exists():
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):

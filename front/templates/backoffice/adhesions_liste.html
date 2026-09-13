@@ -64,8 +64,8 @@
               <td><span class="badge badge--{{ adhesion.statut }}">{{ adhesion.get_statut_display }}</span></td>
               <td class="montant">{{ adhesion.montant_attendu|floatformat:2 }} €</td>
               <td class="montant">{{ adhesion.montant_verse|floatformat:2 }} €</td>
-              <td>
-                {% with recus=adhesion.recus_fiscaux.all %}
+              {% with recus=adhesion.recus_fiscaux.all %}
+                <td>
                   {% if recus %}
                     {% for recu in recus %}
                       <a href="{% url 'backoffice:telecharger_recu' recu.pk %}">Reçu émis ({{ recu.numero }})</a>
@@ -75,15 +75,22 @@
                   {% else %}
                     <span class="ged-doc__desc">—</span>
                   {% endif %}
-                {% endwith %}
-              </td>
-              <td>
-                <a href="{% url 'backoffice:editer_adhesion' adhesion.pk %}">Modifier</a>
-                <form method="post" action="{% url 'backoffice:supprimer_adhesion' adhesion.pk %}" style="display: inline" onsubmit="return confirm('Supprimer cette adhésion ?');">
-                  {% csrf_token %}
-                  <button type="submit" class="bouton-texte">Supprimer</button>
-                </form>
-              </td>
+                </td>
+                <td>
+                  <a href="{% url 'backoffice:editer_adhesion' adhesion.pk %}">Modifier</a>
+                  {% comment %}
+                    Pas de suppression quand un reçu a été émis : la pièce
+                    survivrait sans dire quelle cotisation elle couvre. La
+                    colonne d'à côté en donne la raison, avec son numéro.
+                  {% endcomment %}
+                  {% if not recus %}
+                    <form method="post" action="{% url 'backoffice:supprimer_adhesion' adhesion.pk %}" style="display: inline" onsubmit="return confirm('Supprimer cette adhésion ?');">
+                      {% csrf_token %}
+                      <button type="submit" class="bouton-texte">Supprimer</button>
+                    </form>
+                  {% endif %}
+                </td>
+              {% endwith %}
             </tr>
           {% endfor %}
         </tbody>

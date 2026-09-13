@@ -36,6 +36,40 @@ class RecuDejaEmis(Exception):
     """Levée quand le versement visé a déjà donné lieu à un reçu Cerfa."""
 
 
+class AdhesionAvecRecu(Exception):
+    """Levée quand on tente de supprimer une adhésion dont un reçu a été émis."""
+
+
+@transaction.atomic
+def supprimer_adhesion(adhesion) -> None:
+    """Supprime une adhésion — sauf si un reçu fiscal en est issu.
+
+    Un reçu émis est une pièce légale, et le dépôt l'a déjà tranché pour
+    lui-même : `RecuFiscalAdmin` refuse qu'on le retouche, « pas même ses
+    rattachements comptables, qui changent ce que le registre raconte ».
+    Supprimer l'adhésion faisait exactement cela par l'autre bout — les liens
+    sont en `SET_NULL`, donc le reçu survit et son PDF reste reproductible, mais
+    il ne dit plus quelle cotisation il couvre. Rien ne le signalait : le seul
+    garde-fou était un `confirm()` de navigateur qui ne parlait pas des reçus.
+
+    Les transactions liées, elles, restent simplement détachées : une écriture
+    budgétaire est interne à l'association, elle n'est partie chez personne.
+    Décision de l'association du 13 septembre 2026.
+
+    L'adhésion est relue SOUS VERROU, le même que prend `emettre_recu` : sans
+    lui, un reçu émis au même instant naîtrait orphelin, la suppression ayant
+    lu la table des reçus juste avant qu'il n'y entre."""
+    courante = Adhesion.objects.select_for_update().get(pk=adhesion.pk)
+    numeros = list(courante.recus_fiscaux.values_list("numero", flat=True))
+    if numeros:
+        raise AdhesionAvecRecu(
+            f"Un reçu fiscal a été émis pour cette adhésion ({', '.join(numeros)}) : "
+            "elle ne se supprime plus. Un reçu ne change pas de rattachement — "
+            "corrigez l'adhésion plutôt que de l'effacer."
+        )
+    courante.delete()
+
+
 @transaction.atomic
 def emettre_recu(
     *,
