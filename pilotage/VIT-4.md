@@ -217,5 +217,9 @@ guide était écrivable sur le modèle actuel, sans rien ajouter. Elle l'a été
   faces.
 - **GED-03** (quotas et cycle de vie des fichiers, v2 assumée) : le traitement des images,
   lui, est fait.
+- **GED-2** est né de ce chantier : protéger la photo d'un brouillon de page artiste a
+  fait voir que l'affiche d'un **spectacle non publié** est servie par Nginx, sous le nom
+  du fichier téléversé. Le stockage et le motif de déplacement sont écrits ici ; ce qui
+  manque là-bas, ce sont trois décisions.
 - **ARCH-02** (modifications concurrentes qui se perdent, v2 assumée) portait le verrou de
   version, écarté avec elle par le dimensionnement.
