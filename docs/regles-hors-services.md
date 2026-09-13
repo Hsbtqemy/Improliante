@@ -70,6 +70,13 @@ l'ancienne version et marque la nouvelle `courante`.
 > Les deux écrans suivent désormais la version courante, et la régénération
 > repart de la correction. Reproduit par sonde, puis retenu par un test par
 > écran — les deux échouent contre l'ancien code, vérifié en le remettant.
+>
+> **Relecture.** Versionner rend possible un refus qui ne l'était pas : rendre le
+> PDF prend plusieurs secondes, on reclique, et la seconde demande repart d'une
+> version que la première vient de remplacer. La GED refuse — une version n'a
+> qu'un successeur — et ce refus remontait en **erreur serveur**. L'écran le dit
+> maintenant. L'écriture va d'un bloc, aussi : une version créée sans que la
+> réunion la pointe aurait laissé la fiche sur la précédente.
 
 ## 2. Une réunion archivée accepte encore du contenu — **éprouvé**
 

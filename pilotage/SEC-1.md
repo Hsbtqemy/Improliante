@@ -146,6 +146,16 @@ courant. La relecture en base l'a corrigé. C'est la même règle que le sceau d
 et que les pièces de facturation : on décide sur ce que dit la base, pas sur ce qu'on
 tient en main.
 
+La relecture a trouvé ce que versionner rend possible : un refus qui n'existait pas
+avant. Rendre le PDF prend plusieurs secondes, donc on reclique, et la seconde demande
+repart d'une version que la première vient de remplacer. La GED refuse — une version
+n'a qu'un successeur, et c'est juste — mais ce refus remontait en erreur serveur.
+L'écran le dit désormais. Deux autres points de couture : l'écriture va d'un bloc
+(une version créée sans que la réunion la pointe laisserait la fiche sur la
+précédente), et la fiche annonce la version qu'elle sert — elle testait l'existence
+du PV sur le pointeur pendant que le lien servait la version courante, et rien n'y
+montrait que les PV précédents sont conservés.
+
 **Le lot 12 — GOU-01, le contenu d'une séance close.** Le lot 4 avait figé les
 RÈGLES d'une réunion archivée et la fiche s'était close là-dessus. Son CONTENU restait
 ouvert : résolution, point d'ordre du jour, présence, pouvoir et compte rendu s'y
