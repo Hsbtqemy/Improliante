@@ -5,7 +5,7 @@ toute nouvelle contribution. Le cadrage fonctionnel de référence reste
 `docs/cahier-des-charges-asso.md` ; ce document décrit ce qui *existe* et *comment
 c'est structuré*.
 
-> État : **v1 fonctionnelle complète**, ~640 tests pytest. Reste le déploiement
+> État : **v1 fonctionnelle complète**, ~650 tests pytest. Reste le déploiement
 > VPS (fichiers dans `deploiement/`).
 
 ---
@@ -228,7 +228,10 @@ dans `Reunion.regles_figees` et le registre ne se rouvre plus : modifier ensuite
 quorum ou majorités dans les paramètres ne réécrit aucune assemblée passée. Avant
 la clôture, les paramètres courants s'appliquent, pour qu'un seuil mal saisi reste
 corrigeable. Les pouvoirs passent par un seul service — plafond statutaire
-compris — que la saisie vienne du membre ou du bureau.
+compris — que la saisie vienne du membre ou du bureau, et **quel que soit le
+chemin** : l'inline de l'admin est en lecture seule, parce qu'il écrivait sans le
+plafond et sans marquer le mandant « représenté ». Le retrait vit au même endroit
+que la saisie (fiche de la réunion) et remet le mandant « absent ».
 
 Le **contenu** est scellé par la même clôture, et c'est une règle distincte :
 `contenu_scelle` refuse résolution, point d'ordre du jour, présence, pouvoir et

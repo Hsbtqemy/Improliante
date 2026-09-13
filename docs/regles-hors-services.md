@@ -196,6 +196,25 @@ faux pour l'admin Django. Je l'avais écrit sans vérifier l'inline.
 service avec `par_le_bureau=True`), soit il valide par le service. La première
 option est plus sûre et tient en trois lignes.
 
+> **Corrigé le 13 septembre 2026** (lot 14). L'inline est en lecture seule : les
+> pouvoirs s'y lisent, ils ne s'y écrivent plus.
+>
+> **« Trois lignes » était faux, et l'écart vient d'une vérification que je
+> n'avais pas faite.** L'inline était le SEUL chemin pour retirer un pouvoir —
+> la fiche de la réunion ne l'offrait nulle part. Le fermer sans rien mettre à
+> la place aurait enfermé tout pouvoir saisi par erreur. D'où un service de
+> retrait et son bouton sur la fiche, à côté de la saisie.
+>
+> Et le contournement était plus large qu'écrit ici. L'inline ne sautait pas
+> seulement le plafond : il n'inscrivait **aucune présence**, là où
+> `donner_pouvoir` marque le mandant « représenté ». Deux pouvoirs au même
+> mandataire avec un plafond à un, et deux mandants absents du registre —
+> reproduit par sonde, puis retenu par un test qui poste le formulaire d'admin.
+> Symétriquement, retirer un pouvoir remet le mandant « absent » : sinon il
+> compte dans le quorum sans que personne ne porte sa voix. Une présence
+> constatée autrement (présent, excusé) n'est pas touchée — ce service ne l'a
+> pas écrite.
+
 ## 5. Le compte rendu s'écrit sans formulaire ni service
 
 **Où** : `apps/backoffice/views.py::gouvernance_notes` et
@@ -284,9 +303,11 @@ légitime.
 3. ✅ **Le point 1** — même famille que FIN-02, remède déjà présent dans le
    dépôt. *Fait le 12 septembre (lot 13), avec une divergence trouvée en chemin
    entre le PV que sert la réunion et celui que montre la GED.*
-4. **Le point 4** — trois lignes. C'est ce qui reste de GOU-01 : le plafond
-   statutaire de pouvoirs se contourne encore sur une réunion OUVERTE, le sceau
-   du lot 12 ne fermant que les séances closes.
-5. **Le point 6** — quand la question sera posée par l'usage.
+4. ✅ **Le point 4** — trois lignes. *Fait le 13 septembre (lot 14), et ce
+   n'était pas trois lignes : fermer l'inline supprimait le seul moyen de
+   retirer un pouvoir, qu'il a fallu rendre à l'écran du bureau. GOU-01 est clos
+   avec lui.*
+5. **Le point 6** — quand la question sera posée par l'usage. Seul point encore
+   ouvert de cet inventaire, et c'est une décision, pas du code.
 
 Les points 5 (seul) et 7 ne valent pas d'être remontés.

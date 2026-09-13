@@ -54,7 +54,7 @@ constats sur trente sont clos.
 - [x] ARCH-01 : l'inventaire est écrit — `docs/regles-hors-services.md`, sept points, chacun avec ce qu'un accès admin ou shell peut faire malgré la règle et une recommandation
 - [x] Un devis déjà facturé ne se refacture pas : le garde-fou porte sur l'existence d'une facture liée — une seule lecture (`devis_deja_facture`), partagée par le service, l'écran d'édition du bureau, son changement de statut et l'admin, qui fige en plus le statut. Un devis dont la facture a été supprimée redevient pilotable À L'ÉCRAN au lieu de rester dans une impasse — les deux directions sont testées
 - [x] Régénérer un compte rendu passe par `remplacer_document` : l'ancien PV garde sa version au lieu d'être supprimé du disque, comme une facture ne se réécrit pas en place — point 1. Et la réunion sert la version COURANTE de son PV : un PV corrigé depuis la GED laissait sa fiche et la convocation du membre sur celui d'avant
-- [ ] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4 de l'inventaire, et c'est tout ce qui reste de GOU-01 ; le sceau du lot 12 ne ferme que les séances CLOSES, ce contournement vaut sur une réunion ouverte
+- [x] `PouvoirInline` de l'admin ne crée plus de pouvoir sans passer par `donner_pouvoir` : le plafond statutaire vaut quel que soit le chemin, ce que le lot 4 avait annoncé à tort — point 4, et GOU-01 se clôt avec lui. L'inline est en lecture seule ; le retrait d'un pouvoir, qui n'existait que là, est rendu à la fiche de la réunion et remet le mandant « absent »
 - [ ] Décidé, pour une adhésion portant un reçu émis : refus de suppression, ou suppression assumée et annoncée à l'écran — aujourd'hui le lien comptable se perd sans rien dire (point 6)
 - [ ] SEC-04 et ARCH-02 sont **écartés** (12 septembre) : le bureau reste indivisible, `is_staff` compris ; l'écrasement concurrent des fiches part en v2 avec GED-02 et GED-03
 - [ ] PERF-01 : la galerie et les listes d'affiches ne dégradent plus avec le contenu — N+1 mesuré supprimé, pagination posée, images servies à la taille affichée et non en pleine résolution
@@ -122,6 +122,24 @@ pour se voir refuser l'enregistrement à la fin. D'où deux gardes distinctes �
 qui MÊLE lecture et geste garde son GET, un écran qui n'est QUE le geste se ferme. Et une
 régression de performance à moi : contrôler le bureau avant la fiche membre coûtait trois
 requêtes de groupes par page servie.
+
+**Le lot 14 — le plafond de pouvoirs, et ce que « trois lignes » cachait.** L'inline
+d'admin écrivait des pouvoirs sans passer par `donner_pouvoir` : sans le plafond
+statutaire, et — ce que l'inventaire n'avait pas vu — sans inscrire la présence du
+mandant, que le service marque « représenté ». Deux pouvoirs au même mandataire avec
+un plafond à un, et deux mandants absents du registre. Reproduit par sonde, puis
+retenu par un test qui poste le formulaire d'admin.
+
+Mon estimation était fausse, et la vérification manquante est facile à nommer : je
+n'avais pas cherché où l'on RETIRE un pouvoir. L'inline était le seul endroit. Le
+fermer sans rien mettre à la place aurait enfermé tout pouvoir saisi par erreur —
+l'impasse que je passe mon temps à corriger ailleurs. D'où un service de retrait, son
+bouton sur la fiche à côté de la saisie, et le mandant remis « absent » : sinon il
+compte dans le quorum sans que personne ne porte sa voix. Une présence constatée
+autrement — présent, excusé — n'est pas touchée, ce service ne l'a pas écrite.
+
+GOU-01 est clos. De l'inventaire ARCH-01, il ne reste que le point 6, qui est une
+décision à prendre et non une règle mal placée.
 
 **Le lot 13 — le PV régénéré, et un PV corrigé que personne ne voyait.** Régénérer un
 compte rendu écrasait son fichier sur le disque : le PV que les membres avaient
