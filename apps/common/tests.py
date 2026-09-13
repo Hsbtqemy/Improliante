@@ -528,7 +528,13 @@ def _ecrans_a_identifiant(membre):
         media=Media.objects.create(fichier=_image_temoin("galerie.jpg"), alt="Image de galerie"),
     )
     membre.photo = Media.objects.create(fichier=_image_temoin("photo.jpg"), alt="Portrait témoin")
-    membre.save(update_fields=["photo"])
+    # Sans vidéo, la fiche publique rend l'état SANS façade : le lien de lecture,
+    # son nom accessible et l'encart entier échappaient à tous les balayages.
+    # Même raison que l'intervention ci-dessous — un invariant qui ne regarde
+    # rien passe toujours.
+    membre.video_youtube = "dQw4w9WgXcQ"
+    membre.video_titre = "Extrait témoin"
+    membre.save(update_fields=["photo", "video_youtube", "video_titre"])
     evenement = Evenement.objects.create(
         titre="Événement témoin",
         date_debut=aujourdhui + timedelta(days=5),

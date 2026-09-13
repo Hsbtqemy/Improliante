@@ -14,7 +14,9 @@ recopie le second sur le premier, d'un seul coup et sous verrou.
 
 from __future__ import annotations
 
+import re
 from pathlib import PurePosixPath
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth.tokens import default_token_generator
 from django.core.files.base import ContentFile
@@ -269,6 +271,58 @@ def retirer_photo(cible) -> None:
         return
     cible.photo = None
     cible.save(update_fields=["photo", "date_modification"])
+
+
+_HOTES_YOUTUBE = frozenset(
+    {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtube-nocookie.com",
+        "www.youtube-nocookie.com",
+        "youtu.be",
+        "www.youtu.be",
+    }
+)
+_ID_YOUTUBE = re.compile(r"\A[A-Za-z0-9_-]{11}\Z")
+
+
+def identifiant_youtube(saisie: str) -> str:
+    """L'identifiant de la vidéo désignée par `saisie`, ou `""` si ce n'en est pas une.
+
+    Le fournisseur se vérifie ICI, au serveur, et pas au gabarit : c'est la
+    seule place où l'on soit sûr que personne ne l'oubliera. On compare l'hôte
+    à une liste FERMÉE, sur `hostname` — pas sur « l'adresse contient
+    youtube.com », qui accepterait `youtube.com.ailleurs.test` aussi bien que
+    `ailleurs.test/?u=youtube.com`.
+
+    Le schéma doit être `http` ou `https` : sans ce contrôle, `javascript:` et
+    `data:` passeraient — leur hôte est vide, mais une adresse sans hôte ne doit
+    pas non plus être acceptée « par défaut ».
+
+    Un identifiant collé seul est accepté : onze caractères de l'alphabet des
+    identifiants ne peuvent désigner que cela, et c'est ce qu'on récupère en
+    copiant depuis certains écrans.
+    """
+    saisie = (saisie or "").strip()
+    if not saisie:
+        return ""
+    if _ID_YOUTUBE.match(saisie):
+        return saisie
+
+    adresse = urlparse(saisie)
+    if adresse.scheme not in ("http", "https") or adresse.hostname not in _HOTES_YOUTUBE:
+        return ""
+
+    chemin = adresse.path.strip("/").split("/")
+    if adresse.hostname in ("youtu.be", "www.youtu.be"):
+        candidat = chemin[0] if chemin else ""
+    elif chemin and chemin[0] in ("embed", "shorts", "v", "live"):
+        candidat = chemin[1] if len(chemin) > 1 else ""
+    else:
+        candidat = (parse_qs(adresse.query).get("v") or [""])[0]
+
+    return candidat if _ID_YOUTUBE.match(candidat) else ""
 
 
 def brouillon_de(membre: Membre, *, creer: bool = True) -> BrouillonPageArtiste:

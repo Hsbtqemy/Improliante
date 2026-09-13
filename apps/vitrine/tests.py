@@ -21,6 +21,7 @@ from apps.coeur.models import (
     ParametresAssociation,
     Utilisateur,
 )
+from apps.coeur.services import identifiant_youtube
 from apps.medias.models import Media
 from apps.spectacles.models import ImageSpectacle, LigneDistribution, Spectacle
 from apps.vitrine.models import MessageContact
@@ -250,6 +251,142 @@ def test_handle_bluesky_extrait_le_handle():
     assert handle_bluesky("https://bsky.app/profile/alice.bsky.social/") == "alice.bsky.social"
     assert handle_bluesky("@alice.bsky.social") == "alice.bsky.social"
     assert handle_bluesky("") == ""
+
+
+# --- Vidéo au clic (VIT-4) --------------------------------------------------
+
+# Les `rel` qui font PARTIR une requête au chargement. `noopener`, `noreferrer`
+# ou `canonical` n'en font aucune : les confondre reviendrait à interdire un
+# lien ordinaire.
+_REL_QUI_CHARGE = frozenset(
+    {"preconnect", "dns-prefetch", "preload", "prefetch", "stylesheet", "modulepreload"}
+)
+# « youtube » et non « youtube.com » : le domaine sans cookie s'appelle
+# `youtube-nocookie.com`, et c'est justement celui qu'un lecteur intégré emploie.
+# Écrite avec le point, la liste laissait passer le cadre qu'elle existe pour
+# refuser — une sonde l'a montré.
+_HOTES_DU_FOURNISSEUR = ("youtube", "youtu.be", "ytimg", "googlevideo")
+
+
+def _ressources_distantes(html: str) -> list[str]:
+    """Les adresses que le navigateur ira chercher SEUL en rendant cette page.
+
+    On ne cherche pas « le mot youtube dans le HTML » : un `<a href>` vers
+    YouTube ne déclenche aucune requête, et l'interdire retirerait le seul
+    recours de qui n'a pas JavaScript. Ce qui part tout seul, c'est un `src`,
+    un `srcset`, un `poster`, et les `<link>` qui préconnectent ou préchargent.
+    """
+    import re
+
+    adresses = []
+    for balise in re.findall(r"<[a-zA-Z][^>]*>", html):
+        nom = re.match(r"<([a-zA-Z0-9]+)", balise).group(1).lower()
+        if nom == "link":
+            rel = re.search(r'\brel="([^"]*)"', balise)
+            href = re.search(r'\bhref="([^"]*)"', balise)
+            if rel and href and set(rel.group(1).lower().split()) & _REL_QUI_CHARGE:
+                adresses.append(href.group(1))
+            continue
+        for attribut in ("src", "srcset", "poster"):
+            trouve = re.search(rf'\b{attribut}="([^"]*)"', balise)
+            if trouve:
+                # `srcset` porte plusieurs candidats séparés par des virgules,
+                # chacun suivi de son descripteur de largeur.
+                adresses += [c.strip().split(" ")[0] for c in trouve.group(1).split(",")]
+    return [a for a in adresses if a]
+
+
+def _membre_avec_video(nom="AvecVideo", identifiant="dQw4w9WgXcQ"):
+    membre = _membre(nom, visible=True)
+    membre.video_youtube = identifiant
+    membre.video_titre = "Extrait du spectacle"
+    membre.video_texte = "Trois minutes de la création 2026."
+    membre.save(update_fields=["video_youtube", "video_titre", "video_texte"])
+    return membre
+
+
+def test_identifiant_youtube_reconnait_les_formes_d_adresse():
+    attendu = "dQw4w9WgXcQ"
+    for saisie in (
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s",
+        "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://youtu.be/dQw4w9WgXcQ",
+        "https://youtu.be/dQw4w9WgXcQ?si=abc",
+        "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+        "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        "  dQw4w9WgXcQ  ",
+    ):
+        assert identifiant_youtube(saisie) == attendu, saisie
+
+
+def test_identifiant_youtube_refuse_ce_qui_n_est_pas_une_video_youtube():
+    for saisie in (
+        "",
+        "   ",
+        "https://vimeo.com/76979871",
+        # L'hôte se compare en ENTIER : ces deux-là contiennent « youtube.com »
+        # et ne sont pas YouTube. Un contrôle par sous-chaîne les accepterait.
+        "https://youtube.com.ailleurs.test/watch?v=dQw4w9WgXcQ",
+        "https://ailleurs.test/watch?v=dQw4w9WgXcQ&h=youtube.com",
+        # Sans hôte : leur laisser le bénéfice du doute mettrait du script
+        # exécutable dans un attribut de lien.
+        "javascript:alert(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "//www.youtube.com/watch?v=dQw4w9WgXcQ",
+        # Bonne maison, pas de vidéo.
+        "https://www.youtube.com/",
+        "https://www.youtube.com/watch?v=trop-court",
+        "https://www.youtube.com/watch?v=beaucoup-trop-long-pour-un-id",
+    ):
+        assert identifiant_youtube(saisie) == "", saisie
+
+
+def test_la_fiche_artiste_ne_demande_rien_a_youtube_avant_le_clic(client, db):
+    """La façade est un LIEN, pas un cadre : la page ne charge rien du fournisseur.
+
+    Le piège de ce motif est la vignette. Prise sur `i.ytimg.com`, comme le font
+    la plupart des « lecteurs au clic », elle EST la requête qu'on prétend
+    refuser — et elle part au chargement, avant tout clic. D'où un contrôle qui
+    regarde les attributs qui déclenchent une requête, et non la présence du mot.
+    """
+    membre = _membre_avec_video()
+    corps = client.get(membre.get_absolute_url()).content.decode()
+
+    # Témoin : sans la façade rendue, tout ce qui suit passerait en ne regardant rien.
+    assert "video-clic__facade" in corps, "la façade n'est pas rendue"
+
+    fautives = [
+        adresse
+        for adresse in _ressources_distantes(corps)
+        if any(hote in adresse for hote in _HOTES_DU_FOURNISSEUR)
+    ]
+    assert not fautives, "ressources chargées depuis le fournisseur : " + ", ".join(fautives)
+    # Ces deux hôtes-là ne servent QUE des ressources : les voir où que ce soit
+    # dans la page, fût-ce dans un attribut qu'on n'a pas prévu, est un défaut.
+    assert "ytimg" not in corps
+    assert "googlevideo" not in corps
+
+
+def test_la_facade_video_reste_un_lien_quand_le_script_ne_tourne_pas(client, db):
+    """Un `<button>` sans JavaScript est un bouton mort, et rien ne le dit.
+
+    Le visiteur sans script doit pouvoir atteindre la vidéo : le lien l'y mène
+    chez YouTube. C'est le script qui, s'il tourne, intercepte le clic.
+    """
+    membre = _membre_avec_video()
+    corps = client.get(membre.get_absolute_url()).content.decode()
+    assert 'href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"' in corps
+    # Le nom accessible du lien nomme la vidéo : « Lire la vidéo » seul ne dit
+    # pas laquelle, et une page peut en porter plusieurs demain.
+    assert "Lire la vidéo : Extrait du spectacle" in corps
+
+
+def test_sans_video_la_fiche_ne_porte_pas_la_facade(client, db):
+    membre = _membre("SansVideo", visible=True)
+    corps = client.get(membre.get_absolute_url()).content.decode()
+    assert "video-clic" not in corps
 
 
 def test_fiche_membre_propose_bluesky_au_clic(client, db):

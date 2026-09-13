@@ -8,6 +8,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
+from django.utils.html import escape
 from django.utils.timezone import make_aware
 
 from apps.agenda.models import Evenement, ImageEvenement
@@ -1250,6 +1251,43 @@ def _donnees_profil(**extra):
     }
     donnees.update(extra)
     return donnees
+
+
+def test_le_formulaire_refuse_une_video_d_un_autre_hebergeur(client, db):
+    """Un refus explicite, pas un champ vidé en silence.
+
+    Vider l'adresse sans rien dire ferait croire à l'artiste que sa vidéo est
+    enregistrée ; il ne le découvrirait qu'en relisant sa page publiée — et il
+    n'aurait aucune raison de soupçonner le formulaire.
+    """
+    membre = _membre("vimeoiste")
+    client.force_login(membre.user)
+
+    reponse = client.post(PROFIL, _donnees_profil(video_youtube="https://vimeo.com/76979871"))
+
+    assert reponse.status_code == 200  # réaffiché avec l'erreur, pas redirigé
+    # `escape` parce que le gabarit échappe les apostrophes : chercher le message
+    # tel qu'on l'a écrit ne trouverait rien — et le contrôle aurait l'air de
+    # tenir si on l'avait écrit avec `not in`.
+    assert escape("n'est pas celle d'une vidéo YouTube") in reponse.content.decode()
+    assert brouillon_de(membre, creer=False).video_youtube == ""
+
+
+def test_le_formulaire_garde_l_identifiant_et_non_l_adresse_collee(client, db):
+    """Ce qui est stocké ne peut désigner qu'une vidéo YouTube.
+
+    Le gabarit reconstruit l'adresse à partir d'un fournisseur qu'il choisit :
+    même un gabarit distrait ne peut pas faire partir une requête ailleurs.
+    """
+    membre = _membre("videaste")
+    client.force_login(membre.user)
+
+    client.post(
+        PROFIL,
+        _donnees_profil(video_youtube="https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s"),
+    )
+
+    assert brouillon_de(membre, creer=False).video_youtube == "dQw4w9WgXcQ"
 
 
 def test_profil_exige_la_connexion(client, db):

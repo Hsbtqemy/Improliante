@@ -4293,3 +4293,74 @@ html.contraste.sombre .viz {
   background: var(--couleur-primaire-clair);
   color: var(--couleur-texte);
 }
+
+/* Vidéo au clic (fiche artiste) — voir `js/video-clic.js`. La façade n'est
+   qu'un lien : aucune ressource de YouTube n'est servie avant le clic, vignette
+   comprise. La vignette officielle vient de `i.ytimg.com` et serait précisément
+   la requête qu'on refuse. */
+.video-clic {
+  margin-top: 2rem;
+}
+.video-clic__texte {
+  color: var(--couleur-muet);
+  max-width: 46rem;
+}
+.video-clic__facade,
+.video-clic__cadre {
+  display: block;
+  width: 100%;
+  max-width: 46rem;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.video-clic__facade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+  text-decoration: none;
+  color: var(--couleur-texte);
+  background: var(--surface-alt);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.video-clic__facade:hover,
+.video-clic__facade:focus-visible {
+  border-color: var(--couleur-primaire);
+  background: var(--surface);
+}
+/* Le triangle de lecture, dessiné : une image de plus serait une requête de
+   plus, et ce bloc existe justement pour n'en faire aucune. */
+.video-clic__marque {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--couleur-primaire);
+  position: relative;
+  flex: none;
+}
+.video-clic__marque::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 54%;
+  transform: translate(-50%, -50%);
+  border-style: solid;
+  border-width: 0.7rem 0 0.7rem 1.1rem;
+  border-color: transparent transparent transparent #fff;
+}
+.video-clic__libelle {
+  font-weight: 600;
+  max-width: 30rem;
+}
+.video-clic__cadre {
+  border: 0;
+}
+.video-clic__avis {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--couleur-muet);
+}

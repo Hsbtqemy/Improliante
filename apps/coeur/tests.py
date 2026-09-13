@@ -6,7 +6,13 @@ import pytest
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from apps.coeur.models import BrouillonPageArtiste, Membre, Signataire, Utilisateur
+from apps.coeur.models import (
+    CHAMPS_PUBLICS_ARTISTE,
+    BrouillonPageArtiste,
+    Membre,
+    Signataire,
+    Utilisateur,
+)
 from apps.coeur.roles import NOM_GROUPE_BUREAU, est_bureau
 from apps.coeur.services import (
     OuvertureCompteImpossible,
@@ -214,6 +220,31 @@ def _artiste(nom="Camille", **champs):
     champs.setdefault("bio", "Biographie publiée.")
     champs.setdefault("role_public", "Comédienne")
     return Membre.objects.create(nom=nom, visible_sur_site=True, **champs)
+
+
+def test_publier_emporte_la_video_sans_qu_on_ait_eu_a_la_reciter(db):
+    """Le jeu de champs recopiés se DÉDUIT de `ContenuPublicArtiste`.
+
+    Ce test ne vérifie pas la vidéo pour elle-même : il vérifie qu'AJOUTER un
+    champ éditorial suffit à ce que « Publier » l'emmène. Si la liste des champs
+    recopiés redevenait un jour une énumération tenue à la main, il tomberait —
+    et c'est tout ce qu'on lui demande.
+    """
+    membre = _artiste()
+    brouillon = brouillon_de(membre)
+    brouillon.video_youtube = "dQw4w9WgXcQ"
+    brouillon.video_titre = "Extrait"
+    brouillon.video_texte = "Trois minutes."
+    brouillon.save()
+
+    assert publier_page_artiste(membre) is True
+
+    membre.refresh_from_db()
+    assert membre.video_youtube == "dQw4w9WgXcQ"
+    assert membre.video_titre == "Extrait"
+    assert membre.video_texte == "Trois minutes."
+    # Déduit, et pas recopié par chance : le champ est dans le jeu partagé.
+    assert "video_youtube" in CHAMPS_PUBLICS_ARTISTE
 
 
 def test_un_premier_brouillon_part_de_la_page_publiee(db):

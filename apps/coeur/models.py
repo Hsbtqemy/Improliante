@@ -71,6 +71,29 @@ class ContenuPublicArtiste(models.Model):
         verbose_name="photo",
         help_text="Portrait affiché sur la fiche publique (si le membre est visible).",
     )
+    # On garde l'IDENTIFIANT, pas l'adresse saisie. Une URL stockée telle quelle
+    # devrait être re-validée à CHAQUE rendu, et il suffirait d'un gabarit qui
+    # oublie de le faire pour qu'une adresse quelconque parte dans un `src`.
+    # L'identifiant, lui, ne peut rien désigner d'autre qu'une vidéo YouTube :
+    # le gabarit reconstruit l'adresse à partir d'un fournisseur qu'il choisit.
+    # Onze caractères : c'est la longueur d'un identifiant YouTube.
+    video_youtube = models.CharField(
+        "vidéo YouTube",
+        max_length=11,
+        blank=True,
+        help_text="Identifiant de la vidéo, déduit de l'adresse que vous collez.",
+    )
+    video_titre = models.CharField(
+        "titre de la vidéo",
+        max_length=150,
+        blank=True,
+        help_text="Sert de nom au bouton de lecture — « Lire la vidéo » seul ne dit rien.",
+    )
+    video_texte = models.TextField(
+        "à propos de la vidéo",
+        blank=True,
+        help_text="Quelques lignes pour situer l'extrait (facultatif).",
+    )
 
     class Meta:
         abstract = True

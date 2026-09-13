@@ -134,6 +134,38 @@
           <p>Aucun spectacle publié pour l'instant.</p>
         {% endif %}
 
+        {% if membre.video_youtube %}
+          {% comment %}
+            Façade : la page ne porte AUCUNE ressource servie par YouTube — ni
+            cadre, ni vignette. La vignette est le piège de ce motif : prise sur
+            `i.ytimg.com`, elle EST la requête qu'on prétend refuser, et elle
+            part au chargement, avant tout clic.
+
+            Le lien fonctionne sans JavaScript : il ouvre la vidéo chez YouTube.
+            Un `<button>` aurait été mort dans ce cas, et rien ne l'aurait dit.
+            Avec JavaScript, le clic est intercepté et le cadre remplace le lien
+            sur place.
+          {% endcomment %}
+          <section class="video-clic" aria-labelledby="titre-video"
+                   data-video-youtube="{{ membre.video_youtube }}">
+            <h2 id="titre-video">{{ membre.video_titre|default:"Vidéo" }}</h2>
+            {% if membre.video_texte %}
+              <p class="video-clic__texte">{{ membre.video_texte }}</p>
+            {% endif %}
+            <a class="video-clic__facade"
+               href="https://www.youtube.com/watch?v={{ membre.video_youtube }}"
+               rel="noopener">
+              <span class="video-clic__marque" aria-hidden="true"></span>
+              <span class="video-clic__libelle">
+                Lire la vidéo{% if membre.video_titre %} : {{ membre.video_titre }}{% endif %}
+              </span>
+            </a>
+            <p class="video-clic__avis">
+              Rien n'est chargé depuis YouTube avant votre clic.
+            </p>
+          </section>
+        {% endif %}
+
         {% if bluesky_handle %}
           {% comment %}
             Chargement au clic uniquement : aucune requête vers Bluesky tant que
@@ -156,5 +188,8 @@
 {% block scripts %}
   {% if bluesky_handle %}
     <script src="{% static 'js/bluesky.js' %}"></script>
+  {% endif %}
+  {% if membre.video_youtube %}
+    <script src="{% static 'js/video-clic.js' %}"></script>
   {% endif %}
 {% endblock %}

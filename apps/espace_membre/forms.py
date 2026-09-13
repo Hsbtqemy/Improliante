@@ -8,6 +8,7 @@ from django.forms import inlineformset_factory
 
 from apps.agenda.models import Evenement
 from apps.coeur.models import BrouillonPageArtiste, LienReseau, Membre, Utilisateur
+from apps.coeur.services import identifiant_youtube
 from apps.common.fiches import TAILLE_MAX_IMAGE, ImagesFicheFormMixin
 from apps.documents.models import Document, Dossier
 from apps.documents.validators import valider_fichier_document
@@ -129,10 +130,41 @@ class PageArtisteForm(forms.ModelForm):
     )
     retirer_photo = forms.BooleanField(label="Retirer la photo actuelle", required=False)
 
+    # Déclaré ICI plutôt que laissé à `ModelForm` : le champ du modèle fait onze
+    # caractères — la longueur d'un identifiant —, si bien qu'une adresse collée
+    # serait refusée pour sa LONGUEUR avant que `clean_video_youtube` n'ait la
+    # chance de la lire. Le message aurait parlé de 11 caractères à quelqu'un qui
+    # vient de coller une adresse : incompréhensible, et faussement « corrigeable »
+    # en tronquant.
+    video_youtube = forms.CharField(
+        label="Vidéo YouTube",
+        required=False,
+        max_length=300,
+        help_text="Collez l'adresse de la vidéo. Elle ne sera chargée qu'au clic du visiteur.",
+    )
+
     class Meta:
         model = BrouillonPageArtiste
-        fields = ["role_public", "bio", "site_web"]
+        fields = ["role_public", "bio", "site_web", "video_youtube", "video_titre", "video_texte"]
         widgets = {"bio": forms.Textarea(attrs={"rows": 5})}
+
+    def clean_video_youtube(self) -> str:
+        """Garde l'identifiant, refuse tout le reste — y compris un autre hébergeur.
+
+        Le refus est explicite plutôt que silencieux : une adresse Vimeo vidée
+        sans rien dire ferait croire à l'artiste que sa vidéo est enregistrée, et
+        il ne le découvrirait qu'en relisant sa page publiée.
+        """
+        saisie = (self.cleaned_data.get("video_youtube") or "").strip()
+        if not saisie:
+            return ""
+        identifiant = identifiant_youtube(saisie)
+        if not identifiant:
+            raise forms.ValidationError(
+                "Cette adresse n'est pas celle d'une vidéo YouTube. Collez l'adresse "
+                "complète, par exemple https://www.youtube.com/watch?v=..."
+            )
+        return identifiant
 
     def clean_photo_fichier(self):
         fichier = self.cleaned_data.get("photo_fichier")
