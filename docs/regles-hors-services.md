@@ -214,6 +214,13 @@ option est plus sûre et tient en trois lignes.
 > compte dans le quorum sans que personne ne porte sa voix. Une présence
 > constatée autrement (présent, excusé) n'est pas touchée — ce service ne l'a
 > pas écrite.
+>
+> **Relecture.** L'écran cherchait le POUVOIR pour le retirer : au second clic
+> d'un double clic, il répondait 404 — page d'erreur pour un geste simplement
+> déjà fait. Il résout désormais le mandant et laisse le service dire s'il a
+> retiré quelque chose ; le message suit, au lieu d'annoncer un retrait qui
+> n'avait pas eu lieu. La ligne de pouvoir entre aussi dans le balayage
+> d'accessibilité, avec son bouton.
 
 ## 5. Le compte rendu s'écrit sans formulaire ni service
 

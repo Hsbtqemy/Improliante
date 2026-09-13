@@ -138,6 +138,13 @@ bouton sur la fiche à côté de la saisie, et le mandant remis « absent » : s
 compte dans le quorum sans que personne ne porte sa voix. Une présence constatée
 autrement — présent, excusé — n'est pas touchée, ce service ne l'a pas écrite.
 
+La relecture a trouvé le revers du bouton neuf : il cherchait le POUVOIR à retirer,
+donc au second clic d'un double clic il répondait 404 — une page d'erreur pour un
+geste simplement déjà fait. Il résout maintenant le mandant et laisse le service dire
+s'il a retiré quelque chose ; le message suit au lieu d'annoncer un retrait qui n'a
+pas eu lieu. J'avais fait retourner un booléen au service et je l'ignorais dans la
+vue.
+
 GOU-01 est clos. De l'inventaire ARCH-01, il ne reste que le point 6, qui est une
 décision à prendre et non une règle mal placée.
 
