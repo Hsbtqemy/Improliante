@@ -26,7 +26,7 @@ def _octets(largeur, hauteur, format="JPEG", mode="RGB"):
     return tampon.getvalue()
 
 
-def _media(nom="photo.jpg", largeur=3000, hauteur=4000, format="JPEG", mode="RGB"):
+def _media(nom="lot17-photo.jpg", largeur=3000, hauteur=4000, format="JPEG", mode="RGB"):
     return Media.objects.create(
         fichier=SimpleUploadedFile(nom, _octets(largeur, hauteur, format, mode)),
         alt="Une photo",
@@ -38,15 +38,18 @@ def test_une_image_trop_large_est_reduite(db):
     carte de 300. Le fichier servi est réécrit SOUS LE MÊME NOM — passer par
     `save()` en laisserait deux, et changerait l'URL."""
     octets_origine = _octets(3000, 4000)
+    # Nom distinctif : le dossier de médias des tests est partagé par toute la
+    # suite, et Django suffixe un nom déjà pris — l'assertion sur le nom dirait
+    # alors le contraire de ce qu'elle vérifie.
     media = Media.objects.create(
-        fichier=SimpleUploadedFile("photo.jpg", octets_origine), alt="Une photo"
+        fichier=SimpleUploadedFile("lot17-reduite.jpg", octets_origine), alt="Une photo"
     )
 
     media.refresh_from_db()
     assert media.largeur == LARGEUR_MAX
     assert media.hauteur == 2667  # ratio conservé (4000 × 2000 / 3000)
     assert media.fichier.size < len(octets_origine)
-    assert media.fichier.name.endswith("photo.jpg")
+    assert media.fichier.name.endswith("lot17-reduite.jpg")
 
 
 def test_une_vignette_accompagne_l_image(db):
@@ -63,7 +66,7 @@ def test_une_vignette_accompagne_l_image(db):
 def test_une_petite_image_garde_sa_taille_et_n_a_pas_de_vignette(db):
     """En dessous de la largeur de vignette, une variante ne servirait à rien :
     le `srcset` n'aurait que deux fois le même fichier."""
-    media = _media("petite.png", largeur=400, hauteur=300, format="PNG")
+    media = _media("lot17-petite.png", largeur=400, hauteur=300, format="PNG")
     media.refresh_from_db()
 
     assert (media.largeur, media.hauteur) == (400, 300)
@@ -93,7 +96,7 @@ def test_remplacer_le_fichier_refait_dimensions_et_vignette(db):
     media.refresh_from_db()
     ancienne = media.vignette.name
 
-    media.fichier = SimpleUploadedFile("autre.jpg", _octets(1800, 1200))
+    media.fichier = SimpleUploadedFile("lot17-autre.jpg", _octets(1800, 1200))
     media.save()
 
     media.refresh_from_db()
@@ -105,7 +108,7 @@ def test_remplacer_le_fichier_refait_dimensions_et_vignette(db):
 def test_un_png_transparent_reste_un_png(db):
     """Réencoder en JPEG « pour gagner des octets » aplatirait la transparence
     et obligerait à renommer le fichier, donc à changer son URL."""
-    media = _media("logo.png", largeur=2400, hauteur=2400, format="PNG", mode="RGBA")
+    media = _media("lot17-logo.png", largeur=2400, hauteur=2400, format="PNG", mode="RGBA")
     media.refresh_from_db()
 
     assert media.fichier.name.endswith(".png")
@@ -119,7 +122,7 @@ def test_un_fichier_illisible_n_empeche_pas_l_enregistrement(db):
     """Le traitement est un confort : un fichier tronqué, ou un chemin qui ne
     pointe sur rien (fixtures, import), ne doit pas faire tomber le média."""
     casse = Media.objects.create(
-        fichier=SimpleUploadedFile("faux.jpg", b"ceci n'est pas une image"), alt="x"
+        fichier=SimpleUploadedFile("lot17-faux.jpg", b"ceci n'est pas une image"), alt="x"
     )
     fantome = Media.objects.create(fichier="medias/2020/01/absente.jpg", alt="y")
 

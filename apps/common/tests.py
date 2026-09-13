@@ -456,6 +456,18 @@ def test_aucun_ecran_de_gestion_ne_refait_un_lien_vers_la_racine():
 # choses qu'un humain ne peut pas tenir à jour de tête.
 
 
+def _image_temoin(nom: str):
+    """Une vraie image JPEG, assez large pour qu'une vignette en soit tirée."""
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    tampon = io.BytesIO()
+    Image.new("RGB", (700, 500), (120, 40, 60)).save(tampon, "JPEG")
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/jpeg")
+
+
 def _ecrans_a_identifiant(membre):
     """Un objet de chaque sorte, et les URL de détail qu'ils ouvrent.
 
@@ -477,19 +489,34 @@ def _ecrans_a_identifiant(membre):
     from apps.facturation.models import Devis, Facture
     from apps.gouvernance.models import BlocCompteRendu, Reunion, Sujet
     from apps.gouvernance.services import donner_pouvoir
-    from apps.spectacles.models import Spectacle
+    from apps.medias.models import Media
+    from apps.spectacles.models import ImageSpectacle, Spectacle
 
     publie = Moderation.StatutModeration.PUBLIE
     aujourdhui = timezone.now()
 
-    spectacle = Spectacle.objects.create(titre="Spectacle témoin", statut_moderation=publie)
+    # De vraies images, et pas des chemins de fantaisie : sans elles, les pages
+    # sont rendues SANS aucun `<img>`, et les invariants qui portent dessus —
+    # texte alternatif, identifiants — passeraient en ne regardant rien. Assez
+    # large pour qu'une vignette en soit tirée, donc pour que le `srcset` existe.
+    affiche = Media.objects.create(fichier=_image_temoin("affiche.jpg"), alt="Affiche témoin")
+    spectacle = Spectacle.objects.create(
+        titre="Spectacle témoin", statut_moderation=publie, affiche=affiche
+    )
     spectacle.porteurs.add(membre)
+    ImageSpectacle.objects.create(
+        spectacle=spectacle,
+        media=Media.objects.create(fichier=_image_temoin("galerie.jpg"), alt="Image de galerie"),
+    )
+    membre.photo = Media.objects.create(fichier=_image_temoin("photo.jpg"), alt="Portrait témoin")
+    membre.save(update_fields=["photo"])
     evenement = Evenement.objects.create(
         titre="Événement témoin",
         date_debut=aujourdhui + timedelta(days=5),
         statut_moderation=publie,
         cree_par=membre.user,
         places_max=20,  # sans jauge, la feuille d'inscription publique n'existe pas
+        affiche=Media.objects.create(fichier=_image_temoin("evt.jpg"), alt="Affiche d'événement"),
     )
     reunion = Reunion.objects.create(
         titre="AG témoin",
@@ -721,6 +748,26 @@ def test_chaque_bouton_et_lien_a_un_nom_accessible(client, db):
             muets.append(f"{url} → {balise.strip()[:60]}")
 
     assert not muets, "contrôle sans nom accessible :\n  " + "\n  ".join(sorted(set(muets))[:10])
+
+
+def test_chaque_image_rendue_porte_un_texte_alternatif(client, db):
+    """Règle 2 du dépôt : « pas de média sans alt ».
+
+    Le modèle l'impose à l'envoi, mais rien ne garantissait que le GABARIT le
+    rende : un `<img>` sans attribut `alt` du tout est annoncé par son nom de
+    fichier, ce qui est pire que rien. Un `alt=""` reste valide et voulu — une
+    image redondante avec le texte voisin ne doit PAS être annoncée deux fois —,
+    donc le contrôle porte sur la présence de l'attribut, pas sur son contenu."""
+    import re
+
+    sans_alt = []
+    for url, html in _pages_sans_parametre(client):
+        corps = html.split('<main id="contenu"', 1)[-1].split("</main>", 1)[0]
+        for balise in re.findall(r"<img\b[^>]*>", corps):
+            if not re.search(r"\balt=", balise):
+                sans_alt.append(f"{url} → {balise[:70]}")
+
+    assert not sans_alt, "image sans attribut alt :\n  " + "\n  ".join(sorted(set(sans_alt))[:10])
 
 
 def test_un_champ_refuse_relie_ses_messages_sans_dupliquer_d_identifiant():
