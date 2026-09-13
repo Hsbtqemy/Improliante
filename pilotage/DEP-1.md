@@ -27,6 +27,13 @@ provisionné côté VPS Infomaniak : la suite commence au premier `ssh`.
 - [ ] `systemctl enable --now asso` laisse le service `active (running)` et le socket `/srv/asso/run/gunicorn.sock` présent
 
 ### Réseau et TLS
+- [ ] **PUB-01** — `PROXIES_DE_CONFIANCE` vaut **1** dans `/srv/asso/app.env` dès qu'Nginx
+  est en façade, et Nginx pose bien `X-Forwarded-For` avec
+  `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`. Mal réglé, ce nombre est
+  le SEUL moyen de contourner toutes les limites de débit : laissé à zéro, toutes les
+  requêtes s'imputent à Nginx et le premier abus ferme les formulaires à tout le monde ;
+  monté sans qu'un relais existe, on lit l'en-tête que le client écrit lui-même. Se
+  constate : deux envois depuis deux machines différentes ne partagent pas leur compteur
 - [ ] Nginx joint Gunicorn par le socket Unix — une requête sur `/` rend 200 avec le HTML de l'accueil, pas une 502
 - [ ] Certbot a délivré le certificat : `https://<domaine>` est valide et le HTTP répond 301 vers HTTPS
 - [ ] La `location` interne X-Accel sert un fichier privé : le propriétaire reçoit le fichier, un autre membre connecté reçoit 403 et jamais l'octet — règles 1 et 5 de CLAUDE.md
