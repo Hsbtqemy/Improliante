@@ -15,39 +15,7 @@
         <h2 id="mois-{{ forloop.counter }}" class="agenda-mois__titre">{{ groupe.mois|date:"F Y" }}</h2>
         <ul class="agenda-cartes">
           {% for e in groupe.evenements %}
-            <li class="agenda-carte agenda-carte--lien">
-              <div class="agenda-carte__date" aria-hidden="true">
-                <span class="agenda-carte__jsem">{{ e.date_debut|date:"D" }}</span>
-                <span class="agenda-carte__jour">{{ e.date_debut|date:"j" }}</span>
-              </div>
-              <div class="agenda-carte__corps">
-                {% if e.jour_relatif %}<span class="agenda-tag">{{ e.jour_relatif }}</span>{% endif %}
-                <h3 class="agenda-carte__titre">
-                  <a class="agenda-carte__lien" href="{% url 'vitrine:evenement' e.pk %}">{{ e.titre }}</a>
-                </h3>
-                <p class="agenda-carte__meta">
-                  <span>
-                    <svg class="ico" aria-hidden="true"><use href="#ico-horloge"></use></svg>
-                    <span class="sr-only">Le </span>{{ e.date_debut|date:"l j F" }}, {{ e.date_debut|date:"G\hi" }}{% if e.date_fin %} – {{ e.date_fin|date:"G\hi" }}{% endif %}
-                  </span>
-                  {% firstof e.lieu_texte e.lieu.nom as lieu_nom %}
-                  {% if lieu_nom %}
-                    <span><svg class="ico" aria-hidden="true"><use href="#ico-lieu"></use></svg> {{ lieu_nom }}</span>
-                  {% endif %}
-                </p>
-                {% if e.spectacle_id and e.spectacle.titre != e.titre %}
-                  <p class="agenda-carte__spectacle">↳ {{ e.spectacle.titre }}</p>
-                {% endif %}
-                {% if e.description %}
-                  <p class="agenda-carte__desc">{{ e.description|truncatewords:28 }}</p>
-                {% endif %}
-              </div>
-              {% if e.affiche and e.affiche.fichier %}
-                <div class="agenda-carte__affiche">
-                  {% include "_image.html" with media=e.affiche tailles="5.5rem" %}
-                </div>
-              {% endif %}
-            </li>
+            {% include "vitrine/_carte_agenda.html" %}
           {% endfor %}
         </ul>
       </section>

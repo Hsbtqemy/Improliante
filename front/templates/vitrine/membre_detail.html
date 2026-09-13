@@ -44,6 +44,30 @@
       </div>
 
       <div class="fiche-membre__col-parcours">
+        {% comment %}
+          Les dates d'abord, avant la biographie : c'est l'information qu'on
+          vient chercher sur la page de quelqu'un qui joue, et la reléguer sous
+          un long texte revient à la cacher. Titre neutre à dessein — une
+          participation peut être une organisation, pas un passage sur scène.
+        {% endcomment %}
+        <section class="participations" aria-labelledby="titre-participations">
+          <h2 id="titre-participations">Prochaines participations</h2>
+          {% if participations %}
+            <ul class="agenda-cartes">
+              {% for participation in participations %}
+                {% include "vitrine/_carte_agenda.html" with e=participation.evenement role=participation.role %}
+              {% endfor %}
+            </ul>
+            {% if autres_participations %}
+              <p class="participations__suite">
+                <a href="{% url 'vitrine:agenda' %}">Toutes les dates à l'agenda</a>
+              </p>
+            {% endif %}
+          {% else %}
+            <p>Aucune prochaine date annoncée.</p>
+          {% endif %}
+        </section>
+
         {% if membre.bio %}
           <div class="fiche-membre__bio">{{ membre.bio|linebreaks }}</div>
         {% endif %}

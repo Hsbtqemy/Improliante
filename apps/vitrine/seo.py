@@ -90,7 +90,9 @@ def evenement_json_ld(request, evenement) -> str:
         donnees["endDate"] = localtime(evenement.date_fin).isoformat()
     if evenement.description:
         donnees["description"] = evenement.description
-    spectacle = evenement.spectacle if evenement.spectacle_id else None
+    # Un spectacle non publié ne se laisse deviner ni par son titre ni par son
+    # affiche reprise en image de partage : la fiche le cache, le JSON-LD aussi.
+    spectacle = evenement.spectacle_public
     image = image_partage(request, evenement.affiche, spectacle.affiche if spectacle else None)
     if image:
         donnees["image"] = [image]

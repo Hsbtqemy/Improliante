@@ -1517,6 +1517,16 @@ th.montant {
   margin: 0 0 0.3rem;
   font-size: 0.92rem;
 }
+/* Rôle tenu sur cette date, sur la page de la personne concernée. */
+.agenda-carte__role {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+  color: var(--couleur-muet);
+}
+.participations__suite {
+  margin: 0.75rem 0 0;
+  font-size: 0.95rem;
+}
 .agenda-carte__desc {
   margin: 0.35rem 0 0;
   font-size: 0.95rem;

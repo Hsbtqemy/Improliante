@@ -36,10 +36,15 @@
           </p>
         {% endif %}
 
-        {% if evenement.spectacle_id %}
+        {% comment %}
+          `spectacle` vaut le spectacle rattaché SEULEMENT s'il est publié : une
+          date peut être annoncée avant l'œuvre, et le lien mènerait alors à une
+          page introuvable.
+        {% endcomment %}
+        {% if spectacle %}
           <p class="agenda-carte__spectacle">
             ↳ Représentation de
-            <a href="{% url 'vitrine:spectacle' evenement.spectacle.pk %}">{{ evenement.spectacle.titre }}</a>
+            <a href="{% url 'vitrine:spectacle' spectacle.pk %}">{{ spectacle.titre }}</a>
           </p>
         {% endif %}
 

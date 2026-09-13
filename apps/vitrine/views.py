@@ -105,9 +105,12 @@ def detail_evenement(request, pk: int):
         statut_moderation=_EVT_PUBLIE,
         visibilite=_EVT_PUBLIC,
     )
-    spectacle = evenement.spectacle if evenement.spectacle_id else None
+    # Le spectacle rattaché n'est montré que s'il est publié lui-même : le
+    # gabarit et le JSON-LD lisent `spectacle`, pas `evenement.spectacle`.
+    spectacle = evenement.spectacle_public
     contexte = {
         "evenement": evenement,
+        "spectacle": spectacle,
         "og_image": seo.image_partage(
             request, evenement.affiche, spectacle.affiche if spectacle else None
         ),
@@ -289,8 +292,16 @@ def detail_membre(request, slug: str):
         .order_by("titre")
     )
     lien_bsky = membre.liens_reseaux.filter(reseau=LienReseau.Reseau.BLUESKY).first()
+    # Une de plus que ce qu'on affiche : savoir s'il en reste sans charger la
+    # saison entière, et sans poser une seconde requête qui pourrait filtrer
+    # autrement que la première — le décompte doit dire la même chose que la
+    # liste, sinon il annonce des dates que la page ne montre pas.
+    limite = agenda_services.PARTICIPATIONS_EN_PREMIERE_LISTE
+    participations = list(agenda_services.prochaines_participations(membre)[: limite + 1])
     contexte = {
         "membre": membre,
+        "participations": participations[:limite],
+        "autres_participations": len(participations) > limite,
         "spectacles_portes": spectacles_portes,
         "collaborations": collaborations,
         "bluesky_handle": handle_bluesky(lien_bsky.url) if lien_bsky else "",

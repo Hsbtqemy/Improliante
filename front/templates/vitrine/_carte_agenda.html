@@ -1,0 +1,47 @@
+{% comment %}
+  Carte d'une date publique. Attend `e` (un Evenement) ; accepte `role`, le rôle
+  tenu par la personne dont on lit la page.
+
+  Extraite de l'agenda pour que la fiche d'un artiste serve EXACTEMENT la même
+  ligne de date : deux gabarits parallèles finiraient par diverger, et c'est
+  précisément ce qui fait qu'un site donne l'impression d'en être deux.
+
+  Le spectacle passe par `spectacle_public` : une date peut être annoncée alors
+  que l'œuvre est encore en brouillon, et rien de ce spectacle ne doit paraître.
+{% endcomment %}
+<li class="agenda-carte agenda-carte--lien">
+  <div class="agenda-carte__date" aria-hidden="true">
+    <span class="agenda-carte__jsem">{{ e.date_debut|date:"D" }}</span>
+    <span class="agenda-carte__jour">{{ e.date_debut|date:"j" }}</span>
+  </div>
+  <div class="agenda-carte__corps">
+    {% if e.jour_relatif %}<span class="agenda-tag">{{ e.jour_relatif }}</span>{% endif %}
+    <h3 class="agenda-carte__titre">
+      <a class="agenda-carte__lien" href="{% url 'vitrine:evenement' e.pk %}">{{ e.titre }}</a>
+    </h3>
+    <p class="agenda-carte__meta">
+      <span>
+        <svg class="ico" aria-hidden="true"><use href="#ico-horloge"></use></svg>
+        <span class="sr-only">Le </span>{{ e.date_debut|date:"l j F" }}, {{ e.date_debut|date:"G\hi" }}{% if e.date_fin %} – {{ e.date_fin|date:"G\hi" }}{% endif %}
+      </span>
+      {% firstof e.lieu_texte e.lieu.nom as lieu_nom %}
+      {% if lieu_nom %}
+        <span><svg class="ico" aria-hidden="true"><use href="#ico-lieu"></use></svg> {{ lieu_nom }}</span>
+      {% endif %}
+    </p>
+    {% if role %}
+      <p class="agenda-carte__role">{{ role }}</p>
+    {% endif %}
+    {% if e.spectacle_public and e.spectacle_public.titre != e.titre %}
+      <p class="agenda-carte__spectacle">↳ {{ e.spectacle_public.titre }}</p>
+    {% endif %}
+    {% if e.description %}
+      <p class="agenda-carte__desc">{{ e.description|truncatewords:28 }}</p>
+    {% endif %}
+  </div>
+  {% if e.affiche and e.affiche.fichier %}
+    <div class="agenda-carte__affiche">
+      {% include "_image.html" with media=e.affiche tailles="5.5rem" %}
+    </div>
+  {% endif %}
+</li>

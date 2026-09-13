@@ -1,19 +1,26 @@
-"""Tests du domaine « Agenda » : inscriptions du public (VIT-2).
+"""Tests du domaine « Agenda » : inscriptions du public (VIT-2) et
+participations publiques d'un membre (VIT-4).
 
-Le point dur n'est pas la règle — « on ne dépasse pas la jauge » se lit d'un
-trait — mais sa tenue quand deux personnes visent la dernière place au même
-instant. Ce cas ne s'observe que sur PostgreSQL : sous SQLite,
-`select_for_update` ne fait rien.
+Le point dur des inscriptions n'est pas la règle — « on ne dépasse pas la
+jauge » se lit d'un trait — mais sa tenue quand deux personnes visent la
+dernière place au même instant. Ce cas ne s'observe que sur PostgreSQL : sous
+SQLite, `select_for_update` ne fait rien.
+
+Le point dur des participations est ailleurs : ce qu'on n'annonce PAS. Une
+personne à la distribution d'un spectacle n'est pas sur scène à chacune de ses
+dates, et une soirée réservée aux membres n'a pas à paraître sur une page
+publique. Ces tests-là décrivent surtout des absences.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
-from apps.agenda.models import Evenement, Inscription
+from apps.agenda.models import Evenement, Inscription, Intervention
 from apps.agenda.services import (
     InscriptionFermee,
     PlusAssezDePlaces,
@@ -21,7 +28,10 @@ from apps.agenda.services import (
     inscrire,
     places_prises,
     places_restantes,
+    prochaines_participations,
 )
+from apps.coeur.models import Membre
+from apps.spectacles.models import LigneDistribution, Spectacle
 
 
 def _evenement(places_max=None, titre="Représentation"):
@@ -203,3 +213,117 @@ def test_une_meme_adresse_peut_reserver_plusieurs_fois(db):
 
     assert places_prises(evenement) == 30
     assert Inscription.objects.count() == 3
+
+
+# --- VIT-4 : ce qu'une page publique a le droit d'annoncer -------------------
+
+
+def _membre(nom="Camille"):
+    return Membre.objects.create(nom=nom, visible_sur_site=True)
+
+
+def _date(
+    *,
+    dans_jours=7,
+    statut=Evenement.StatutModeration.PUBLIE,
+    visibilite=Evenement.Visibilite.PUBLIC,
+    titre="Représentation",
+    spectacle=None,
+):
+    return Evenement.objects.create(
+        titre=titre,
+        date_debut=timezone.now() + timedelta(days=dans_jours),
+        statut_moderation=statut,
+        visibilite=visibilite,
+        spectacle=spectacle,
+    )
+
+
+def test_une_participation_explicite_est_annoncee(db):
+    membre = _membre()
+    evenement = _date()
+    Intervention.objects.create(evenement=evenement, membre=membre, role="Comédienne")
+
+    participations = list(prochaines_participations(membre))
+
+    assert [p.evenement for p in participations] == [evenement]
+    assert participations[0].role == "Comédienne"
+
+
+def test_etre_a_la_distribution_n_annonce_aucune_date(db):
+    """Le cœur de la règle : la distribution d'un spectacle ne se propage PAS
+    à ses représentations. Quelqu'un qui figure au générique n'est pas sur
+    scène tous les soirs — l'annoncer ferait déplacer un public pour rien, et
+    c'est irrattrapable une fois la personne venue."""
+    membre = _membre()
+    spectacle = Spectacle.objects.create(
+        titre="SpectacleJoue", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    LigneDistribution.objects.create(spectacle=spectacle, membre=membre, role="Jeu")
+    _date(spectacle=spectacle)  # une vraie représentation, sans intervention
+
+    assert list(prochaines_participations(membre)) == []
+
+
+def test_une_date_reservee_aux_membres_ne_parait_pas(db):
+    membre = _membre()
+    interne = _date(visibilite=Evenement.Visibilite.MEMBRES, titre="RépétitionPrivee")
+    Intervention.objects.create(evenement=interne, membre=membre)
+
+    assert list(prochaines_participations(membre)) == []
+
+
+def test_une_date_non_publiee_ne_parait_pas(db):
+    membre = _membre()
+    brouillon = _date(statut=Evenement.StatutModeration.BROUILLON, titre="DateEnBrouillon")
+    Intervention.objects.create(evenement=brouillon, membre=membre)
+
+    assert list(prochaines_participations(membre)) == []
+
+
+def test_une_date_passee_ne_parait_pas(db):
+    """« Prochaines » : une soirée commencée n'est plus à annoncer. Même
+    convention que l'agenda public, qui borne sur le début."""
+    membre = _membre()
+    passee = _date(dans_jours=-1, titre="DatePassee")
+    Intervention.objects.create(evenement=passee, membre=membre)
+
+    assert list(prochaines_participations(membre)) == []
+
+
+def test_les_participations_vont_de_la_plus_proche_a_la_plus_lointaine(db):
+    membre = _membre()
+    loin = _date(dans_jours=30, titre="Loin")
+    proche = _date(dans_jours=2, titre="Proche")
+    for evenement in (loin, proche):
+        Intervention.objects.create(evenement=evenement, membre=membre)
+
+    assert [p.evenement for p in prochaines_participations(membre)] == [proche, loin]
+
+
+def test_une_participation_ne_deborde_pas_sur_un_autre_membre(db):
+    """Deux artistes, deux pages : la date de l'un n'apparaît pas chez l'autre."""
+    camille = _membre("Camille")
+    dominique = _membre("Dominique")
+    evenement = _date()
+    Intervention.objects.create(evenement=evenement, membre=camille)
+
+    assert list(prochaines_participations(dominique)) == []
+
+
+def test_le_spectacle_d_une_date_ne_parait_que_s_il_est_publie(db):
+    """Deux publications, deux interrupteurs : une date peut être annoncée
+    alors que l'œuvre est encore en brouillon."""
+    brouillon = Spectacle.objects.create(
+        titre="OeuvreSecrete", statut_moderation=Spectacle.StatutModeration.BROUILLON
+    )
+    date_publique = _date(spectacle=brouillon)
+    assert date_publique.spectacle_public is None
+
+    brouillon.statut_moderation = Spectacle.StatutModeration.PUBLIE
+    brouillon.save(update_fields=["statut_moderation"])
+    assert Evenement.objects.get(pk=date_publique.pk).spectacle_public == brouillon
+
+
+def test_une_date_sans_spectacle_n_en_invente_pas(db):
+    assert _date().spectacle_public is None

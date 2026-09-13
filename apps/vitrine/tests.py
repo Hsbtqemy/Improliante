@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from apps.agenda import services as agenda_services
-from apps.agenda.models import Evenement, Inscription
+from apps.agenda.models import Evenement, Inscription, Intervention
 from apps.coeur.models import (
     LienReseau,
     Lieu,
@@ -1256,3 +1256,108 @@ def test_un_lien_neutralise_se_distingue_a_l_oeil():
     assert "opacity" not in bloc, (
         "une opacité effacerait le texte à demi : un bouton neutralisé reste à lire"
     )
+
+
+# --- VIT-4 : prochaines participations, et fuites par une date --------------
+
+
+def _date_publique(*, dans_jours=7, titre="SoireePublique", **champs):
+    champs.setdefault("statut_moderation", Evenement.StatutModeration.PUBLIE)
+    champs.setdefault("visibilite", Evenement.Visibilite.PUBLIC)
+    return Evenement.objects.create(
+        titre=titre,
+        date_debut=timezone.now() + timedelta(days=dans_jours),
+        **champs,
+    )
+
+
+def test_fiche_membre_annonce_ses_prochaines_participations(client, db):
+    membre = _membre("Joueuse", visible=True)
+    evenement = _date_publique(titre="SoireeImpro")
+    Intervention.objects.create(evenement=evenement, membre=membre, role="Comédienne")
+
+    corps = client.get(membre.get_absolute_url()).content.decode()
+
+    assert "Prochaines participations" in corps
+    assert "SoireeImpro" in corps
+    assert "Comédienne" in corps
+    assert f"/agenda/{evenement.pk}/" in corps
+
+
+def test_fiche_membre_sans_date_le_dit_au_lieu_de_se_taire(client, db):
+    """Un visiteur vient souvent pour savoir si la personne joue bientôt. Ne
+    rien afficher le laisse chercher ; trois mots répondent."""
+    membre = _membre("SansDate", visible=True)
+    corps = client.get(membre.get_absolute_url()).content.decode()
+    assert "Aucune prochaine date annoncée" in corps
+
+
+def test_fiche_membre_ne_laisse_pas_fuiter_une_date_reservee_aux_membres(client, db):
+    membre = _membre("Discrete", visible=True)
+    interne = _date_publique(titre="ReunionInterne", visibilite=Evenement.Visibilite.MEMBRES)
+    Intervention.objects.create(evenement=interne, membre=membre)
+
+    reponse = client.get(membre.get_absolute_url())
+    corps = reponse.content.decode()
+
+    assert "ReunionInterne" not in corps
+    # Le décompte lit la même liste : il ne peut pas annoncer une date que la
+    # page ne montre pas.
+    assert list(reponse.context["participations"]) == []
+    assert reponse.context["autres_participations"] is False
+    assert "Aucune prochaine date annoncée" in corps
+
+
+def test_fiche_membre_ne_deroule_pas_une_saison_entiere(client, db):
+    """Au-delà de la première liste, la page renvoie à l'agenda."""
+    from apps.agenda.services import PARTICIPATIONS_EN_PREMIERE_LISTE as LIMITE
+
+    membre = _membre("TresDemandee", visible=True)
+    for i in range(LIMITE + 3):
+        evenement = _date_publique(dans_jours=i + 1, titre=f"Date{i}")
+        Intervention.objects.create(evenement=evenement, membre=membre)
+
+    reponse = client.get(membre.get_absolute_url())
+
+    assert len(reponse.context["participations"]) == LIMITE
+    assert reponse.context["autres_participations"] is True
+    assert "Toutes les dates à l'agenda" in reponse.content.decode()
+
+
+def test_une_date_publique_ne_devoile_pas_un_spectacle_en_brouillon(client, db):
+    """Deux publications, deux interrupteurs. Le bureau annonce une date avant
+    d'avoir fini la fiche de l'œuvre : le titre, l'affiche et le lien de ce
+    spectacle restent dedans — y compris dans les données structurées et
+    l'image de partage, que personne ne relit à l'œil."""
+    affiche_secrete = Media.objects.create(fichier="medias/secrete.jpg", alt="Affiche secrète")
+    brouillon = Spectacle.objects.create(
+        titre="OeuvreSecrete",
+        statut_moderation=Spectacle.StatutModeration.BROUILLON,
+        affiche=affiche_secrete,
+    )
+    evenement = _date_publique(titre="SoireeAnnoncee", spectacle=brouillon)
+
+    agenda = client.get("/agenda/").content.decode()
+    assert "SoireeAnnoncee" in agenda  # la date, elle, est bien publique
+    assert "OeuvreSecrete" not in agenda
+
+    fiche = client.get(f"/agenda/{evenement.pk}/")
+    corps = fiche.content.decode()
+    assert "OeuvreSecrete" not in corps
+    assert "medias/secrete.jpg" not in corps  # ni en image de partage
+    assert fiche.context["spectacle"] is None
+    assert "workPerformed" not in _bloc_json_ld(corps)
+
+
+def test_une_date_publique_montre_un_spectacle_publie(client, db):
+    """Le revers : fermer la fuite ne doit pas fermer le cas normal."""
+    spectacle = Spectacle.objects.create(
+        titre="OeuvrePubliee", statut_moderation=Spectacle.StatutModeration.PUBLIE
+    )
+    evenement = _date_publique(titre="SoireeDeCreation", spectacle=spectacle)
+
+    corps = client.get(f"/agenda/{evenement.pk}/").content.decode()
+
+    assert "OeuvrePubliee" in corps
+    assert f"/spectacles/{spectacle.pk}/" in corps
+    assert _bloc_json_ld(corps)["workPerformed"]["name"] == "OeuvrePubliee"

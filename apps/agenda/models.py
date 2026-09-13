@@ -92,6 +92,28 @@ class Evenement(Horodatage, Moderation):
     def __str__(self) -> str:
         return self.titre
 
+    @property
+    def spectacle_public(self):
+        """Le spectacle rattaché **s'il est lui-même publié**, sinon `None`.
+
+        Un événement public peut porter un spectacle encore en brouillon : la
+        date est annoncée, l'œuvre ne l'est pas. Rien de ce spectacle ne doit
+        alors paraître côté public — ni son titre, ni son affiche reprise en
+        image de partage, ni un lien qui mènerait à une page introuvable. Les
+        deux publications ont chacune leur interrupteur, et c'est voulu.
+
+        Les gabarits et le JSON-LD publics passent par ici plutôt que par
+        `spectacle` en direct : la règle tient à un seul endroit. Coût nul
+        quand l'appelant a fait `select_related("spectacle")`, ce que font les
+        vues concernées.
+        """
+        if not self.spectacle_id:
+            return None
+        spectacle = self.spectacle
+        if spectacle.statut_moderation != spectacle.StatutModeration.PUBLIE:
+            return None
+        return spectacle
+
     def clean(self) -> None:
         """La fin, si renseignée, ne peut pas précéder le début."""
         if self.date_fin and self.date_debut and self.date_fin < self.date_debut:
