@@ -19,6 +19,23 @@ export iCal), galerie, page association + fiches membres visibles, contact
 persistés en base). Panneau d'accessibilité (préférences en cookie, classes
 appliquées sur `<html>`, JS externe sans inline).
 
+**Ce qu'une page publique annonce, et ce qu'elle tait** (VIT-4) :
+`apps/agenda/services.py::prochaines_participations` construit les prochaines
+dates d'un membre à partir des seules `Intervention` explicites sur un événement
+publié ET public — figurer à la distribution d'un spectacle n'annonce aucune
+date. La fiche montre les cinq plus proches puis renvoie à l'agenda, et le
+décompte lit la liste affichée plutôt qu'une seconde requête. Le spectacle
+rattaché à une date passe par `Evenement.spectacle_public` : non publié, il ne
+paraît nulle part — ni agenda, ni fiche de la date, ni JSON-LD, ni image de
+partage. La carte de date est une seule inclusion,
+`front/templates/vitrine/_carte_agenda.html`, servie par l'agenda comme par la
+fiche artiste.
+
+**Confort de lecture** : la liste des sept classes posées sur `<html>` est
+fermée des deux côtés — `apps/common/context_processors.py::CLASSES_CONFORT`
+relit le cookie `a11y`, `front/static/js/accessibilite.js` ne bascule que
+celles-là, et un test refuse que les deux listes divergent.
+
 ### Espace membre (`apps/espace_membre`) — connecté
 Tableau de bord (à traiter, prochaines dates, projets), **proposer son projet**
 (spectacle) et **son événement**, chacun présenté d'abord en **fiche lecture**
