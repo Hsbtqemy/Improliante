@@ -83,5 +83,9 @@ def tentative_de_trop(cle: str, *, limite: int, fenetre: int) -> bool:
 
 
 def oublier(cle: str) -> None:
-    """Efface le compteur d'une clé — pour les tests, et pour un déblocage."""
+    """Efface le compteur d'une clé.
+
+    Écrite pour les tests. Il n'existe pas d'écran de déblocage : le jour où
+    quelqu'un se retrouvera enfermé par une limite, c'est ici qu'on viendra.
+    """
     caches["debit"].delete("debit:" + hashlib.sha256(cle.encode("utf-8")).hexdigest()[:32])

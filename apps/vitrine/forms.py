@@ -15,6 +15,10 @@ class ContactForm(forms.Form):
     # Sans borne, le champ est une zone de dépôt — l'audit le relevait comme
     # « pas de longueur métier explicite ». La valeur est large : elle arrête
     # le versement d'un fichier, pas une longue demande.
+    #
+    # Lue à l'IMPORT, comme la plupart des réglages : elle change au
+    # redémarrage, pas à chaud. Le dire ici parce qu'un test l'avait cru
+    # modifiable en cours de route et posait une valeur que personne ne lisait.
     message = forms.CharField(
         widget=forms.Textarea,
         label="Votre message",

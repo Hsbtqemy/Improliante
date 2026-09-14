@@ -326,6 +326,35 @@ def test_le_compteur_ne_stocke_pas_la_cle_en_clair(db):
     assert cles, "aucune entrée écrite : le contrôle ne regarde rien"
 
 
+def test_un_afflux_de_cles_distinctes_n_efface_pas_les_compteurs(db):
+    """Le cache de base EXPULSE au-delà de `MAX_ENTRIES` — et il choisit par
+    ORDRE DE CLÉ, pas par ancienneté.
+
+    Nos clés étant des empreintes, l'expulsion est arbitraire. Au défaut de
+    Django (300), un afflux de 500 clés distinctes remettait 25 compteurs sur
+    40 à zéro, sans bruit. Or l'une des clés porte l'adresse visée par « mot de
+    passe oublié », que le demandeur choisit librement : inonder devenait un
+    moyen d'effacer les limites des autres.
+
+    Ce contrôle mesure la conséquence — des compteurs qui tiennent — et non le
+    réglage, qu'on pourrait changer en croyant ne rien casser.
+    """
+    from apps.common.debit import tentative_de_trop
+
+    temoins = [f"temoin-{i}" for i in range(12)]
+    for temoin in temoins:
+        assert tentative_de_trop(temoin, limite=1, fenetre=3600) is False
+
+    for n in range(500):
+        tentative_de_trop(f"afflux-{n}", limite=99, fenetre=3600)
+
+    survivants = [t for t in temoins if tentative_de_trop(t, limite=1, fenetre=3600)]
+    assert len(survivants) == len(temoins), (
+        f"{len(temoins) - len(survivants)} compteur(s) effacé(s) par l'afflux : "
+        "la limite se contourne en inondant le cache"
+    )
+
+
 def test_reponse_fichier_prive_sert_le_contenu_en_dev(db):
     """Mode dev (UTILISER_X_ACCEL=False) : Django sert lui-même le flux."""
     document = _document_pdf()

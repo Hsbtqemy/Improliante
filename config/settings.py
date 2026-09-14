@@ -295,10 +295,6 @@ DEBIT_MOT_DE_PASSE = (5, 3600)
 # noyée reste la même. Sans cette seconde borne, la première ne protège rien.
 DEBIT_MOT_DE_PASSE_PAR_ADRESSE = (3, 3600)
 
-# Total de places qu'une même adresse peut détenir sur un événement. Le plafond
-# du formulaire vaut par envoi ; sans celui-ci, dix envois saturent la jauge.
-PLACES_MAX_PAR_PERSONNE = int(os.environ.get("PLACES_MAX_PAR_PERSONNE", "10"))
-
 # Un message de contact sans borne est un champ de dépôt. La valeur est large :
 # elle arrête le versement d'un fichier, pas une longue demande.
 LONGUEUR_MAX_MESSAGE = int(os.environ.get("LONGUEUR_MAX_MESSAGE", "5000"))
@@ -322,6 +318,18 @@ CACHES = {
     "debit": {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
         "LOCATION": "cache_partage",
+        # Le défaut de Django est 300 entrées, au-delà desquelles il en EXPULSE
+        # un tiers — et il choisit par ORDRE DE CLÉ, pas par ancienneté. Nos
+        # clés étant des empreintes, l'expulsion est arbitraire : mesuré, un
+        # afflux de 500 clés distinctes remettait 25 compteurs sur 40 à zéro,
+        # silencieusement. Or une des clés est l'adresse visée par « mot de
+        # passe oublié », que le demandeur choisit : inonder devenait un moyen
+        # d'effacer les limites des autres.
+        #
+        # Dix mille entrées mettent le seuil hors de portée d'un usage réel —
+        # elles expirent de toute façon au bout d'une heure — et chaque ligne
+        # pèse une clé et un entier.
+        "OPTIONS": {"MAX_ENTRIES": 10000, "CULL_FREQUENCY": 4},
     },
 }
 

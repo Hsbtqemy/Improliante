@@ -370,14 +370,13 @@ def test_une_saisie_ratee_ne_consomme_pas_la_part(client, db, settings):
     assert MessageContact.objects.count() == 1
 
 
-def test_le_message_de_contact_est_borne(client, db, settings):
+def test_le_message_de_contact_est_borne(client, db):
     """Un champ sans borne est une zone de dépôt (constat PUB-01)."""
-    from apps.vitrine.models import MessageContact
-
-    settings.LONGUEUR_MAX_MESSAGE = 40
-    # Le formulaire lit le réglage à la CONSTRUCTION de la classe : on éprouve
-    # donc la borne réellement posée, pas celle qu'on vient d'écrire.
+    # Le réglage est lu à l'import : le changer ici ne changerait rien, et la
+    # ligne qui le faisait ne regardait rien. On éprouve la borne RÉELLEMENT
+    # posée, quelle qu'elle soit.
     from apps.vitrine.forms import ContactForm
+    from apps.vitrine.models import MessageContact
 
     borne = ContactForm().fields["message"].max_length
     assert borne, "aucune borne posée sur le message"
